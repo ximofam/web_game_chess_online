@@ -1,4 +1,4 @@
-package com.ximofam.graduation_project.core.helpers.models;
+package com.ximofam.graduation_project.common.helpers.models;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
