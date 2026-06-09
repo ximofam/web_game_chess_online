@@ -11,9 +11,9 @@ CREATE TABLE users (
     username VARCHAR(50) NOT NULL,
     email VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255),
-    first_name VARCHAR(50),
-    last_name VARCHAR(50),
+    full_name VARCHAR(100),
     avatar_url VARCHAR(255),
+    gender VARCHAR(20),
 
     role VARCHAR(50) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT FALSE,

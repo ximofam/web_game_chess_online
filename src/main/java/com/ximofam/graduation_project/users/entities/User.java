@@ -1,7 +1,7 @@
 package com.ximofam.graduation_project.users.entities;
 
 import com.ximofam.graduation_project.common.helpers.models.SoftDeleteModel;
-import com.ximofam.graduation_project.common.helpers.utils.Utils;
+import com.ximofam.graduation_project.users.entities.enums.Gender;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -21,14 +21,15 @@ public class User extends SoftDeleteModel {
     @Column(name = "password_hash")
     private String passwordHash;
 
-    @Column(name = "first_name")
-    private String firstName;
-
-    @Column(name = "last_name")
-    private String lastName;
+    @Column(name = "full_name")
+    private String fullName;
 
     @Column(name = "avatar_url")
     private String avatarUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "gender")
+    private Gender gender;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role")
@@ -36,15 +37,7 @@ public class User extends SoftDeleteModel {
 
     @Column(name = "is_active")
     private boolean isActive;
-
+    
     @Column(name = "is_locked")
     private boolean isLocked;
-
-    public String getFullName() {
-        if (!Utils.hasText(this.firstName) || !Utils.hasText(this.lastName)) {
-            return "";
-        }
-
-        return this.firstName + " " + this.lastName;
-    }
 }
