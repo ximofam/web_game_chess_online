@@ -32,3 +32,9 @@ decorator:
 logging:
   level:
     p6spy: DEBUG
+
+app:
+  security:
+    jwt:
+      secret-key: "AVien72 aka Ximofam aka VIENTHUHAI dep trai nhat VT"
+      access-token-exp-sec: 900
