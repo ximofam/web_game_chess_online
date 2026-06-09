@@ -1,6 +1,7 @@
 package com.ximofam.graduation_project.users.controllers;
 
 import com.ximofam.graduation_project.users.dtos.request.LoginRequest;
+import com.ximofam.graduation_project.users.dtos.request.RefreshRequest;
 import com.ximofam.graduation_project.users.dtos.request.RegisterUserRequest;
 import com.ximofam.graduation_project.users.dtos.response.TokenResponse;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;
@@ -28,5 +29,10 @@ public class ApiAuthController {
     @PostMapping("/login")
     public ResponseEntity<TokenResponse> login(@RequestBody @Valid LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<TokenResponse> refresh(@RequestBody @Valid RefreshRequest request) {
+        return ResponseEntity.ok(authService.refresh(request));
     }
 }

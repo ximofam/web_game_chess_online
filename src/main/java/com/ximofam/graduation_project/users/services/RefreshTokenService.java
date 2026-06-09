@@ -1,5 +1,6 @@
 package com.ximofam.graduation_project.users.services;
 
+import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.common.exceptions.http.UnauthorizedException;
 import com.ximofam.graduation_project.users.entities.RefreshToken;
 import com.ximofam.graduation_project.users.entities.User;
@@ -7,6 +8,7 @@ import com.ximofam.graduation_project.users.repositories.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -50,6 +52,14 @@ public class RefreshTokenService {
         }
 
         return refreshToken;
+    }
+
+    @Transactional
+    public void revokeRefreshToken(Long id) {
+        int rowsAffect = refreshTokenRepository.revokeTokenById(id);
+        if (rowsAffect == 0) {
+            throw new NotFoundException("RefreshTokenId %d không tồn tại", id);
+        }
     }
 
     private String generateRefreshTokenStr() {

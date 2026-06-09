@@ -4,9 +4,11 @@ import com.ximofam.graduation_project.common.exceptions.http.ConflictException;
 import com.ximofam.graduation_project.common.helpers.services.JwtService;
 import com.ximofam.graduation_project.users.UserMapper;
 import com.ximofam.graduation_project.users.dtos.request.LoginRequest;
+import com.ximofam.graduation_project.users.dtos.request.RefreshRequest;
 import com.ximofam.graduation_project.users.dtos.request.RegisterUserRequest;
 import com.ximofam.graduation_project.users.dtos.response.TokenResponse;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;
+import com.ximofam.graduation_project.users.entities.RefreshToken;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
@@ -17,6 +19,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
@@ -43,6 +46,7 @@ public class AuthService {
         User user = userMapper.toUser(request);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setRole(UserRole.USER);
+        user.setActive(true);
         user = userRepository.save(user);
 
         return userMapper.toUserResponse(user);
@@ -52,9 +56,19 @@ public class AuthService {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsernameOrEmail(), request.getPassword())
         );
-        
+
         CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
         User user = Objects.requireNonNull(customUserDetails).getUser();
+
+        return generateTokens(user);
+    }
+
+    @Transactional
+    public TokenResponse refresh(RefreshRequest request) {
+        RefreshToken refreshToken = refreshTokenService.verifyAndGetRefreshToken(request.getRefreshToken());
+        refreshTokenService.revokeRefreshToken(refreshToken.getId());
+
+        User user = refreshToken.getUser();
 
         return generateTokens(user);
     }
