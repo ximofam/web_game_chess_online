@@ -51,6 +51,14 @@ app:
       pool-size: ${SCHEDULER_POOL_SIZE}
       await-termination-seconds: ${SCHEDULER_AWAIT_TERMINATION}
 
+  superuser:
+    email: ${SUPERUSER_EMAIL}
+    username: ${SUPERUSER_USERNAME}
+    password: ${SUPERUSER_PASSWORD}
+    full-name: ${SUPERUSER_FULL_NAME}
+    gender: ${SUPERUSER_GENDER}
+    avatar-url: ${SUPERUSER_AVATAR_URL}
+
 users:
   scheduler:
     clean-refresh-token:
