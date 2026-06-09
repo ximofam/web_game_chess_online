@@ -27,7 +27,7 @@ decorator:
     p6spy:
       enable-logging: true
       logging: slf4j
-      log-format: "\n------------------------------------------------------------\nTime    : %(executionTime) ms\nQuery   : %(sql)\n------------------------------------------------------------"
+      log-format: "\n%(executionTime) ms | (sql): %(sql)"
 
 logging:
   level:
@@ -38,6 +38,21 @@ app:
     jwt:
       secret-key: ${JWT_SECRET_KEY}
       access-token-exp-sec: ${ACCESS_TOKEN_EXP_SEC}
-
     refresh-token:
       exp-days: ${REFRESH_TOKEN_EXP_DAYS}
+
+  thread-pool:
+    async:
+      core-size: ${ASYNC_CORE_SIZE}
+      max-size: ${ASYNC_MAX_SIZE}
+      queue-capacity: ${ASYNC_QUEUE_CAPACITY}
+      await-termination-seconds: ${ASYNC_AWAIT_TERMINATION}
+    scheduler:
+      pool-size: ${SCHEDULER_POOL_SIZE}
+      await-termination-seconds: ${SCHEDULER_AWAIT_TERMINATION}
+
+users:
+  scheduler:
+    clean-refresh-token:
+      batch-size: 1000
+      cron: ${CLEAN_REFRESH_TOKEN_CRON}
