@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,12 @@ public class JwtService {
     private long accessTokenExpSec;
     @Value("${app.security.jwt.secret-key}")
     private String secretKey;
+    private SecretKey signingKey;
+
+    @PostConstruct
+    public void init() {
+        this.signingKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey));
+    }
 
     public String generateAccessToken(Object subject, List<String> roles) {
         return Jwts.builder()
@@ -25,17 +32,17 @@ public class JwtService {
                 .claim("roles", roles)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + accessTokenExpSec * 1000L))
-                .signWith(getSigningKey())
+                .signWith(signingKey)
                 .compact();
     }
 
     public Claims verifyAndParseToken(String token) {
         return Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(signingKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-       
+
     }
 
     @SuppressWarnings("unchecked")
@@ -45,9 +52,5 @@ public class JwtService {
                 .stream()
                 .map(item -> (T) item.toString())
                 .toList();
-    }
-
-    private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey));
     }
 }

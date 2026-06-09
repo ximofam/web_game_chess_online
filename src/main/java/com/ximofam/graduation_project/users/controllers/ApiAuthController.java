@@ -1,6 +1,8 @@
 package com.ximofam.graduation_project.users.controllers;
 
+import com.ximofam.graduation_project.users.dtos.request.LoginRequest;
 import com.ximofam.graduation_project.users.dtos.request.RegisterUserRequest;
+import com.ximofam.graduation_project.users.dtos.response.TokenResponse;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;
 import com.ximofam.graduation_project.users.services.AuthService;
 import jakarta.validation.Valid;
@@ -21,5 +23,10 @@ public class ApiAuthController {
     @PostMapping("/register")
     public ResponseEntity<UserResponse> register(@RequestBody @Valid RegisterUserRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.registerUser(request));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<TokenResponse> login(@RequestBody @Valid LoginRequest request) {
+        return ResponseEntity.ok(authService.login(request));
     }
 }

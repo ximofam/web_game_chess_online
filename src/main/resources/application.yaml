@@ -36,5 +36,8 @@ logging:
 app:
   security:
     jwt:
-      secret-key: "AVien72 aka Ximofam aka VIENTHUHAI dep trai nhat VT"
-      access-token-exp-sec: 900
+      secret-key: ${JWT_SECRET_KEY}
+      access-token-exp-sec: ${ACCESS_TOKEN_EXP_SEC}
+
+    refresh-token:
+      exp-days: ${REFRESH_TOKEN_EXP_DAYS}

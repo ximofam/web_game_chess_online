@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authentication.*;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -93,5 +94,50 @@ public class GlobalExceptionHandler {
         );
 
         return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<HttpErrorResponse> handleBadCredentials(BadCredentialsException ex) {
+        HttpErrorResponse error = new HttpErrorResponse(
+                "INVALID_CREDENTIALS",
+                "Tài khoản hoặc mật khẩu không đúng"
+        );
+        return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(LockedException.class)
+    public ResponseEntity<HttpErrorResponse> handleLocked(LockedException ex) {
+        HttpErrorResponse error = new HttpErrorResponse(
+                "ACCOUNT_LOCKED",
+                "Tài khoản của bạn đã bị khóa, vui lòng liên hệ admin"
+        );
+        return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<HttpErrorResponse> handleDisabled(DisabledException ex) {
+        HttpErrorResponse error = new HttpErrorResponse(
+                "ACCOUNT_DISABLED",
+                "Tài khoản chưa được kích hoạt, vui lòng kiểm tra email"
+        );
+        return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(AccountExpiredException.class)
+    public ResponseEntity<HttpErrorResponse> handleAccountExpired(AccountExpiredException ex) {
+        HttpErrorResponse error = new HttpErrorResponse(
+                "ACCOUNT_EXPIRED",
+                "Tài khoản đã hết hạn, vui lòng liên hệ admin"
+        );
+        return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(CredentialsExpiredException.class)
+    public ResponseEntity<HttpErrorResponse> handleCredentialsExpired(CredentialsExpiredException ex) {
+        HttpErrorResponse error = new HttpErrorResponse(
+                "CREDENTIALS_EXPIRED",
+                "Mật khẩu đã hết hạn, vui lòng đổi mật khẩu"
+        );
+        return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
     }
 }

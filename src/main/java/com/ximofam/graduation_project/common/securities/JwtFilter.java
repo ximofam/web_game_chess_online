@@ -1,6 +1,7 @@
 package com.ximofam.graduation_project.common.securities;
 
 import com.ximofam.graduation_project.common.helpers.services.JwtService;
+import com.ximofam.graduation_project.common.helpers.utils.Utils;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -40,7 +41,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 List<String> roles = jwtService.extractList(claims, "roles");
 
                 List<GrantedAuthority> authorities = roles.stream()
-                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                        .map(role -> new SimpleGrantedAuthority(Utils.getRole(role)))
                         .collect(Collectors.toList());
 
                 SecurityContextHolder.getContext().setAuthentication(
