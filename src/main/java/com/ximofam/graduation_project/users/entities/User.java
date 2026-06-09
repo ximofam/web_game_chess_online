@@ -1,6 +1,7 @@
 package com.ximofam.graduation_project.users.entities;
 
 import com.ximofam.graduation_project.common.helpers.models.SoftDeleteModel;
+import com.ximofam.graduation_project.common.helpers.utils.Utils;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -38,4 +39,12 @@ public class User extends SoftDeleteModel {
 
     @Column(name = "is_locked")
     private boolean isLocked;
+
+    public String getFullName() {
+        if (!Utils.hasText(this.firstName) || !Utils.hasText(this.lastName)) {
+            return "";
+        }
+
+        return this.firstName + " " + this.lastName;
+    }
 }
