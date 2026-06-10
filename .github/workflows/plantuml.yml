@@ -1,0 +1,38 @@
+# .github/workflows/plantuml.yml
+name: Generate PlantUML diagrams
+
+on:
+  push:
+    paths:
+      - '**/*.puml'
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Install PlantUML
+        run: |
+          wget -q https://github.com/plantuml/plantuml/releases/latest/download/plantuml.jar
+          sudo mv plantuml.jar /usr/local/bin/plantuml.jar
+
+      - name: Generate SVG
+        run: |
+          find . -name "*.puml" | while read f; do
+            java -jar /usr/local/bin/plantuml.jar -tsvg "$f"
+          done
+
+      - name: Commit SVG
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "ci: auto-generate SVG from PUML"
+          file_pattern: "**/*.svg"
