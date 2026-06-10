@@ -20,4 +20,11 @@ public class UserService {
 
         return userMapper.toUserDetailResponse(user);
     }
+
+    public UserDetailResponse getUserById(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("UserId %d không tồn tại", id));
+
+        return userMapper.toUserDetailResponse(user);
+    }
 }

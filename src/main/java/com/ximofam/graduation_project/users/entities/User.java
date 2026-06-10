@@ -7,6 +7,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -31,13 +33,16 @@ public class User extends SoftDeleteModel {
     @Column(name = "gender")
     private Gender gender;
 
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "role")
     private UserRole role;
 
     @Column(name = "is_active")
     private boolean isActive;
-    
+
     @Column(name = "is_locked")
     private boolean isLocked;
 }

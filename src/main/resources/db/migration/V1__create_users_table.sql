@@ -14,6 +14,7 @@ CREATE TABLE users (
     full_name VARCHAR(100),
     avatar_url VARCHAR(255),
     gender VARCHAR(20),
+    date_of_birth DATE,
 
     role VARCHAR(50) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT FALSE,
