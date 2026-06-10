@@ -1,5 +1,6 @@
 package com.ximofam.graduation_project.users.controllers;
 
+import com.ximofam.graduation_project.common.helpers.dtos.ApiResponse;
 import com.ximofam.graduation_project.users.dtos.request.UpdateUserRequest;
 import com.ximofam.graduation_project.users.dtos.response.UserDetailResponse;
 import com.ximofam.graduation_project.users.services.UserService;
@@ -8,6 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -31,5 +35,19 @@ public class ApiUserController {
             @RequestBody @Valid UpdateUserRequest request) {
 
         return ResponseEntity.ok(userService.updateUser(userId, request));
+    }
+
+    @PatchMapping("/me/avatar")
+    public ResponseEntity<ApiResponse> uploadMyAvatar(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam("file") MultipartFile file) {
+
+        String avatarUrl = userService.uploadAvatar(userId, file);
+        ApiResponse apiResponse = ApiResponse.builder()
+                .message("Đã upload thành công avatar cho user")
+                .data(Map.of("avatarUrl", avatarUrl))
+                .build();
+
+        return ResponseEntity.ok(apiResponse);
     }
 }

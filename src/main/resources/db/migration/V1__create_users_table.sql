@@ -12,7 +12,7 @@ CREATE TABLE users (
     email VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255),
     full_name VARCHAR(100),
-    avatar_url VARCHAR(255),
+    avatar_public_id VARCHAR(255),
     gender VARCHAR(20),
     date_of_birth DATE,
 

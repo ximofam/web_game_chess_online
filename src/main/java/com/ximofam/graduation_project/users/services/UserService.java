@@ -1,6 +1,9 @@
 package com.ximofam.graduation_project.users.services;
 
+import com.cloudinary.utils.ObjectUtils;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
+import com.ximofam.graduation_project.common.helpers.dtos.CloudinaryUploadResult;
+import com.ximofam.graduation_project.common.helpers.services.CloudinaryService;
 import com.ximofam.graduation_project.users.UserMapper;
 import com.ximofam.graduation_project.users.dtos.request.UpdateUserRequest;
 import com.ximofam.graduation_project.users.dtos.response.UserDetailResponse;
@@ -9,12 +12,16 @@ import com.ximofam.graduation_project.users.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final CloudinaryService cloudinaryService;
 
     public UserDetailResponse getUserByUsername(String username) {
         User user = userRepository.findByUsername(username)
@@ -38,5 +45,30 @@ public class UserService {
         userMapper.updateUser(request, user);
 
         return userMapper.toUserDetailResponse(user);
+    }
+
+    @Transactional
+    public String uploadAvatar(Long userId, MultipartFile file) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("UserId %d không tồn tại", userId));
+
+        try {
+            CloudinaryUploadResult result = cloudinaryService.upload(file,
+                    ObjectUtils.asMap(
+                            "folder", "users/avatars",
+                            "public_id", user.getUsername(),
+                            "overwrite", true,
+                            "resource_type", "image"
+                    )
+            );
+
+            if (user.getAvatarPublicId() == null || !user.getAvatarPublicId().equals(result.getPublicId())) {
+                user.setAvatarPublicId(result.getPublicId());
+            }
+
+            return result.getSecureUrl();
+        } catch (IOException e) {
+            throw new RuntimeException("Upload avatar thất bại: " + e.getMessage());
+        }
     }
 }

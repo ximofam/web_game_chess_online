@@ -1,7 +1,6 @@
 package com.ximofam.graduation_project.users.init;
 
 import com.ximofam.graduation_project.users.entities.User;
-import com.ximofam.graduation_project.users.entities.enums.Gender;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,10 +27,6 @@ public class SuperUserInitializer implements ApplicationRunner {
     private String password;
     @Value("${app.superuser.full-name}")
     private String fullName;
-    @Value("${app.superuser.gender}")
-    private String gender;
-    @Value("${app.superuser.avatar-url}")
-    private String avatarUrl;
 
 
     @Override
@@ -52,9 +47,7 @@ public class SuperUserInitializer implements ApplicationRunner {
         superuser.setPasswordHash(passwordEncoder.encode(password));
         superuser.setRole(UserRole.SUPERUSER);
         superuser.setFullName(fullName);
-        superuser.setGender(Gender.valueOf(gender));
         superuser.setActive(true);
-        superuser.setAvatarUrl(avatarUrl);
         userRepository.save(superuser);
         log.info("Superuser account created");
     }

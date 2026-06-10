@@ -1,23 +1,34 @@
 package com.ximofam.graduation_project.users;
 
+import com.ximofam.graduation_project.common.helpers.services.CloudinaryService;
 import com.ximofam.graduation_project.users.dtos.request.RegisterUserRequest;
 import com.ximofam.graduation_project.users.dtos.request.UpdateUserRequest;
 import com.ximofam.graduation_project.users.dtos.response.UserDetailResponse;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;
 import com.ximofam.graduation_project.users.entities.User;
-import org.mapstruct.BeanMapping;
-import org.mapstruct.Mapper;
-import org.mapstruct.MappingTarget;
-import org.mapstruct.NullValuePropertyMappingStrategy;
+import org.mapstruct.*;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Mapper(componentModel = "spring")
-public interface UserMapper {
-    User toUser(RegisterUserRequest request);
+public abstract class UserMapper {
 
-    UserResponse toUserResponse(User user);
+    @Autowired
+    protected CloudinaryService cloudinaryService;
 
-    UserDetailResponse toUserDetailResponse(User user);
+    public abstract User toUser(RegisterUserRequest request);
+
+    @Mapping(target = "avatarUrl", source = "avatarPublicId", qualifiedByName = "buildAvatarUrl")
+    public abstract UserResponse toUserResponse(User user);
+
+    @Mapping(target = "avatarUrl", source = "avatarPublicId", qualifiedByName = "buildAvatarUrl")
+    public abstract UserDetailResponse toUserDetailResponse(User user);
+
+    @Named("buildAvatarUrl")
+    protected String buildAvatarUrl(String publicId) {
+        if (publicId == null) return null;
+        return cloudinaryService.getUrl(publicId);
+    }
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    void updateUser(UpdateUserRequest request, @MappingTarget User user);
+    public abstract void updateUser(UpdateUserRequest request, @MappingTarget User user);
 }

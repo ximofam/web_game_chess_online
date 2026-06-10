@@ -26,8 +26,8 @@ public class User extends SoftDeleteModel {
     @Column(name = "full_name")
     private String fullName;
 
-    @Column(name = "avatar_url")
-    private String avatarUrl;
+    @Column(name = "avatar_public_id")
+    private String avatarPublicId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "gender")
