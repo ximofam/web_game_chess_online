@@ -1,0 +1,37 @@
+<!-- templates/admin/fragments/sidebar.html -->
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<body>
+    <nav th:fragment="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <i class="bi bi-hexagon-fill text-primary me-2 fs-5"></i>
+            <span class="text-white fw-semibold fs-6">Admin Panel</span>
+        </div>
+
+        <div class="pt-2 pb-3">
+            <div class="nav-section">Tổng quan</div>
+            <a th:href="@{/admin/dashboard}" th:classappend="${activePage == 'dashboard'} ? 'active'" class="nav-link">
+                <i class="bi bi-grid-1x2"></i> Dashboard
+            </a>
+
+            <div class="nav-section">Quản lý</div>
+            <a th:href="@{/admin/users}" th:classappend="${activePage == 'users'} ? 'active'" class="nav-link">
+                <i class="bi bi-people"></i> Người dùng
+            </a>
+            <a th:href="@{/admin/roles}" th:classappend="${activePage == 'roles'} ? 'active'" class="nav-link">
+                <i class="bi bi-shield-check"></i> Phân quyền
+            </a>
+
+            <div class="nav-section">Hệ thống</div>
+            <a th:href="@{/admin/settings}" th:classappend="${activePage == 'settings'} ? 'active'" class="nav-link">
+                <i class="bi bi-gear"></i> Cài đặt
+            </a>
+            <a th:href="@{/admin/logs}" th:classappend="${activePage == 'logs'} ? 'active'" class="nav-link">
+                <i class="bi bi-journal-text"></i> Logs
+            </a>
+        </div>
+    </nav>
+</body>
+
+</html>

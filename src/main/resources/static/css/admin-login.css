@@ -1,0 +1,35 @@
+/* static/css/admin-login.css */
+body {
+    background-color: #f0f2f5;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.login-wrapper {
+    width: 100%;
+    max-width: 420px;
+    padding: 16px;
+}
+
+.login-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 40px 36px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+.input-group-text {
+    border-color: #dee2e6;
+}
+
+.form-control:focus {
+    box-shadow: none;
+    border-color: #86b7fe;
+}
+
+.form-control:focus+.input-group-text,
+.input-group:focus-within .input-group-text {
+    border-color: #86b7fe;
+}

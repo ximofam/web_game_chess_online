@@ -1,0 +1,55 @@
+<!-- templates/admin/fragments/header.html -->
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<body>
+    <header th:fragment="header" id="header" class="d-flex align-items-center px-4">
+        <div class="d-flex align-items-center flex-grow-1">
+            <span class="text-muted fs-6" th:text="${title} ?: 'Dashboard'"></span>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            <!-- Notification -->
+            <button class="btn btn-light btn-sm position-relative">
+                <i class="bi bi-bell"></i>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                    style="font-size:10px">3</span>
+            </button>
+
+            <!-- User dropdown -->
+            <div class="dropdown">
+                <button class="btn btn-light btn-sm dropdown-toggle d-flex align-items-center gap-2"
+                    data-bs-toggle="dropdown">
+                    <img th:src="${currentUser.avatarUrl} ?: 'https://ui-avatars.com/api/?name=' + ${currentUser.fullName} + '&background=random'"
+                        class="avatar-circle" alt="avatar">
+                    <span class="d-none d-md-inline" th:text="${currentUser.fullName}"></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                    <li>
+                        <div class="px-3 py-2">
+                            <div class="fw-semibold" th:text="${currentUser.fullName}"></div>
+                            <div class="text-muted small" th:text="${currentUser.email}"></div>
+                        </div>
+                    </li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
+                    <li>
+                        <a class="dropdown-item" th:href="@{/admin/profile}">
+                            <i class="bi bi-person me-2"></i> Tài khoản
+                        </a>
+                    </li>
+                    <li>
+                        <form th:action="@{/logout}" method="post">
+                            <button type="submit" class="dropdown-item text-danger">
+                                <i class="bi bi-box-arrow-right me-2"></i> Đăng xuất
+                            </button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </header>
+</body>
+
+</html>
