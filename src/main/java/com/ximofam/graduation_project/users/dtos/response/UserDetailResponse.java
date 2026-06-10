@@ -11,6 +11,7 @@ public class UserDetailResponse {
     private String email;
     private String avatarUrl;
     private String fullName;
+    private String role;
     private String gender;
     private String dateOfBirth;
 }

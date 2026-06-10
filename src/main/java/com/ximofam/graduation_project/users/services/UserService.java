@@ -7,6 +7,7 @@ import com.ximofam.graduation_project.common.helpers.services.CloudinaryService;
 import com.ximofam.graduation_project.users.UserMapper;
 import com.ximofam.graduation_project.users.dtos.request.UpdateUserRequest;
 import com.ximofam.graduation_project.users.dtos.response.UserDetailResponse;
+import com.ximofam.graduation_project.users.dtos.response.UserResponse;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,11 +25,11 @@ public class UserService {
     private final UserMapper userMapper;
     private final CloudinaryService cloudinaryService;
 
-    public UserDetailResponse getUserByUsername(String username) {
+    public UserResponse getUserByUsername(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new NotFoundException("Username %s không tồn tại", username));
 
-        return userMapper.toUserDetailResponse(user);
+        return userMapper.toUserResponse(user);
     }
 
     public UserDetailResponse getUserById(Long id) {
@@ -54,11 +55,8 @@ public class UserService {
                 .orElseThrow(() ->
                         new NotFoundException("UserId %d không tồn tại", userId));
 
+        String oldPublicId = user.getAvatarPublicId();
         try {
-            if (user.getAvatarPublicId() != null) {
-                cloudinaryService.delete(user.getAvatarPublicId());
-            }
-
             String publicId = String.format("%s_%s", user.getUsername(), UUID.randomUUID());
 
             CloudinaryUploadResult result = cloudinaryService.upload(
@@ -71,6 +69,10 @@ public class UserService {
             );
 
             user.setAvatarPublicId(result.getPublicId());
+
+            if (oldPublicId != null) {
+                cloudinaryService.deleteAsync(oldPublicId);
+            }
 
             return result;
         } catch (IOException e) {

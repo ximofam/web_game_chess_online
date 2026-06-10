@@ -4,6 +4,7 @@ import com.ximofam.graduation_project.common.helpers.dtos.ApiResponse;
 import com.ximofam.graduation_project.common.helpers.dtos.CloudinaryUploadResult;
 import com.ximofam.graduation_project.users.dtos.request.UpdateUserRequest;
 import com.ximofam.graduation_project.users.dtos.response.UserDetailResponse;
+import com.ximofam.graduation_project.users.dtos.response.UserResponse;
 import com.ximofam.graduation_project.users.services.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,7 @@ public class ApiUserController {
     private final UserService userService;
 
     @GetMapping("/{username}")
-    public ResponseEntity<UserDetailResponse> getUserByUsername(@PathVariable("username") String username) {
+    public ResponseEntity<UserResponse> getUserByUsername(@PathVariable("username") String username) {
         return ResponseEntity.ok(userService.getUserByUsername(username));
     }
 
