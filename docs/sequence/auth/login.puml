@@ -6,43 +6,60 @@ actor Client
 participant AuthController
 participant AuthService
 participant AuthenticationManager
-participant CustomUserDetails
 participant JwtService
 participant RefreshTokenService
 
 Client -> AuthController : POST /auth/login\n(usernameOrEmail,password)
+activate AuthController
 
 AuthController -> AuthService : login(request)
+activate AuthService
 
 AuthService -> AuthenticationManager : authenticate(...)
+activate AuthenticationManager
 
 alt Authentication failed
+
     AuthenticationManager --> AuthService : AuthenticationException
+    deactivate AuthenticationManager
 
     note right of AuthService
-      - Sai username/password
-      - Tài khoản bị khóa
-      - Tài khoản chưa kích hoạt
-      - Disabled account
+      Sai username/password
+      Account locked
+      Account disabled
+      Account not enabled
     end note
 
     AuthService --> AuthController : Exception
+
     AuthController --> Client : 401 Unauthorized
+
 else Authentication success
+
     AuthenticationManager --> AuthService : Authentication
+    deactivate AuthenticationManager
 
-    AuthService -> CustomUserDetails : getPrincipal()
-    CustomUserDetails --> AuthService : User
+    AuthService -> AuthService : extract User from Authentication
 
-    AuthService -> JwtService : generateAccessToken(userId, roles)
+
+    AuthService -> JwtService : generateAccessToken(...)
+    activate JwtService
+
     JwtService --> AuthService : accessToken
+    deactivate JwtService
 
-    AuthService -> RefreshTokenService : generateRefreshToken(user)
+    AuthService -> RefreshTokenService : generateRefreshToken(...)
+    activate RefreshTokenService
+
     RefreshTokenService --> AuthService : refreshToken
+    deactivate RefreshTokenService
 
     AuthService --> AuthController : TokenResponse
+    deactivate AuthService
 
     AuthController --> Client : 200 OK\nTokenResponse
+    deactivate AuthController
+
 end
 
 @enduml

@@ -1,0 +1,64 @@
+@startuml
+title Upload My Avatar
+
+actor User
+
+participant UserController
+participant UserService
+database UserRepository
+participant CloudinaryService
+
+User -> UserController : PATCH /users/me/avatar\nMultipartFile
+activate UserController
+
+UserController -> UserService : uploadAvatar(userId, file)
+activate UserService
+
+note over UserService
+@Transactional
+end note
+
+UserService -> UserRepository : findById(userId)
+activate UserRepository
+UserRepository --> UserService : kết quả tìm kiếm
+deactivate UserRepository
+
+alt User không tồn tại
+    UserService --> UserController : NotFoundException
+    UserController --> User : 404 Not Found
+else User tồn tại
+
+    UserService -> CloudinaryService : upload(file, options)
+    activate CloudinaryService
+
+    alt Upload thất bại
+        CloudinaryService --> UserService : IOException
+        deactivate CloudinaryService
+
+        UserService --> UserController : RuntimeException
+        UserController --> User : 500 Internal Server Error
+
+    else Upload thành công
+        CloudinaryService --> UserService : CloudinaryUploadResult
+        deactivate CloudinaryService
+
+        UserService -> UserService : setAvatarPublicId(publicId)
+
+        opt Có avatar cũ
+            ' Gọi bất đồng bộ: kích hoạt CloudinaryService độc lập
+            UserService ->> CloudinaryService : deleteAsync(oldPublicId)
+            activate CloudinaryService
+            CloudinaryService -> CloudinaryService : delete(oldPublicId)
+            deactivate CloudinaryService
+        end
+
+        UserService --> UserController : CloudinaryUploadResult
+        deactivate UserService
+
+        UserController --> User : 200 OK\navatarUrl
+        deactivate UserController
+    end
+
+end
+
+@enduml
