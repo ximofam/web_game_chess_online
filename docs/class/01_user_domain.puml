@@ -1,0 +1,57 @@
+@startuml
+title User Domain Model
+
+class BaseModel {
+    +id : Long
+    +createdAt : Instant
+    +updatedAt : Instant
+}
+
+class SoftDeleteModel {
+    +deletedAt : Instant
+}
+
+class User {
+    +username : String
+    +email : String
+    +passwordHash : String
+    +fullName : String
+    +avatarPublicId : String
+    +gender : Gender
+    +dateOfBirth : LocalDate
+    +role : UserRole
+    +isActive : boolean
+    +isLocked : boolean
+}
+
+class RefreshToken {
+    +tokenHash : String
+    +expiresAt : Instant
+    +isRevoked : Boolean
+    --
+    +isExpired() : boolean
+    +isRevoked() : boolean
+}
+
+enum Gender {
+    MALE
+    FEMALE
+}
+
+enum UserRole {
+    SUPERUSER
+    ADMIN
+    USER
+}
+
+BaseModel <|-- SoftDeleteModel
+SoftDeleteModel <|-- User
+
+BaseModel <|-- RefreshToken
+
+User --> Gender
+User --> UserRole
+
+User "1" <-r- "*" RefreshToken : owns
+
+@enduml
