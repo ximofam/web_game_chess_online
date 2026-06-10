@@ -1,0 +1,48 @@
+@startuml
+title Login Flow
+
+actor Client
+
+participant AuthController
+participant AuthService
+participant AuthenticationManager
+participant CustomUserDetails
+participant JwtService
+participant RefreshTokenService
+
+Client -> AuthController : POST /auth/login\n(usernameOrEmail,password)
+
+AuthController -> AuthService : login(request)
+
+AuthService -> AuthenticationManager : authenticate(...)
+
+alt Authentication failed
+    AuthenticationManager --> AuthService : AuthenticationException
+
+    note right of AuthService
+      - Sai username/password
+      - Tài khoản bị khóa
+      - Tài khoản chưa kích hoạt
+      - Disabled account
+    end note
+
+    AuthService --> AuthController : Exception
+    AuthController --> Client : 401 Unauthorized
+else Authentication success
+    AuthenticationManager --> AuthService : Authentication
+
+    AuthService -> CustomUserDetails : getPrincipal()
+    CustomUserDetails --> AuthService : User
+
+    AuthService -> JwtService : generateAccessToken(userId, roles)
+    JwtService --> AuthService : accessToken
+
+    AuthService -> RefreshTokenService : generateRefreshToken(user)
+    RefreshTokenService --> AuthService : refreshToken
+
+    AuthService --> AuthController : TokenResponse
+
+    AuthController --> Client : 200 OK\nTokenResponse
+end
+
+@enduml
