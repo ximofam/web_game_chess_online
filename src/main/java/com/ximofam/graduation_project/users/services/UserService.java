@@ -59,11 +59,12 @@ public class UserService {
                 cloudinaryService.delete(user.getAvatarPublicId());
             }
 
-            String publicId = "users/avatars/" + UUID.randomUUID();
+            String publicId = String.format("%s_%s", user.getUsername(), UUID.randomUUID());
 
             CloudinaryUploadResult result = cloudinaryService.upload(
                     file,
                     ObjectUtils.asMap(
+                            "folder", "users/avatars",
                             "public_id", publicId,
                             "resource_type", "image"
                     )
