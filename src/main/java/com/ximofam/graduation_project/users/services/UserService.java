@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -50,25 +51,29 @@ public class UserService {
     @Transactional
     public CloudinaryUploadResult uploadAvatar(Long userId, MultipartFile file) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("UserId %d không tồn tại", userId));
+                .orElseThrow(() ->
+                        new NotFoundException("UserId %d không tồn tại", userId));
 
         try {
-            CloudinaryUploadResult result = cloudinaryService.upload(file,
+            if (user.getAvatarPublicId() != null) {
+                cloudinaryService.delete(user.getAvatarPublicId());
+            }
+
+            String publicId = "users/avatars/" + UUID.randomUUID();
+
+            CloudinaryUploadResult result = cloudinaryService.upload(
+                    file,
                     ObjectUtils.asMap(
-                            "folder", "users/avatars",
-                            "public_id", user.getUsername(),
-                            "overwrite", true,
+                            "public_id", publicId,
                             "resource_type", "image"
                     )
             );
 
-            if (user.getAvatarPublicId() == null || !user.getAvatarPublicId().equals(result.getPublicId())) {
-                user.setAvatarPublicId(result.getPublicId());
-            }
+            user.setAvatarPublicId(result.getPublicId());
 
             return result;
         } catch (IOException e) {
-            throw new RuntimeException("Upload avatar thất bại: " + e.getMessage());
+            throw new RuntimeException("Upload avatar thất bại: " + e.getMessage(), e);
         }
     }
 }
