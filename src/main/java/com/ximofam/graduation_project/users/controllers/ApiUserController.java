@@ -1,6 +1,7 @@
 package com.ximofam.graduation_project.users.controllers;
 
 import com.ximofam.graduation_project.common.helpers.dtos.ApiResponse;
+import com.ximofam.graduation_project.common.helpers.dtos.CloudinaryUploadResult;
 import com.ximofam.graduation_project.users.dtos.request.UpdateUserRequest;
 import com.ximofam.graduation_project.users.dtos.response.UserDetailResponse;
 import com.ximofam.graduation_project.users.services.UserService;
@@ -42,10 +43,10 @@ public class ApiUserController {
             @AuthenticationPrincipal Long userId,
             @RequestParam("file") MultipartFile file) {
 
-        String avatarUrl = userService.uploadAvatar(userId, file);
+        CloudinaryUploadResult result = userService.uploadAvatar(userId, file);
         ApiResponse apiResponse = ApiResponse.builder()
                 .message("Đã upload thành công avatar cho user")
-                .data(Map.of("avatarUrl", avatarUrl))
+                .data(Map.of("avatarUrl", result.getSecureUrl()))
                 .build();
 
         return ResponseEntity.ok(apiResponse);

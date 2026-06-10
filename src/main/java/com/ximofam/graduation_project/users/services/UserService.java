@@ -48,7 +48,7 @@ public class UserService {
     }
 
     @Transactional
-    public String uploadAvatar(Long userId, MultipartFile file) {
+    public CloudinaryUploadResult uploadAvatar(Long userId, MultipartFile file) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("UserId %d không tồn tại", userId));
 
@@ -66,7 +66,7 @@ public class UserService {
                 user.setAvatarPublicId(result.getPublicId());
             }
 
-            return result.getSecureUrl();
+            return result;
         } catch (IOException e) {
             throw new RuntimeException("Upload avatar thất bại: " + e.getMessage());
         }
