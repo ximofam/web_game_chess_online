@@ -14,7 +14,7 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_DB: graduation_db_test
+          POSTGRES_DB: graduation_test_db
           POSTGRES_USER: testuser
           POSTGRES_PASSWORD: testpassword
         ports:
