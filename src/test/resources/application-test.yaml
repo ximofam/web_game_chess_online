@@ -1,12 +1,39 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/graduation_db_test
+    url: jdbc:postgresql://localhost:5432/graduation_test_db
     username: testuser
     password: testpassword
   flyway:
     enabled: true
     clean-disabled: false
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: true
+
+app:
+  security:
+    jwt:
+      secret-key: dummy-secret-key-for-test-env-1234567890
+      access-token-exp-sec: 3600
+    refresh-token:
+      exp-days: 7
+  thread-pool:
+    async:
+      core-size: 2
+      max-size: 5
+      queue-capacity: 10
+      await-termination-seconds: 60
+    scheduler:
+      pool-size: 2
+      await-termination-seconds: 60
+  superuser:
+    email: admin_test@ximofam.com
+    username: admin_test
+    password: password_test
+    full-name: Admin Test
+  cloudinary:
+    cloud-name: dummy_cloud
+    api-key: dummy_key
+    api-secret: dummy_secret
+
+users:
+  scheduler:
+    clean-refresh-token:
+      cron: "0 0 0 * * ?"
