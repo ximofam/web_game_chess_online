@@ -1,8 +1,8 @@
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/graduation_test_db
-    username: testuser
-    password: testpassword
+    username: ${TEST_DB_USER:${POSTGRES_USER:postgres}}
+    password: ${TEST_DB_PASS:${POSTGRES_PASSWORD:123456}}
   flyway:
     enabled: true
     clean-disabled: false
@@ -10,7 +10,7 @@ spring:
 app:
   security:
     jwt:
-      secret-key: dummy-secret-key-for-test-env-1234567890
+      secret-key: RGF5TGFNb3RDaHVvaUJpTWF0RGFuaENob01vaVRydW9uZ1Rlc3REdURhaTI1NkJpdA==
       access-token-exp-sec: 3600
     refresh-token:
       exp-days: 7

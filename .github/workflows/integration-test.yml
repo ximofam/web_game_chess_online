@@ -37,4 +37,7 @@ jobs:
           cache: 'maven'
 
       - name: Run Integration Tests
+        env:
+          TEST_DB_USER: testuser
+          TEST_DB_PASS: testpassword
         run: mvn clean test -Dspring.profiles.active=test

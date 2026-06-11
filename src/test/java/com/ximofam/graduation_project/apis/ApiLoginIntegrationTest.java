@@ -25,7 +25,7 @@ class ApiLoginIntegrationTest {
     void shouldReturn401_WhenLoginWithInvalidCredentials() throws Exception {
         String loginPayload = """
                 {
-                    "username": "wrong_user",
+                    "usernameOrEmail": "wrong_user",
                     "password": "wrong_password"
                 }
                 """;
