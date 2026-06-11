@@ -2,7 +2,12 @@ package com.ximofam.graduation_project.utils;
 
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.util.Date;
 
 public class TestUtils {
 
@@ -16,5 +21,16 @@ public class TestUtils {
         user.setLocked(false);
         user.setRole(UserRole.USER);
         return user;
+    }
+
+    public static String generateExpiredToken(Object subject, String jwtSecret) {
+        Date pastExpirationDate = new Date(System.currentTimeMillis() - 1000 * 60 * 60);
+
+        return Jwts.builder()
+                .subject(subject.toString())
+                .issuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60 * 2))
+                .expiration(pastExpirationDate)
+                .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret)))
+                .compact();
     }
 }

@@ -11,35 +11,35 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-public class ApiGetMyProfileTest extends BaseIntegrationTest {
-    private static final String API_URL = "/api/users/me";
+public class ApiGetUserByUsernameTest extends BaseIntegrationTest {
+    private static final String API_URL = "/api/users/";
     @Value("${app.security.jwt.secret-key}")
     private String jwtSecret;
 
     @Test
-    @DisplayName("lấy profile với token hợp lệ → 200 + đúng thông tin user")
-    void getMyProfile_withValidToken_shouldReturn200AndUserInfo() throws Exception {
+    @DisplayName("lấy user với token hợp lệ → 200 + đúng thông tin user")
+    void getUser_withValidToken_shouldReturn200AndUserInfo() throws Exception {
         TokenResponse tokens = performLogin(validUser.getUsername(), PASSWORD);
 
-        mockMvc.perform(get(API_URL)
+        mockMvc.perform(get(API_URL + validUser.getUsername())
                         .header("Authorization", String.format("Bearer %s", tokens.getAccessToken())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value(validUser.getUsername()))
                 .andExpect(jsonPath("$.email").value(validUser.getEmail()))
-                .andExpect(jsonPath("$.role").value(validUser.getRole().name()));
+                .andExpect(jsonPath("$.role").doesNotExist());
     }
 
     @Test
-    @DisplayName("lấy profile không có token → 401")
+    @DisplayName("lấy user không có token → 401")
     void getMyProfile_withoutToken_shouldReturn401() throws Exception {
-        mockMvc.perform(get(API_URL))
+        mockMvc.perform(get(API_URL + validUser.getUsername()))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @DisplayName("lấy profile với token giả mạo → 401")
+    @DisplayName("lấy user với token giả mạo → 401")
     void getMyProfile_withInvalidToken_shouldReturn401() throws Exception {
-        mockMvc.perform(get(API_URL)
+        mockMvc.perform(get(API_URL + validUser.getUsername())
                         .header("Authorization", "Bearer this.is.fake.token"))
                 .andExpect(status().isUnauthorized());
     }
@@ -49,7 +49,7 @@ public class ApiGetMyProfileTest extends BaseIntegrationTest {
     void getMyProfile_withExpiredToken_shouldReturn401() throws Exception {
         String expiredToken = TestUtils.generateExpiredToken(validUser.getId(), jwtSecret);
 
-        mockMvc.perform(get(API_URL)
+        mockMvc.perform(get(API_URL + validUser.getUsername())
                         .header("Authorization", "Bearer " + expiredToken))
                 .andExpect(status().isUnauthorized());
     }
