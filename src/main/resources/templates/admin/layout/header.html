@@ -28,14 +28,14 @@
                     <li>
                         <div class="px-3 py-2">
                             <div class="fw-semibold" th:text="${currentUser.fullName}"></div>
-                            <div class="text-muted small" th:text="${currentUser.email}"></div>
+                            <div class="text-muted small" th:text="${currentUser.username}"></div>
                         </div>
                     </li>
                     <li>
                         <hr class="dropdown-divider">
                     </li>
                     <li>
-                        <a class="dropdown-item" th:href="@{/admin/profile}">
+                        <a class="dropdown-item" th:href="@{/admin/profile/my}">
                             <i class="bi bi-person me-2"></i> Tài khoản
                         </a>
                     </li>

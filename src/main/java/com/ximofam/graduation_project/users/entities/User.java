@@ -45,4 +45,8 @@ public class User extends SoftDeleteModel {
 
     @Column(name = "is_locked")
     private boolean isLocked;
+
+    public boolean isEnable() {
+        return this.isActive && this.deletedAt == null;
+    }
 }

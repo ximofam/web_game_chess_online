@@ -1,6 +1,8 @@
 package com.ximofam.graduation_project.users.securities;
 
+import com.ximofam.graduation_project.common.helpers.services.CloudinaryService;
 import com.ximofam.graduation_project.common.helpers.utils.Utils;
+import com.ximofam.graduation_project.common.securities.CustomUserDetails;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MyUserDetailsService implements UserDetailsService {
     private final UserRepository userRepository;
+    private final CloudinaryService cloudinaryService;
 
     @Override
     public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
@@ -26,6 +29,11 @@ public class MyUserDetailsService implements UserDetailsService {
 
         List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(Utils.getRole(user.getRole())));
 
-        return new CustomUserDetails(user, authorities);
+        return CustomUserDetails.builder(user.getUsername(), user.getPasswordHash())
+                .userId(user.getId())
+                .accountNonLocked(!user.isLocked())
+                .enabled(user.isEnable())
+                .authorities(authorities)
+                .build();
     }
 }

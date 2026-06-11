@@ -5,6 +5,7 @@ import com.ximofam.graduation_project.users.dtos.request.RegisterUserRequest;
 import com.ximofam.graduation_project.users.dtos.request.UpdateUserRequest;
 import com.ximofam.graduation_project.users.dtos.response.UserDetailResponse;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;
+import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import com.ximofam.graduation_project.users.entities.User;
 import org.mapstruct.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,4 +32,7 @@ public abstract class UserMapper {
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     public abstract void updateUser(UpdateUserRequest request, @MappingTarget User user);
+
+    @Mapping(target = "avatarUrl", source = "avatarPublicId", qualifiedByName = "buildAvatarUrl")
+    public abstract UserSimpleResponse toUserSimpleResponse(User user);
 }

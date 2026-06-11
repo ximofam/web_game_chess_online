@@ -1,7 +1,9 @@
 package com.ximofam.graduation_project.users.services;
 
 import com.ximofam.graduation_project.common.exceptions.http.ConflictException;
+import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.common.helpers.services.JwtService;
+import com.ximofam.graduation_project.common.securities.CustomUserDetails;
 import com.ximofam.graduation_project.users.UserMapper;
 import com.ximofam.graduation_project.users.dtos.request.LoginRequest;
 import com.ximofam.graduation_project.users.dtos.request.RefreshRequest;
@@ -12,7 +14,6 @@ import com.ximofam.graduation_project.users.entities.RefreshToken;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
-import com.ximofam.graduation_project.users.securities.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -58,7 +59,9 @@ public class AuthService {
         );
 
         CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
-        User user = Objects.requireNonNull(customUserDetails).getUser();
+        Long userId = Objects.requireNonNull(customUserDetails).getUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("UserId %d không tồn tại", userId));
 
         return generateTokens(user);
     }

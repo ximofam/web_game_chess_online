@@ -1,37 +1,34 @@
 package com.ximofam.graduation_project.admin.controllers;
 
 
+import com.ximofam.graduation_project.common.securities.CustomUserDetails;
 import com.ximofam.graduation_project.users.UserMapper;
-import com.ximofam.graduation_project.users.dtos.response.UserDetailResponse;
+import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import com.ximofam.graduation_project.users.entities.User;
-import com.ximofam.graduation_project.users.securities.CustomUserDetails;
+import com.ximofam.graduation_project.users.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
-import java.util.Objects;
-
 @ControllerAdvice(assignableTypes = {AdminHomeController.class})
 @RequiredArgsConstructor
 public class AdminControllerAdvice {
+    private final UserRepository userRepository;
     private final UserMapper userMapper;
 
     @ModelAttribute("currentUser")
-    public UserDetailResponse currentUser(Authentication authentication) {
-        if (authentication == null
-                || !authentication.isAuthenticated()
-                || Objects.requireNonNull(authentication.getPrincipal()).equals("anonymousUser")) {
+    public UserSimpleResponse currentUser(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
             return null;
         }
 
-        Object principal = authentication.getPrincipal();
-        if (!(principal instanceof CustomUserDetails)) {
+        if (!(authentication.getPrincipal() instanceof CustomUserDetails userDetails)) {
             return null;
         }
 
-        User user = ((CustomUserDetails) principal).getUser();
+        User user = userRepository.findById(userDetails.getUserId()).orElse(null);
 
-        return userMapper.toUserDetailResponse(user);
+        return userMapper.toUserSimpleResponse(user);
     }
 }
