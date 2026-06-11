@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/graduation_db_test
+    username: testuser
+    password: testpassword
+  flyway:
+    enabled: true
+    clean-disabled: false
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
