@@ -1,5 +1,6 @@
 package com.ximofam.graduation_project.users.init;
 
+import com.ximofam.graduation_project.common.helpers.utils.Utils;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
@@ -31,6 +32,10 @@ public class SuperUserInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        if (!Utils.hasText(email) || Utils.hasText(username) || !Utils.hasText(password)) {
+            return;
+        }
+
         if (userRepository.existsByEmail(email)) {
             log.info("Superuser already exists, skipping");
             return;

@@ -24,10 +24,10 @@ app:
       pool-size: 2
       await-termination-seconds: 60
   superuser:
-    email: admin_test@ximofam.com
-    username: admin_test
-    password: password_test
-    full-name: Admin Test
+    email:
+    username:
+    password:
+    full-name:
   cloudinary:
     cloud-name: dummy_cloud
     api-key: dummy_key

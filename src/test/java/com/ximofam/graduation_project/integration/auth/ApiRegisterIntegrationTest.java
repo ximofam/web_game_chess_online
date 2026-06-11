@@ -1,4 +1,4 @@
-package com.ximofam.graduation_project.apis;
+package com.ximofam.graduation_project.integration.auth;
 
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
