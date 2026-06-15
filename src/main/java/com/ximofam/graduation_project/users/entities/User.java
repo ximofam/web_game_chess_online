@@ -23,18 +23,8 @@ public class User extends SoftDeleteModel {
     @Column(name = "password_hash")
     private String passwordHash;
 
-    @Column(name = "full_name")
-    private String fullName;
-
     @Column(name = "avatar_public_id")
     private String avatarPublicId;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "gender")
-    private Gender gender;
-
-    @Column(name = "date_of_birth")
-    private LocalDate dateOfBirth;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role")
@@ -45,6 +35,10 @@ public class User extends SoftDeleteModel {
 
     @Column(name = "is_locked")
     private boolean isLocked;
+
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "profile_id")
+    private UserProfile profile;
 
     public boolean isEnable() {
         return this.isActive && this.deletedAt == null;

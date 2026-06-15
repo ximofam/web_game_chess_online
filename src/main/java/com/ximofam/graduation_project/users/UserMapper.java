@@ -2,17 +2,17 @@ package com.ximofam.graduation_project.users;
 
 import com.ximofam.graduation_project.common.helpers.services.CloudinaryService;
 import com.ximofam.graduation_project.users.dtos.request.RegisterUserRequest;
-import com.ximofam.graduation_project.users.dtos.request.UpdateUserRequest;
+import com.ximofam.graduation_project.users.dtos.request.UpdateUserProfileRequest;
 import com.ximofam.graduation_project.users.dtos.response.UserDetailResponse;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;
 import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import com.ximofam.graduation_project.users.entities.User;
+import com.ximofam.graduation_project.users.entities.UserProfile;
 import org.mapstruct.*;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Mapper(componentModel = "spring")
 public abstract class UserMapper {
-
     @Autowired
     protected CloudinaryService cloudinaryService;
 
@@ -31,7 +31,7 @@ public abstract class UserMapper {
     }
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    public abstract void updateUser(UpdateUserRequest request, @MappingTarget User user);
+    public abstract void updateUserProfile(UpdateUserProfileRequest request, @MappingTarget UserProfile userProfile);
 
     @Mapping(target = "avatarUrl", source = "avatarPublicId", qualifiedByName = "buildAvatarUrl")
     public abstract UserSimpleResponse toUserSimpleResponse(User user);

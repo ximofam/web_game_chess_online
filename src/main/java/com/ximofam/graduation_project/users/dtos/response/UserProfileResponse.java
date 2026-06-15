@@ -5,8 +5,9 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class UserSimpleResponse {
+public class UserProfileResponse {
     private Long id;
-    private String username;
-    private String avatarUrl;
+    private String fullName;
+    private String gender;
+    private String dateOfBirth;
 }

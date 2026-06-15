@@ -10,7 +10,5 @@ public class UserResponse {
     private String username;
     private String email;
     private String avatarUrl;
-    private String fullName;
-    private String gender;
-    private String dateOfBirth;
+    private UserProfileResponse profile;
 }

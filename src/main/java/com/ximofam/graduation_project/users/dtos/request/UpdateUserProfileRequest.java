@@ -8,7 +8,7 @@ import java.time.LocalDate;
 
 @Getter
 @Setter
-public class UpdateUserRequest {
+public class UpdateUserProfileRequest {
     private String fullName;
     private Gender gender;
     private LocalDate dateOfBirth;
