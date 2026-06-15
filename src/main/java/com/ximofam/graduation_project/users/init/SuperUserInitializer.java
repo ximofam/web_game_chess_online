@@ -32,7 +32,7 @@ public class SuperUserInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (!Utils.hasText(email) || Utils.hasText(username) || !Utils.hasText(password)) {
+        if (!Utils.hasText(email) || !Utils.hasText(username) || !Utils.hasText(password)) {
             return;
         }
 
