@@ -1,6 +1,7 @@
 package com.ximofam.graduation_project.utils;
 
 import com.ximofam.graduation_project.users.entities.User;
+import com.ximofam.graduation_project.users.entities.UserProfile;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -20,6 +21,7 @@ public class TestUtils {
         user.setActive(active);
         user.setLocked(false);
         user.setRole(UserRole.USER);
+        user.setProfile(new UserProfile());
         return user;
     }
 

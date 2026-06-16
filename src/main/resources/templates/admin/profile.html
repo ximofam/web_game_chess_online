@@ -27,7 +27,7 @@
                     <div class="card shadow-sm border-0 text-center py-4">
                         <div class="card-body">
                             <div class="mb-3 position-relative d-inline-block">
-                                <img th:src="${user.avatarUrl} ?: 'https://ui-avatars.com/api/?name=' + ${user.fullName} + '&background=random'"
+                                <img th:src="${user.avatarUrl} ?: 'https://ui-avatars.com/api/?name=' + ${user.username} + '&background=random'"
                                     alt="User Avatar" class="rounded-circle img-thumbnail shadow-sm"
                                     style="width: 140px; height: 140px; object-fit: cover;">
                                 <label for="avatarInput"
@@ -53,7 +53,8 @@
                                 </form>
                             </div>
 
-                            <h5 class="card-title mb-1 fw-bold text-dark" th:text="${user.fullName}">Nguyễn Văn A
+                            <h5 class="card-title mb-1 fw-bold text-dark" th:text="${user.profile.fullName}">Nguyễn Văn
+                                A
                             </h5>
                             <p class="text-muted small mb-3" th:text="'@' + ${user.username}">@username</p>
                             <hr class="my-4 mx-3 opacity-25">
@@ -93,7 +94,7 @@
                                             <span class="input-group-text border-end-0 text-muted bg-white"><i
                                                     class="bi bi-person"></i></span>
                                             <input type="text" name="fullName" class="form-control border-start-0"
-                                                th:value="${user.fullName}" required>
+                                                th:value="${user.profile.fullName}" required>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -125,11 +126,11 @@
                                             <span class="input-group-text border-end-0 text-muted bg-white"><i
                                                     class="bi bi-gender-ambiguous"></i></span>
                                             <select name="gender" class="form-select border-start-0">
-                                                <option value="" th:selected="${user.gender == null}">Chọn giới
+                                                <option value="" th:selected="${user.profile.gender == null}">Chọn giới
                                                     tính</option>
-                                                <option value="MALE" th:selected="${user.gender == 'MALE'}">Nam
+                                                <option value="MALE" th:selected="${user.profile.gender == 'MALE'}">Nam
                                                 </option>
-                                                <option value="FEMALE" th:selected="${user.gender == 'FEMALE'}">
+                                                <option value="FEMALE" th:selected="${user.profile.gender == 'FEMALE'}">
                                                     Nữ
                                                 </option>
                                             </select>
@@ -141,7 +142,7 @@
                                             <span class="input-group-text border-end-0 text-muted bg-white"><i
                                                     class="bi bi-calendar3"></i></span>
                                             <input type="date" name="dateOfBirth" class="form-control border-start-0"
-                                                th:value="${user.dateOfBirth}">
+                                                th:value="${user.profile.dateOfBirth}">
                                         </div>
                                     </div>
                                 </div>

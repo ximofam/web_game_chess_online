@@ -12,6 +12,7 @@ import com.ximofam.graduation_project.users.dtos.response.TokenResponse;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;
 import com.ximofam.graduation_project.users.entities.RefreshToken;
 import com.ximofam.graduation_project.users.entities.User;
+import com.ximofam.graduation_project.users.entities.UserProfile;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,7 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setRole(UserRole.USER);
         user.setActive(true);
+        user.setProfile(new UserProfile());
         user = userRepository.save(user);
 
         return userMapper.toUserResponse(user);

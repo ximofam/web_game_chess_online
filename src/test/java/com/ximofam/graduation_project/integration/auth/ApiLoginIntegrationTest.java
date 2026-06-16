@@ -1,6 +1,7 @@
 package com.ximofam.graduation_project.integration.auth;
 
 import com.ximofam.graduation_project.users.entities.User;
+import com.ximofam.graduation_project.users.entities.UserProfile;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,6 +48,7 @@ class ApiLoginIntegrationTest {
         validUser.setActive(true);
         validUser.setLocked(false);
         validUser.setRole(UserRole.USER);
+        validUser.setProfile(new UserProfile());
 
         User disabledUser = new User();
         disabledUser.setEmail("disabled_user@example.com");
@@ -55,6 +57,7 @@ class ApiLoginIntegrationTest {
         disabledUser.setActive(false);
         disabledUser.setLocked(false);
         disabledUser.setRole(UserRole.USER);
+        disabledUser.setProfile(new UserProfile());
 
         User lockedUser = new User();
         lockedUser.setEmail("locked_user@example.com");
@@ -63,6 +66,7 @@ class ApiLoginIntegrationTest {
         lockedUser.setActive(true);
         lockedUser.setLocked(true);
         lockedUser.setRole(UserRole.USER);
+        lockedUser.setProfile(new UserProfile());
 
         userRepository.saveAll(List.of(validUser, disabledUser, lockedUser));
     }

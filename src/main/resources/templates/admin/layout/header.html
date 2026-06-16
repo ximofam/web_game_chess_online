@@ -20,14 +20,13 @@
             <div class="dropdown">
                 <button class="btn btn-light btn-sm dropdown-toggle d-flex align-items-center gap-2"
                     data-bs-toggle="dropdown">
-                    <img th:src="${currentUser.avatarUrl} ?: 'https://ui-avatars.com/api/?name=' + ${currentUser.fullName} + '&background=random'"
+                    <img th:src="${currentUser.avatarUrl} ?: 'https://ui-avatars.com/api/?name=' + ${currentUser.username} + '&background=random'"
                         class="avatar-circle" alt="avatar">
-                    <span class="d-none d-md-inline" th:text="${currentUser.fullName}"></span>
+                    <span class="d-none d-md-inline" th:text="${currentUser.username}"></span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                     <li>
                         <div class="px-3 py-2">
-                            <div class="fw-semibold" th:text="${currentUser.fullName}"></div>
                             <div class="text-muted small" th:text="${currentUser.username}"></div>
                         </div>
                     </li>
