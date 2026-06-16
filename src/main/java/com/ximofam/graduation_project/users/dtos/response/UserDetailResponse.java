@@ -10,8 +10,6 @@ public class UserDetailResponse {
     private String username;
     private String email;
     private String avatarUrl;
-    private String fullName;
     private String role;
-    private String gender;
-    private String dateOfBirth;
+    private UserProfileResponse profile;
 }

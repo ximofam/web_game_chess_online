@@ -1,6 +1,7 @@
 package com.ximofam.graduation_project.integration.auth;
 
 import com.ximofam.graduation_project.users.entities.User;
+import com.ximofam.graduation_project.users.entities.UserProfile;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +44,7 @@ class ApiRegisterIntegrationTest {
         existingUser.setPasswordHash(passwordEncoder.encode("secret123"));
         existingUser.setRole(UserRole.USER);
         existingUser.setActive(true);
+        existingUser.setProfile(new UserProfile());
 
         userRepository.save(existingUser);
     }

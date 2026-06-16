@@ -1,7 +1,7 @@
 package com.ximofam.graduation_project.admin.controllers;
 
 import com.ximofam.graduation_project.common.securities.CustomUserDetails;
-import com.ximofam.graduation_project.users.dtos.request.UpdateUserRequest;
+import com.ximofam.graduation_project.users.dtos.request.UpdateUserProfileRequest;
 import com.ximofam.graduation_project.users.dtos.response.UserDetailResponse;
 import com.ximofam.graduation_project.users.services.UserService;
 import lombok.RequiredArgsConstructor;
@@ -36,11 +36,11 @@ public class AdminHomeController {
     }
 
     @PostMapping("/profile/update")
-    public String updateMyProfile(@ModelAttribute UpdateUserRequest request,
+    public String updateMyProfile(@ModelAttribute UpdateUserProfileRequest request,
                                   @AuthenticationPrincipal CustomUserDetails principal,
                                   RedirectAttributes redirectAttributes) {
         try {
-            userService.updateUser(principal.getUserId(), request);
+            userService.updateUserProfile(principal.getUserId(), request);
 
             redirectAttributes.addFlashAttribute("successMessage", "Cập nhật thông tin cá nhân thành công!");
         } catch (Exception e) {

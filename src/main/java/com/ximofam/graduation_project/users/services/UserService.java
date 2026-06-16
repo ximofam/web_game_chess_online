@@ -5,10 +5,11 @@ import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.common.helpers.dtos.CloudinaryUploadResult;
 import com.ximofam.graduation_project.common.helpers.services.CloudinaryService;
 import com.ximofam.graduation_project.users.UserMapper;
-import com.ximofam.graduation_project.users.dtos.request.UpdateUserRequest;
+import com.ximofam.graduation_project.users.dtos.request.UpdateUserProfileRequest;
 import com.ximofam.graduation_project.users.dtos.response.UserDetailResponse;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;
 import com.ximofam.graduation_project.users.entities.User;
+import com.ximofam.graduation_project.users.entities.UserProfile;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -40,11 +41,12 @@ public class UserService {
     }
 
     @Transactional
-    public UserDetailResponse updateUser(Long userId, UpdateUserRequest request) {
+    public UserDetailResponse updateUserProfile(Long userId, UpdateUserProfileRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("UserId %d không tồn tại", userId));
 
-        userMapper.updateUser(request, user);
+        UserProfile profile = user.getProfile();
+        userMapper.updateUserProfile(request, profile);
 
         return userMapper.toUserDetailResponse(user);
     }

@@ -2,7 +2,7 @@ package com.ximofam.graduation_project.users.controllers;
 
 import com.ximofam.graduation_project.common.helpers.dtos.ApiResponse;
 import com.ximofam.graduation_project.common.helpers.dtos.CloudinaryUploadResult;
-import com.ximofam.graduation_project.users.dtos.request.UpdateUserRequest;
+import com.ximofam.graduation_project.users.dtos.request.UpdateUserProfileRequest;
 import com.ximofam.graduation_project.users.dtos.response.UserDetailResponse;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;
 import com.ximofam.graduation_project.users.services.UserService;
@@ -34,9 +34,9 @@ public class ApiUserController {
     @PatchMapping("/me")
     public ResponseEntity<UserDetailResponse> updateMyProfile(
             @AuthenticationPrincipal Long userId,
-            @RequestBody @Valid UpdateUserRequest request) {
+            @RequestBody @Valid UpdateUserProfileRequest request) {
 
-        return ResponseEntity.ok(userService.updateUser(userId, request));
+        return ResponseEntity.ok(userService.updateUserProfile(userId, request));
     }
 
     @PatchMapping("/me/avatar")
