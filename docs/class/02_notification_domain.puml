@@ -1,0 +1,36 @@
+@startuml
+
+class BaseModel {
+    id : Long
+    createdAt : Instant
+    updatedAt : Instant
+}
+
+class Notification {
+    recipient : User
+    sender : User
+    title : String
+    message : String
+    type : NotificationType
+    metadata : Map<String, Object>
+    isRead : boolean
+}
+
+note bottom of Notification
+Thuộc tính NotificationType là loại thông báo,
+ví dụ thư mời vào game hay thông báo từ hệ thống.
+Còn metadata là thông tin thêm của các NotificationType,
+Ví dụ thư mời vào game thì có thông tin {gameId: ""}, ...
+end note
+
+class User
+
+enum NotificationType
+
+Notification -u-|> BaseModel
+
+Notification -r-> NotificationType
+Notification "0..*" -l-> "1" User : recipient
+Notification "0..*" -l-> "0..1" User : sender
+
+@enduml

@@ -1,4 +1,3 @@
-<!-- templates/admin/fragments/header.html -->
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 
@@ -9,14 +8,18 @@
         </div>
 
         <div class="d-flex align-items-center gap-3">
-            <!-- Notification -->
+            <a th:href="@{/swagger-ui/index.html}" target="_blank" class="btn btn-light btn-sm"
+                title="API Documentation">
+                <i class="bi bi-braces"></i>
+                <span class="d-none d-md-inline ms-1">API Docs</span>
+            </a>
+
             <button class="btn btn-light btn-sm position-relative">
                 <i class="bi bi-bell"></i>
                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
                     style="font-size:10px">3</span>
             </button>
 
-            <!-- User dropdown -->
             <div class="dropdown">
                 <button class="btn btn-light btn-sm dropdown-toggle d-flex align-items-center gap-2"
                     data-bs-toggle="dropdown">
