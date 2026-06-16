@@ -32,6 +32,7 @@ public class Notification extends BaseModel {
     @Column(name = "message")
     private String message;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "type")
     private NotificationType type;
 
