@@ -22,7 +22,7 @@ public class ApiUserController {
     private final UserService userService;
 
     @GetMapping("/{username}")
-    public ResponseEntity<UserResponse> getUserByUsername(@PathVariable("username") String username) {
+    public ResponseEntity<UserResponse> getUserByUsername(@PathVariable String username) {
         return ResponseEntity.ok(userService.getUserByUsername(username));
     }
 

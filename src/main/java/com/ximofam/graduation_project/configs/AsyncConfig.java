@@ -2,6 +2,8 @@ package com.ximofam.graduation_project.configs;
 
 import com.ximofam.graduation_project.configs.properties.ThreadPoolProperties;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
@@ -14,6 +16,7 @@ import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 
 import java.util.concurrent.Executor;
 
+@Slf4j
 @Configuration
 @EnableAsync
 @EnableScheduling
@@ -46,4 +49,9 @@ public class AsyncConfig implements AsyncConfigurer, SchedulingConfigurer {
         registrar.setTaskScheduler(taskScheduler);
     }
 
+    @Override
+    public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
+        return (ex, method, params) ->
+                log.error("[Async] method={}, error={}", method.getName(), ex.getMessage(), ex);
+    }
 }
