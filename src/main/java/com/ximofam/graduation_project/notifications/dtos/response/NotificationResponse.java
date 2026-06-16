@@ -9,6 +9,7 @@ import java.util.Map;
 @Getter
 @Setter
 public class NotificationResponse {
+    private Long id;
     private UserSimpleResponse sender;
     private String type;
     private String title;
