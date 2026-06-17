@@ -81,7 +81,8 @@ public class NotificationIntegrationTest extends BaseIntegrationTest {
                             .header("Authorization", authHeader))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content", hasSize(3)))
-                    .andExpect(jsonPath("$.totalElements", is(3)));
+                    // Sửa lại jsonPath: thêm .page. ở phía trước
+                    .andExpect(jsonPath("$.page.totalElements", is(3)));
         }
 
         @Test
@@ -91,7 +92,8 @@ public class NotificationIntegrationTest extends BaseIntegrationTest {
                             .header("Authorization", authHeader))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content", hasSize(0)))
-                    .andExpect(jsonPath("$.totalElements", is(0)));
+                    // Sửa lại jsonPath: thêm .page. ở phía trước
+                    .andExpect(jsonPath("$.page.totalElements", is(0)));
         }
 
         @Test
@@ -105,8 +107,9 @@ public class NotificationIntegrationTest extends BaseIntegrationTest {
                             .header("Authorization", authHeader))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content", hasSize(2)))
-                    .andExpect(jsonPath("$.totalElements", is(5)))
-                    .andExpect(jsonPath("$.totalPages", is(3)));
+                    // Sửa lại jsonPath: thêm .page. ở phía trước
+                    .andExpect(jsonPath("$.page.totalElements", is(5)))
+                    .andExpect(jsonPath("$.page.totalPages", is(3)));
         }
 
         @Test
