@@ -1,5 +1,6 @@
 package com.ximofam.graduation_project.configs;
 
+import com.ximofam.graduation_project.admin.securities.AdminLoginSuccessHandler;
 import com.ximofam.graduation_project.common.exceptions.CustomAccessDeniedHandler;
 import com.ximofam.graduation_project.common.exceptions.CustomAuthenticationEntryPoint;
 import com.ximofam.graduation_project.common.securities.JwtFilter;
@@ -35,6 +36,7 @@ public class SecurityConfig {
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final MyUserDetailsService myUserDetailsService;
+    private final AdminLoginSuccessHandler successHandler;
 
     @Bean
     @Order(1)
@@ -78,7 +80,7 @@ public class SecurityConfig {
                         .anyRequest().permitAll()
                 ).formLogin(form -> form.loginPage("/admin/login")
                         .loginProcessingUrl("/login")
-                        .defaultSuccessUrl("/admin/", true)
+                        .successHandler(successHandler)
                         .failureUrl("/admin/login?error=true")
                         .permitAll()
                 ).logout((logout) -> logout.logoutSuccessUrl("/admin/login").permitAll());

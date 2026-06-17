@@ -1,6 +1,5 @@
 package com.ximofam.graduation_project.users.securities;
 
-import com.ximofam.graduation_project.common.helpers.services.CloudinaryService;
 import com.ximofam.graduation_project.common.helpers.utils.Utils;
 import com.ximofam.graduation_project.common.securities.CustomUserDetails;
 import com.ximofam.graduation_project.users.entities.User;
@@ -19,7 +18,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MyUserDetailsService implements UserDetailsService {
     private final UserRepository userRepository;
-    private final CloudinaryService cloudinaryService;
 
     @Override
     public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
