@@ -23,9 +23,8 @@
                 <p class="text-muted small">Đăng nhập để tiếp tục</p>
             </div>
 
-            <!-- Alert lỗi do JS điều khiển -->
-            <div id="login-error" class="alert alert-danger d-flex align-items-center gap-2 py-2 mb-3"
-                style="display:none !important">
+            <!-- Alert lỗi -->
+            <div th:if="${param.error}" class="alert alert-danger d-flex align-items-center gap-2 py-2">
                 <i class="bi bi-exclamation-circle-fill"></i>
                 <span>Tên đăng nhập hoặc mật khẩu không đúng</span>
             </div>
@@ -37,7 +36,7 @@
             </div>
 
             <!-- Form -->
-            <form id="login-form" th:action="@{/login}" method="post">
+            <form th:action="@{/login}" method="post">
 
                 <div class="mb-3">
                     <label class="form-label fw-medium">Tên đăng nhập hoặc Email</label>
@@ -45,8 +44,7 @@
                         <span class="input-group-text bg-white">
                             <i class="bi bi-person text-muted"></i>
                         </span>
-                        <input type="text" id="username" name="username" class="form-control border-start-0" autofocus
-                            required>
+                        <input type="text" name="username" class="form-control border-start-0" autofocus required>
                     </div>
                 </div>
 
@@ -69,37 +67,6 @@
         </div>
     </div>
 
-
-    <script th:src="@{/js/auth.js}"></script>
-    <script>
-        // Hiển thị lỗi nếu Spring redirect về ?error=true (fallback)
-        if (new URLSearchParams(location.search).get('error')) {
-            document.getElementById('login-error').style.display = 'flex';
-        }
-
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const errorDiv = document.getElementById('login-error');
-            errorDiv.style.display = 'none';
-
-            const formData = new FormData(e.target);
-            const res = await fetch('/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams(formData)
-            });
-
-            if (!res.ok) {
-                errorDiv.style.display = 'flex';
-                return;
-            }
-
-            const data = await res.json(); // { accessToken, refreshToken }
-            Auth.setTokens(data);
-            window.location.href = '/admin/';
-        });
-    </script>
 </body>
 
 </html>

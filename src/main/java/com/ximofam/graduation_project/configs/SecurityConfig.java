@@ -1,6 +1,5 @@
 package com.ximofam.graduation_project.configs;
 
-import com.ximofam.graduation_project.admin.securities.AdminLoginSuccessHandler;
 import com.ximofam.graduation_project.common.exceptions.CustomAccessDeniedHandler;
 import com.ximofam.graduation_project.common.exceptions.CustomAuthenticationEntryPoint;
 import com.ximofam.graduation_project.common.securities.JwtFilter;
@@ -36,7 +35,6 @@ public class SecurityConfig {
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final MyUserDetailsService myUserDetailsService;
-    private final AdminLoginSuccessHandler successHandler;
 
     @Bean
     @Order(1)
@@ -68,7 +66,7 @@ public class SecurityConfig {
     @Order(2)
     public SecurityFilterChain webSecurity(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/admin/**", "/login", "/logout", "/", "/swagger-ui/**", "/v3/api-docs/**")
+                .securityMatcher("/admin/**", "/login", "/logout", "/", "/swagger-ui/**", "/v3/api-docs/**", "/ws/**")
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests((requests) -> requests
@@ -80,7 +78,7 @@ public class SecurityConfig {
                         .anyRequest().permitAll()
                 ).formLogin(form -> form.loginPage("/admin/login")
                         .loginProcessingUrl("/login")
-                        .successHandler(successHandler)
+                        .defaultSuccessUrl("/admin/", true)
                         .failureUrl("/admin/login?error=true")
                         .permitAll()
                 ).logout((logout) -> logout.logoutSuccessUrl("/admin/login").permitAll());

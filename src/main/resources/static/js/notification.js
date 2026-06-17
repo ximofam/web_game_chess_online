@@ -7,19 +7,17 @@ const Notification = (() => {
   let items = [];
 
   // ── WebSocket ──────────────────────────────────────────
+  // Admin dùng session → không cần JWT header cho WS
   const connect = () => {
-    const token = Auth.getToken();
-    if (!token) return;
-    const socket = new SockJS('/ws', null, { transports: ['websocket'] });
+    const socket = new SockJS('/ws');
     stompClient = Stomp.over(socket);
     stompClient.debug = () => { };
-    stompClient.connect({ Authorization: `Bearer ${token}` }, onConnected, onError);
+    stompClient.connect({}, onConnected, onError);
   };
 
   const onConnected = () => {
     stompClient.subscribe('/user/queue/notifications', (msg) => {
       const n = JSON.parse(msg.body);
-
       const mapped = {
         id: n.id,
         sender: n.sender?.username || 'Hệ thống',
@@ -30,11 +28,10 @@ const Notification = (() => {
         time: formatTime(n.createdAt),
         unread: true,
       };
-
       items.unshift(mapped);
       unreadCount++;
       updateBadge(unreadCount);
-      if (toastr) toastr.info(data.message || 'Bạn có thông báo mới', data.title || '');
+      if (typeof toastr !== 'undefined') toastr.info(mapped.msg || 'Bạn có thông báo mới', mapped.title || '');
       renderList();
     });
     loadUnreadCount();
@@ -43,9 +40,15 @@ const Notification = (() => {
 
   const onError = () => setTimeout(connect, 5000);
 
-  // ── API calls ──────────────────────────────────────────
+  // ── API calls — dùng fetch thuần, session cookie tự gửi ──
+  const apiFetch = (url, options = {}) => fetch(url, {
+    credentials: 'same-origin',   // gửi session cookie
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    ...options,
+  });
+
   const loadUnreadCount = async () => {
-    const res = await Auth.fetchWithAuth('/api/notifications/unread-count');
+    const res = await apiFetch('/admin/notifications/unread-count');
     if (!res?.ok) return;
     const data = await res.json();
     updateBadge(data.count ?? 0);
@@ -53,9 +56,7 @@ const Notification = (() => {
 
   const loadNotifications = async (reset = false) => {
     if (reset) { page = 0; items = []; }
-    const res = await Auth.fetchWithAuth(
-      `/api/notifications?page=${page}&size=${PAGE_SIZE}&sort=id,desc`
-    );
+    const res = await apiFetch(`/admin/notifications?page=${page}&size=${PAGE_SIZE}&sort=id,desc`);
     if (!res?.ok) return;
     const data = await res.json();
 
@@ -67,7 +68,7 @@ const Notification = (() => {
       title: n.title,
       msg: n.message,
       time: formatTime(n.createdAt),
-      unread: n.isRead === false,
+      unread: n.read === false,
     }));
 
     items = reset ? mapped : [...items, ...mapped];
@@ -81,7 +82,7 @@ const Notification = (() => {
   };
 
   const markAsRead = async (id) => {
-    await Auth.fetchWithAuth(`/api/notifications/${id}/read`, { method: 'PATCH' });
+    await apiFetch(`/admin/notifications/${id}/read`, { method: 'PATCH' });
     const item = items.find(n => n.id === id);
     if (item && item.unread) { item.unread = false; unreadCount = Math.max(0, unreadCount - 1); }
     updateBadge(unreadCount);
@@ -89,14 +90,14 @@ const Notification = (() => {
   };
 
   const markAllRead = async () => {
-    await Auth.fetchWithAuth('/api/notifications/read-all', { method: 'PATCH' });
+    await apiFetch('/admin/notifications/read-all', { method: 'PATCH' });
     items.forEach(n => n.unread = false);
     updateBadge(0);
     renderList();
   };
 
   const deleteOne = async (id) => {
-    await Auth.fetchWithAuth(`/api/notifications/${id}`, { method: 'DELETE' });
+    await apiFetch(`/admin/notifications/${id}`, { method: 'DELETE' });
     const idx = items.findIndex(n => n.id === id);
     if (idx > -1) {
       if (items[idx].unread) unreadCount = Math.max(0, unreadCount - 1);
@@ -107,7 +108,7 @@ const Notification = (() => {
   };
 
   const deleteAll = async () => {
-    await Auth.fetchWithAuth('/api/notifications', { method: 'DELETE' });
+    await apiFetch('/admin/notifications', { method: 'DELETE' });
     items = [];
     updateBadge(0);
     renderList();
@@ -125,7 +126,13 @@ const Notification = (() => {
     if (tabSpan) tabSpan.textContent = count > 0 ? `(${count})` : '';
   };
 
-  const TYPE_LABELS = { COMMENT: 'Bình luận', LIKE: 'Thích', FOLLOW: 'Theo dõi', MENTION: 'Nhắc đến', SYSTEM_MESSAGE: 'Hệ thống' };
+  const TYPE_LABELS = {
+    COMMENT: 'Bình luận',
+    LIKE: 'Thích',
+    FOLLOW: 'Theo dõi',
+    MENTION: 'Nhắc đến',
+    SYSTEM_MESSAGE: 'Hệ thống',
+  };
 
   const formatTime = (instant) => {
     if (!instant) return '';
@@ -174,8 +181,7 @@ const Notification = (() => {
   const togglePanel = () => {
     const modal = document.getElementById('notif-modal');
     if (!modal) return;
-    const isOpen = modal.style.display !== 'none';
-    modal.style.display = isOpen ? 'none' : 'block';
+    modal.style.display = modal.style.display !== 'none' ? 'none' : 'block';
   };
 
   // ── Init ───────────────────────────────────────────────
@@ -187,7 +193,7 @@ const Notification = (() => {
 
     document.addEventListener('click', (e) => {
       const modal = document.getElementById('notif-modal');
-      if (modal && !modal.contains(e.target) && e.target !== bellBtn) {
+      if (modal && !modal.contains(e.target) && !e.target.closest('#bell-btn')) {
         modal.style.display = 'none';
       }
     });

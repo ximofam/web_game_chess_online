@@ -2,6 +2,7 @@ package com.ximofam.graduation_project.configs;
 
 import com.ximofam.graduation_project.common.helpers.services.JwtService;
 import com.ximofam.graduation_project.common.helpers.utils.Utils;
+import com.ximofam.graduation_project.common.securities.CustomUserDetails;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -50,36 +52,49 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             @Override
             public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) {
                 StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-
                 if (accessor == null || !StompCommand.CONNECT.equals(accessor.getCommand())) {
                     return message;
                 }
-                String authHeader = accessor.getFirstNativeHeader("Authorization");
 
-                if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                String authHeader = accessor.getFirstNativeHeader("Authorization");
+                if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                    String token = authHeader.substring(7);
+                    try {
+                        Claims claims = jwtService.verifyAndParseToken(token);
+                        Long userId = Long.parseLong(claims.getSubject());
+                        List<String> roles = jwtService.extractList(claims, "roles");
+                        List<GrantedAuthority> authorities = roles.stream()
+                                .map(role -> new SimpleGrantedAuthority(Utils.getRole(role)))
+                                .collect(Collectors.toList());
+                        accessor.setUser(new UsernamePasswordAuthenticationToken(userId, null, authorities));
+                    } catch (JwtException e) {
+                        throw new MessageDeliveryException("Invalid JWT token");
+                    }
                     return message;
                 }
 
-                String token = authHeader.substring(7);
+                Principal existingPrincipal = accessor.getUser();
+                if (existingPrincipal != null) {
+                    if (existingPrincipal instanceof Authentication auth) {
+                        Object principalObj = auth.getPrincipal();
 
-                try {
-                    Claims claims = jwtService.verifyAndParseToken(token);
-                    String subject = claims.getSubject();
-                    Long userId = Long.parseLong(subject);
-                    List<String> roles = jwtService.extractList(claims, "roles");
+                        if (principalObj instanceof CustomUserDetails customUserDetails) {
 
-                    List<GrantedAuthority> authorities = roles.stream()
-                            .map(role -> new SimpleGrantedAuthority(Utils.getRole(role)))
-                            .collect(Collectors.toList());
+                            Long sessionUserId = customUserDetails.getUserId();
 
-                    Authentication authentication = new UsernamePasswordAuthenticationToken(userId, null, authorities);
-                    accessor.setUser(authentication);
+                            Authentication standardizedAuth = new UsernamePasswordAuthenticationToken(
+                                    sessionUserId,
+                                    null,
+                                    customUserDetails.getAuthorities()
+                            );
 
-                } catch (JwtException e) {
-                    throw new MessageDeliveryException("Invalid JWT token");
+                            accessor.setUser(standardizedAuth);
+                        }
+                        return message;
+                    }
                 }
 
-                return message;
+                throw new MessageDeliveryException("Unauthorized");
             }
         });
     }
