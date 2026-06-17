@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <title>WS Test</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: monospace;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 20px;
+    }
+
+    h2 {
+      color: #569cd6;
+      margin-bottom: 16px;
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    input,
+    textarea {
+      background: #2d2d2d;
+      border: 1px solid #444;
+      color: #d4d4d4;
+      padding: 8px 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 13px;
+    }
+
+    input {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 80px;
+      resize: vertical;
+    }
+
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: monospace;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .btn-connect {
+      background: #4ec9b0;
+      color: #1e1e1e;
+    }
+
+    .btn-disconnect {
+      background: #f44747;
+      color: #fff;
+    }
+
+    .btn-send {
+      background: #569cd6;
+      color: #fff;
+    }
+
+    .btn-clear {
+      background: #444;
+      color: #d4d4d4;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+
+    .status.disconnected {
+      background: #5a1d1d;
+      color: #f48771;
+    }
+
+    .status.connecting {
+      background: #3c3900;
+      color: #dcdcaa;
+    }
+
+    .status.connected {
+      background: #1b3a1b;
+      color: #4ec9b0;
+    }
+
+    label {
+      font-size: 12px;
+      color: #9cdcfe;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    #log {
+      background: #0d0d0d;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 12px;
+      height: 400px;
+      overflow-y: auto;
+      font-size: 12px;
+      line-height: 1.8;
+    }
+
+    .log-info {
+      color: #9cdcfe;
+    }
+
+    .log-success {
+      color: #4ec9b0;
+    }
+
+    .log-error {
+      color: #f48771;
+    }
+
+    .log-msg {
+      color: #ce9178;
+    }
+
+    .log-send {
+      color: #dcdcaa;
+    }
+
+    .log-stomp {
+      color: #666;
+      font-size: 11px;
+    }
+
+    .log-time {
+      color: #555;
+      margin-right: 8px;
+    }
+
+    .section {
+      background: #252526;
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      color: #9cdcfe;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #333;
+      margin: 4px 0 12px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h2>🔌 WebSocket / STOMP Tester</h2>
+  <span id="status-badge" class="status disconnected">● Disconnected</span>
+
+  <!-- Section 1: Auth -->
+  <div class="section">
+    <div class="section-title">1. Login để lấy token</div>
+    <div class="row">
+      <div style="flex:1">
+        <label>Server URL</label>
+        <input id="server-url" value="http://localhost:8080">
+      </div>
+    </div>
+    <div class="row">
+      <div style="flex:1">
+        <label>Username / Email</label>
+        <input id="login-username" placeholder="admin">
+      </div>
+      <div style="flex:1">
+        <label>Password</label>
+        <input id="login-password" type="password" placeholder="••••••••">
+      </div>
+      <button class="btn-connect" onclick="doLogin()">Login</button>
+    </div>
+    <div class="row">
+      <div style="flex:1">
+        <label>Access Token (tự điền sau login hoặc paste tay)</label>
+        <input id="token" placeholder="eyJhbGci...">
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: Connect WS -->
+  <div class="section">
+    <div class="section-title">2. Kết nối WebSocket</div>
+    <div class="row">
+      <div style="flex:1">
+        <label>WS Endpoint</label>
+        <input id="ws-url" value="http://localhost:8080/ws">
+      </div>
+      <div style="flex:1">
+        <label>Subscribe Destination</label>
+        <input id="sub-dest" value="/user/queue/notifications">
+      </div>
+    </div>
+    <div class="row">
+      <button id="btn-connect" class="btn-connect" onclick="doConnect()">Connect</button>
+      <button id="btn-disconnect" class="btn-disconnect" onclick="doDisconnect()" disabled>Disconnect</button>
+    </div>
+  </div>
+
+  <!-- Section 3: Send message -->
+  <div class="section">
+    <div class="section-title">3. Gửi message (tùy chọn)</div>
+    <div class="row">
+      <div style="flex:1">
+        <label>Send Destination</label>
+        <input id="send-dest" value="/app/test">
+      </div>
+    </div>
+    <label>Payload (JSON)</label>
+    <textarea id="send-payload">{"message": "hello"}</textarea>
+    <div class="row" style="margin-top:8px">
+      <button id="btn-send" class="btn-send" onclick="doSend()" disabled>Send</button>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="section">
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Log</span>
+      <button class="btn-clear" onclick="clearLog()" style="font-size:11px;padding:4px 10px">Clear</button>
+    </div>
+    <div id="log"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  <script>
+    let stompClient = null;
+
+    function now() {
+      return new Date().toTimeString().slice(0, 8);
+    }
+
+    function log(msg, type = 'info') {
+      const el = document.getElementById('log');
+      const line = document.createElement('div');
+      line.innerHTML = `<span class="log-time">${now()}</span><span class="log-${type}">${msg}</span>`;
+      el.appendChild(line);
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById('log').innerHTML = '';
+    }
+
+    function setStatus(state) {
+      const badge = document.getElementById('status-badge');
+      const labels = { disconnected: '● Disconnected', connecting: '◌ Connecting...', connected: '● Connected' };
+      badge.className = `status ${state}`;
+      badge.textContent = labels[state];
+    }
+
+    async function doLogin() {
+      const base = document.getElementById('server-url').value.trim();
+      const username = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value.trim();
+
+      log(`POST ${base}/api/auth/login ...`, 'info');
+      try {
+        const res = await fetch(`${base}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usernameOrEmail: username, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          log(`Login failed: ${JSON.stringify(data)}`, 'error');
+          return;
+        }
+        document.getElementById('token').value = data.accessToken || '';
+        log(`Login OK — token: ${(data.accessToken || '').slice(0, 40)}...`, 'success');
+      } catch (e) {
+        log(`Login error: ${e.message}`, 'error');
+      }
+    }
+
+    function doConnect() {
+      const wsUrl = document.getElementById('ws-url').value.trim();
+      const token = document.getElementById('token').value.trim();
+      const subDest = document.getElementById('sub-dest').value.trim();
+
+      if (!token) { log('Chưa có token!', 'error'); return; }
+
+      setStatus('connecting');
+      log(`Connecting to ${wsUrl} ...`, 'info');
+
+      const socket = new SockJS(wsUrl);
+      stompClient = Stomp.over(socket);
+
+      stompClient.debug = (msg) => {
+        // Chỉ log frame quan trọng
+        if (msg.includes('>>>') || msg.includes('<<<') || msg.includes('ERROR')) {
+          log(msg.replace(/\n/g, ' '), 'stomp');
+        }
+      };
+
+      stompClient.connect(
+        { Authorization: `Bearer ${token}` },
+        () => {
+          setStatus('connected');
+          log('✅ Connected!', 'success');
+          document.getElementById('btn-connect').disabled = true;
+          document.getElementById('btn-disconnect').disabled = false;
+          document.getElementById('btn-send').disabled = false;
+
+          // Subscribe
+          log(`Subscribing to ${subDest} ...`, 'info');
+          stompClient.subscribe(subDest, (message) => {
+            log(`📨 MESSAGE received:`, 'success');
+            try {
+              const body = JSON.parse(message.body);
+              log(JSON.stringify(body, null, 2), 'msg');
+            } catch {
+              log(message.body, 'msg');
+            }
+          });
+          log(`✅ Subscribed: ${subDest}`, 'success');
+        },
+        (error) => {
+          setStatus('disconnected');
+          log(`❌ Error: ${JSON.stringify(error)}`, 'error');
+          document.getElementById('btn-connect').disabled = false;
+          document.getElementById('btn-disconnect').disabled = true;
+          document.getElementById('btn-send').disabled = true;
+        }
+      );
+    }
+
+    function doDisconnect() {
+      if (stompClient) {
+        stompClient.disconnect(() => {
+          log('Disconnected', 'info');
+          setStatus('disconnected');
+        });
+      }
+      document.getElementById('btn-connect').disabled = false;
+      document.getElementById('btn-disconnect').disabled = true;
+      document.getElementById('btn-send').disabled = true;
+    }
+
+    function doSend() {
+      const dest = document.getElementById('send-dest').value.trim();
+      const payload = document.getElementById('send-payload').value.trim();
+      if (!stompClient || !stompClient.connected) {
+        log('Chưa connect!', 'error'); return;
+      }
+      stompClient.send(dest, {}, payload);
+      log(`📤 Sent to ${dest}: ${payload}`, 'send');
+    }
+  </script>
+</body>
+
+</html>
