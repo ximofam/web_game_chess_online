@@ -22,6 +22,38 @@
                     style="font-size:10px; display:none">0</span>
             </button>
 
+            <!-- Thêm sau button#bell-btn -->
+            <div id="notif-modal"
+                style="display:none; position:absolute; top:56px; right:16px; z-index:1050; width:380px;">
+                <div class="notif-panel shadow">
+
+                    <div class="notif-panel-header">
+                        <span class="fw-medium">Thông báo</span>
+                        <div class="d-flex align-items-center gap-1">
+                            <button class="btn btn-link btn-sm text-muted p-1" id="notif-mark-all">Đánh dấu đã
+                                đọc</button>
+                            <button class="btn btn-light btn-sm" id="notif-delete-all" title="Xóa tất cả">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="notif-tabs">
+                        <button class="notif-tab active" data-tab="all">Tất cả</button>
+                        <button class="notif-tab" data-tab="unread">Chưa đọc <span
+                                id="notif-unread-tab"></span></button>
+                    </div>
+
+                    <div id="notif-list" class="notif-list"></div>
+
+                    <div class="notif-panel-footer">
+                        <button class="btn btn-link btn-sm text-muted w-100" id="notif-load-more">
+                            <i class="bi bi-three-dots"></i> Tải thêm
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div class="dropdown">
                 <button class="btn btn-light btn-sm dropdown-toggle d-flex align-items-center gap-2"
                     data-bs-toggle="dropdown">

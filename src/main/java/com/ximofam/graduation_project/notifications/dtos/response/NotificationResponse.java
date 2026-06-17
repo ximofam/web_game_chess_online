@@ -17,4 +17,5 @@ public class NotificationResponse {
     private String message;
     private Map<String, Object> metadata;
     private Instant createdAt;
+    private boolean isRead;
 }
