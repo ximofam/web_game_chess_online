@@ -7,6 +7,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -24,6 +25,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 
 import java.security.Principal;
 import java.util.List;
@@ -35,6 +37,15 @@ import java.util.stream.Collectors;
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final JwtService jwtService;
 
+    @Value("${app.websocket.rabbitmq-stomp-host}")
+    private String stompHost;
+    @Value("${app.websocket.rabbitmq-stomp-port}")
+    private int stompPort;
+    @Value("${app.websocket.rabbitmq-stomp-login}")
+    private String stompLogin;
+    @Value("${app.websocket.rabbitmq-stomp-passcode}")
+    private String stompPasscode;
+
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws").setAllowedOriginPatterns("*").withSockJS();
@@ -42,8 +53,27 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/topic", "/queue");
+        registry.enableStompBrokerRelay("/topic", "/queue")
+                .setRelayHost(stompHost)
+                .setRelayPort(stompPort)
+                .setSystemLogin(stompLogin)
+                .setSystemPasscode(stompPasscode)
+                .setClientLogin(stompLogin)
+                .setClientPasscode(stompPasscode)
+                .setSystemHeartbeatSendInterval(10000)
+                .setSystemHeartbeatReceiveInterval(10000);
+
         registry.setApplicationDestinationPrefixes("/app");
+
+        registry.setUserDestinationPrefix("/user");
+    }
+
+    @Override
+    public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
+        registration
+                .setMessageSizeLimit(128 * 1024)      // 128KB max message
+                .setSendBufferSizeLimit(512 * 1024)   // 512KB send buffer
+                .setSendTimeLimit(20_000);             // 20s timeout
     }
 
     @Override

@@ -23,6 +23,13 @@ spring:
   flyway:
     enabled: false
 
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VHOST:/}
+
 decorator:
   datasource:
     p6spy:
@@ -56,12 +63,17 @@ app:
     email: ${SUPERUSER_EMAIL}
     username: ${SUPERUSER_USERNAME}
     password: ${SUPERUSER_PASSWORD}
-    full-name: ${SUPERUSER_FULL_NAME}
 
   cloudinary:
     cloud-name: ${CLOUDINARY_CLOUD_NAME}
     api-key: ${CLOUDINARY_API_KEY}
     api-secret: ${CLOUDINARY_API_SECRET}
+
+  websocket:
+    rabbitmq-stomp-host: ${RABBITMQ_STOMP_HOST:localhost}
+    rabbitmq-stomp-port: ${RABBITMQ_STOMP_PORT:61613}
+    rabbitmq-stomp-login: ${RABBITMQ_STOMP_LOGIN:guest}
+    rabbitmq-stomp-passcode: ${RABBITMQ_STOMP_PASSCODE:guest}
 
 users:
   scheduler:

@@ -10,5 +10,20 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    env_file:
+      - .env
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"          # AMQP
+      - "${RABBITMQ_UI_PORT:-15672}:15672"    # Management UI
+      - "${RABBITMQ_STOMP_PORT:-61613}:61613" # STOMP
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    command: >
+      bash -c "rabbitmq-plugins enable rabbitmq_stomp && rabbitmq-server"
+
 volumes:
   postgres_data:
