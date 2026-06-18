@@ -2,7 +2,7 @@ package com.ximofam.graduation_project.configs;
 
 import com.ximofam.graduation_project.common.exceptions.CustomAccessDeniedHandler;
 import com.ximofam.graduation_project.common.exceptions.CustomAuthenticationEntryPoint;
-import com.ximofam.graduation_project.common.securities.JwtFilter;
+import com.ximofam.graduation_project.users.securities.JwtFilter;
 import com.ximofam.graduation_project.users.securities.MyUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;

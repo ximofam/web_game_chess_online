@@ -1,8 +1,8 @@
 package com.ximofam.graduation_project.admin.controllers;
 
-import com.ximofam.graduation_project.common.securities.CustomUserDetails;
 import com.ximofam.graduation_project.users.dtos.request.UpdateUserProfileRequest;
 import com.ximofam.graduation_project.users.dtos.response.UserDetailResponse;
+import com.ximofam.graduation_project.users.securities.CustomUserDetails;
 import com.ximofam.graduation_project.users.services.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

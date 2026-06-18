@@ -3,7 +3,6 @@ package com.ximofam.graduation_project.users.services;
 import com.ximofam.graduation_project.common.exceptions.http.ConflictException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.common.helpers.services.JwtService;
-import com.ximofam.graduation_project.common.securities.CustomUserDetails;
 import com.ximofam.graduation_project.users.UserMapper;
 import com.ximofam.graduation_project.users.dtos.request.LoginRequest;
 import com.ximofam.graduation_project.users.dtos.request.RefreshRequest;
@@ -15,6 +14,7 @@ import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.entities.UserProfile;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
+import com.ximofam.graduation_project.users.securities.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -23,7 +23,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Objects;
 
 @Service
@@ -79,7 +78,7 @@ public class AuthService {
     }
 
     private TokenResponse generateTokens(User user) {
-        String accessToken = jwtService.generateAccessToken(user.getId(), List.of(user.getRole().name()));
+        String accessToken = jwtService.generateAccessToken(user.getId(), user.getRole().name());
         String refreshToken = refreshTokenService.generateRefreshToken(user);
 
         TokenResponse tokenRes = new TokenResponse();

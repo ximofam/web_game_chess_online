@@ -10,8 +10,6 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
-import java.util.List;
-import java.util.Optional;
 
 @Service
 public class JwtService {
@@ -26,10 +24,10 @@ public class JwtService {
         this.signingKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey));
     }
 
-    public String generateAccessToken(Object subject, List<String> roles) {
+    public String generateAccessToken(Long userId, String role) {
         return Jwts.builder()
-                .subject(subject.toString())
-                .claim("roles", roles)
+                .subject(String.valueOf(userId))
+                .claim("role", role)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + accessTokenExpSec * 1000L))
                 .signWith(signingKey)
@@ -42,15 +40,13 @@ public class JwtService {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-
     }
 
-    @SuppressWarnings("unchecked")
-    public <T> List<T> extractList(Claims claims, String key) {
-        return Optional.ofNullable(claims.get(key, List.class))
-                .orElse(List.of())
-                .stream()
-                .map(item -> (T) item.toString())
-                .toList();
+    public Long extractUserId(Claims claims) {
+        return Long.parseLong(claims.getSubject());
+    }
+
+    public String extractRole(Claims claims) {
+        return claims.get("role", String.class);
     }
 }
