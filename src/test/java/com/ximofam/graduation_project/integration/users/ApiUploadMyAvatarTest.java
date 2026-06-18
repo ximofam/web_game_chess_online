@@ -56,13 +56,13 @@ public class ApiUploadMyAvatarTest extends BaseIntegrationTest {
 
 
         User updatedUser = userRepository.findById(validUser.getId()).orElseThrow();
-        Assertions.assertEquals("new_avatar_123", updatedUser.getAvatarPublicId());
+        Assertions.assertEquals("new_avatar_123", updatedUser.getProfile().getAvatarPublicId());
     }
 
     @Test
     @DisplayName("User đã có avatar cũ -> Xóa avatar cũ và cập nhật mới")
     void uploadAvatar_WithOldAvatar_ShouldDeleteOldAndUploadNew() throws Exception {
-        validUser.setAvatarPublicId("old_avatar_456");
+        validUser.getProfile().setAvatarPublicId("old_avatar_456");
         userRepository.save(validUser);
 
         TokenResponse tokens = performLogin(validUser.getUsername(), PASSWORD);
@@ -78,7 +78,7 @@ public class ApiUploadMyAvatarTest extends BaseIntegrationTest {
                 .andExpect(status().isOk());
 
         User updatedUser = userRepository.findById(validUser.getId()).orElseThrow();
-        Assertions.assertEquals(mockResult.getPublicId(), updatedUser.getAvatarPublicId());
+        Assertions.assertEquals(mockResult.getPublicId(), updatedUser.getProfile().getAvatarPublicId());
 
         verify(cloudinaryService, timeout(1000).times(1)).deleteAsync("old_avatar_456");
     }

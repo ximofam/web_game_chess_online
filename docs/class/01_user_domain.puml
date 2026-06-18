@@ -2,32 +2,36 @@
 title User Domain Model
 
 class BaseModel {
-    +id : Long
-    +createdAt : Instant
-    +updatedAt : Instant
+    # id : Long
+    # createdAt : Instant
+    # updatedAt : Instant
 }
 
 class SoftDeleteModel {
-    +deletedAt : Instant
+    # deletedAt : Instant
 }
 
 class User {
-    +username : String
-    +email : String
-    +passwordHash : String
-    +fullName : String
-    +avatarPublicId : String
-    +gender : Gender
-    +dateOfBirth : LocalDate
-    +role : UserRole
-    +isActive : boolean
-    +isLocked : boolean
+    - username : String
+    - email : String
+    - passwordHash : String
+    - role : UserRole
+    - isActive : boolean
+    - isLocked : boolean
+}
+
+class UserProfile {
+    - avatarPublicId: String
+    - avatarUrl: String
+    - fullName: String
+    - gender: Gender
+    - dateOfBirth: LocalDate
 }
 
 class RefreshToken {
-    +tokenHash : String
-    +expiresAt : Instant
-    +isRevoked : Boolean
+    - tokenHash : String
+    - expiresAt : Instant
+    - isRevoked : Boolean
     --
     +isExpired() : boolean
     +isRevoked() : boolean
@@ -44,14 +48,14 @@ enum UserRole {
     USER
 }
 
-BaseModel <|-- SoftDeleteModel
+BaseModel <|-l- SoftDeleteModel
 SoftDeleteModel <|-- User
 
 BaseModel <|-- RefreshToken
 
-User --> Gender
+UserProfile --> Gender
 User --> UserRole
-
+User *-l- "1" UserProfile : has >
 User "1" <-r- "*" RefreshToken : owns
 
 @enduml

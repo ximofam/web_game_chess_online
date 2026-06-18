@@ -56,8 +56,8 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() ->
                         new NotFoundException("UserId %d không tồn tại", userId));
-
-        String oldPublicId = user.getAvatarPublicId();
+        UserProfile profile = user.getProfile();
+        String oldPublicId = profile.getAvatarPublicId();
         try {
             String publicId = String.format("%s_%s", user.getUsername(), UUID.randomUUID());
 
@@ -70,8 +70,9 @@ public class UserService {
                     )
             );
 
-            user.setAvatarPublicId(result.getPublicId());
-
+            profile.setAvatarPublicId(result.getPublicId());
+            profile.setAvatarUrl(result.getSecureUrl());
+            
             if (oldPublicId != null) {
                 cloudinaryService.deleteAsync(oldPublicId);
             }
