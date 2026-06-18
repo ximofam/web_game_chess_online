@@ -1,18 +1,24 @@
 package com.ximofam.graduation_project.users.entities;
 
-import com.ximofam.graduation_project.common.helpers.models.BaseModel;
 import com.ximofam.graduation_project.users.entities.enums.Gender;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
 
-@Entity
-@Table(name = "user_profiles")
+@Embeddable
 @Getter
 @Setter
-public class UserProfile extends BaseModel {
+public class UserProfile {
+    @Column(name = "avatar_public_id")
+    private String avatarPublicId;
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
 
     @Column(name = "full_name")
     private String fullName;
