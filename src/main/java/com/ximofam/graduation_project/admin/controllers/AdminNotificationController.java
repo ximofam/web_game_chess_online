@@ -1,8 +1,8 @@
 package com.ximofam.graduation_project.admin.controllers;
 
-import com.ximofam.graduation_project.common.securities.CustomUserDetails;
 import com.ximofam.graduation_project.notifications.dtos.response.NotificationResponse;
 import com.ximofam.graduation_project.notifications.services.NotificationService;
+import com.ximofam.graduation_project.users.securities.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

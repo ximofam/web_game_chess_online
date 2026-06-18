@@ -1,8 +1,8 @@
 package com.ximofam.graduation_project.configs;
 
 import com.ximofam.graduation_project.common.helpers.services.JwtService;
-import com.ximofam.graduation_project.common.helpers.utils.Utils;
-import com.ximofam.graduation_project.common.securities.CustomUserDetails;
+import com.ximofam.graduation_project.users.entities.enums.UserRole;
+import com.ximofam.graduation_project.users.securities.CustomUserDetails;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
@@ -20,16 +20,12 @@ import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 
 import java.security.Principal;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSocketMessageBroker
@@ -91,12 +87,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     String token = authHeader.substring(7);
                     try {
                         Claims claims = jwtService.verifyAndParseToken(token);
-                        Long userId = Long.parseLong(claims.getSubject());
-                        List<String> roles = jwtService.extractList(claims, "roles");
-                        List<GrantedAuthority> authorities = roles.stream()
-                                .map(role -> new SimpleGrantedAuthority(Utils.getRole(role)))
-                                .collect(Collectors.toList());
-                        accessor.setUser(new UsernamePasswordAuthenticationToken(userId, null, authorities));
+                        Long userId = jwtService.extractUserId(claims);
+                        String role = jwtService.extractRole(claims);
+                        UserRole userRole = UserRole.valueOf(role);
+
+                        accessor.setUser(new UsernamePasswordAuthenticationToken(userId, null, userRole.getAuthorities()));
                     } catch (JwtException e) {
                         throw new MessageDeliveryException("Invalid JWT token");
                     }

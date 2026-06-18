@@ -1,12 +1,12 @@
 package com.ximofam.graduation_project.services;
 
 import com.ximofam.graduation_project.common.helpers.services.JwtService;
-import com.ximofam.graduation_project.common.securities.CustomUserDetails;
 import com.ximofam.graduation_project.users.dtos.request.LoginRequest;
 import com.ximofam.graduation_project.users.dtos.response.TokenResponse;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
+import com.ximofam.graduation_project.users.securities.CustomUserDetails;
 import com.ximofam.graduation_project.users.services.AuthService;
 import com.ximofam.graduation_project.users.services.RefreshTokenService;
 import org.assertj.core.api.Assertions;

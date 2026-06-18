@@ -1,11 +1,11 @@
 package com.ximofam.graduation_project.admin.controllers;
 
 
-import com.ximofam.graduation_project.common.securities.CustomUserDetails;
 import com.ximofam.graduation_project.users.UserMapper;
 import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
+import com.ximofam.graduation_project.users.securities.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.ControllerAdvice;
