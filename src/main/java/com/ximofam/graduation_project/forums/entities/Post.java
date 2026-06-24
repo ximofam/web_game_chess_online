@@ -26,7 +26,7 @@ public class Post extends SoftDeleteModel {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    private PostStatus status;
+    private PostStatus status = PostStatus.PENDING;
 
     @Column(name = "view_count")
     private long viewCount;
