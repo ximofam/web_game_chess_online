@@ -10,5 +10,7 @@ import org.mapstruct.Mapping;
 public interface CommentMapper {
 
     @Mapping(target = "parentId", source = "parent.id")
+    @Mapping(target = "replyCount", ignore = true)
+    @Mapping(target = "likeCount", ignore = true)
     CommentResponse toCommentResponse(Comment comment);
 }

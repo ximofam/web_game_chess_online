@@ -10,6 +10,7 @@ import com.ximofam.graduation_project.forums.mappers.CommentMapper;
 import com.ximofam.graduation_project.forums.repositories.CommentRepository;
 import com.ximofam.graduation_project.forums.repositories.PostRepository;
 import com.ximofam.graduation_project.forums.repositories.projection.CommentReplyCountProjection;
+import com.ximofam.graduation_project.forums.repositories.projection.CommentWithLikeCountProjection;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.services.UserCurrentService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -69,7 +71,7 @@ public class CommentService {
             throw new NotFoundException("PostId %d không tồn tại", postId);
         }
 
-        Page<Comment> comments = commentRepository.findByPostIdAndParentIsNull(postId, pageable);
+        Page<CommentWithLikeCountProjection> comments = commentRepository.findRootCommentsWithLikeCount(postId, pageable);
         return toCommentResponsePage(comments);
     }
 
@@ -79,21 +81,26 @@ public class CommentService {
             throw new NotFoundException("CommentId %d không tồn tại", commentId);
         }
 
-        Page<Comment> comments = commentRepository.findByParentId(commentId, pageable);
+        Page<CommentWithLikeCountProjection> comments = commentRepository.findRepliesWithLikeCount(commentId, pageable);
         return toCommentResponsePage(comments);
     }
 
-    private Page<CommentResponse> toCommentResponsePage(Page<Comment> comments) {
-        Map<Long, Integer> replyCounts = getReplyCounts(comments);
+    private Page<CommentResponse> toCommentResponsePage(Page<CommentWithLikeCountProjection> comments) {
+        List<Comment> commentEntities = comments.stream()
+                .map(CommentWithLikeCountProjection::getComment)
+                .toList();
+        Map<Long, Integer> replyCounts = getReplyCounts(commentEntities);
 
-        return comments.map(comment -> {
+        return comments.map(commentWithLikeCount -> {
+            Comment comment = commentWithLikeCount.getComment();
             CommentResponse response = commentMapper.toCommentResponse(comment);
             response.setReplyCount(replyCounts.getOrDefault(comment.getId(), 0));
+            response.setLikeCount(Math.toIntExact(commentWithLikeCount.getLikeCount()));
             return response;
         });
     }
 
-    private Map<Long, Integer> getReplyCounts(Page<Comment> comments) {
+    private Map<Long, Integer> getReplyCounts(List<Comment> comments) {
         if (comments.isEmpty()) {
             return Map.of();
         }

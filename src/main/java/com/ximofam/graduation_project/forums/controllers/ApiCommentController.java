@@ -4,6 +4,8 @@ import com.ximofam.graduation_project.forums.dtos.response.CommentResponse;
 import com.ximofam.graduation_project.forums.services.CommentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,5 +19,10 @@ public class ApiCommentController {
     private final CommentService commentService;
 
     @GetMapping("/{id}/replies")
-    public ResponseEntity<Page<CommentResponse>> getReplies(@PathVariable Long id)
+    public ResponseEntity<Page<CommentResponse>> getReplies(
+            @PathVariable Long id,
+            @PageableDefault(size = 10) Pageable pageable) {
+
+        return ResponseEntity.ok(commentService.getReplyComments(id, pageable));
+    }
 }

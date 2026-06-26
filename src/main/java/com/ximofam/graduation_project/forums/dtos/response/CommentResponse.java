@@ -11,5 +11,6 @@ public class CommentResponse {
     private String content;
     private Long parentId;
     private int replyCount;
+    private int likeCount;
     private UserSimpleResponse author;
 }
