@@ -20,9 +20,10 @@ public class ApiCommentController {
     @GetMapping("/{id}/replies")
     public ResponseEntity<Page<CommentResponse>> getReplies(
             @PathVariable Long id,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
             @PageableDefault(size = 10) Pageable pageable) {
 
-        return ResponseEntity.ok(commentService.getReplyComments(id, pageable));
+        return ResponseEntity.ok(commentService.getReplyComments(id, sortBy, pageable));
     }
 
     @PostMapping

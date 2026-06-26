@@ -66,23 +66,43 @@ public class CommentService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CommentResponse> getComments(Long postId, Pageable pageable) {
+    public Page<CommentResponse> getComments(Long postId, String sortBy, Pageable pageable) {
         if (!postRepository.existsById(postId)) {
             throw new NotFoundException("PostId %d không tồn tại", postId);
         }
 
-        Page<CommentWithLikeCountProjection> comments = commentRepository.findRootCommentsWithLikeCount(postId, pageable);
+        Page<CommentWithLikeCountProjection> comments = commentRepository.findRootCommentsWithLikeCount(
+                postId,
+                normalizeSortBy(sortBy),
+                pageable
+        );
         return toCommentResponsePage(comments);
     }
 
     @Transactional(readOnly = true)
-    public Page<CommentResponse> getReplyComments(Long commentId, Pageable pageable) {
+    public Page<CommentResponse> getReplyComments(Long commentId, String sortBy, Pageable pageable) {
         if (!commentRepository.existsById(commentId)) {
             throw new NotFoundException("CommentId %d không tồn tại", commentId);
         }
 
-        Page<CommentWithLikeCountProjection> comments = commentRepository.findRepliesWithLikeCount(commentId, pageable);
+        Page<CommentWithLikeCountProjection> comments = commentRepository.findRepliesWithLikeCount(
+                commentId,
+                normalizeSortBy(sortBy),
+                pageable
+        );
         return toCommentResponsePage(comments);
+    }
+
+    private String normalizeSortBy(String sortBy) {
+        if (sortBy == null || sortBy.isBlank()) {
+            return "createdAt";
+        }
+
+        if (sortBy.equals("createdAt") || sortBy.equals("likeCount")) {
+            return sortBy;
+        }
+
+        throw new BadRequestException("sortBy chỉ hỗ trợ createdAt hoặc likeCount");
     }
 
     private Page<CommentResponse> toCommentResponsePage(Page<CommentWithLikeCountProjection> comments) {

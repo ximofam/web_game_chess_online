@@ -22,14 +22,18 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
                 LEFT JOIN c.likes cl ON cl.isActive = true
                 WHERE c.post.id = :postId AND c.parent IS NULL
                 GROUP BY c, c.author
-                ORDER BY COUNT(cl.id) DESC, c.createdAt DESC
+                ORDER BY CASE WHEN :sortBy = 'likeCount' THEN COUNT(cl.id) ELSE 0 END DESC, c.createdAt DESC
             """,
             countQuery = """
                         SELECT COUNT(c)
                         FROM Comment c
                         WHERE c.post.id = :postId AND c.parent IS NULL
                     """)
-    Page<CommentWithLikeCountProjection> findRootCommentsWithLikeCount(@Param("postId") Long postId, Pageable pageable);
+    Page<CommentWithLikeCountProjection> findRootCommentsWithLikeCount(
+            @Param("postId") Long postId,
+            @Param("sortBy") String sortBy,
+            Pageable pageable
+    );
 
     @Query(value = """
                 SELECT c AS comment, COUNT(cl.id) AS likeCount
@@ -38,14 +42,18 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
                 LEFT JOIN c.likes cl ON cl.isActive = true
                 WHERE c.parent.id = :parentId
                 GROUP BY c, c.author
-                ORDER BY COUNT(cl.id) DESC, c.createdAt DESC
+                ORDER BY CASE WHEN :sortBy = 'likeCount' THEN COUNT(cl.id) ELSE 0 END DESC, c.createdAt DESC
             """,
             countQuery = """
                         SELECT COUNT(c)
                         FROM Comment c
                         WHERE c.parent.id = :parentId
                     """)
-    Page<CommentWithLikeCountProjection> findRepliesWithLikeCount(@Param("parentId") Long parentId, Pageable pageable);
+    Page<CommentWithLikeCountProjection> findRepliesWithLikeCount(
+            @Param("parentId") Long parentId,
+            @Param("sortBy") String sortBy,
+            Pageable pageable
+    );
 
     @Query("""
                 SELECT c.parent.id AS commentId, COUNT(c.id) AS replyCount

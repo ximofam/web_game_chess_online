@@ -29,8 +29,9 @@ public class ApiPostController {
     @GetMapping("/{id}/comments")
     public ResponseEntity<Page<CommentResponse>> getComments(
             @PathVariable Long id,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
             @PageableDefault(size = 10) Pageable pageable) {
 
-        return ResponseEntity.ok(commentService.getComments(id, pageable));
+        return ResponseEntity.ok(commentService.getComments(id, sortBy, pageable));
     }
 }
