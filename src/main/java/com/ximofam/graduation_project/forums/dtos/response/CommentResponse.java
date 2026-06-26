@@ -1,0 +1,15 @@
+package com.ximofam.graduation_project.forums.dtos.response;
+
+import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class CommentResponse {
+    private Long id;
+    private String content;
+    private Long parentId;
+    private int replyCount;
+    private UserSimpleResponse author;
+}
