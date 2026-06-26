@@ -1,0 +1,109 @@
+@startuml
+title Forum Entities Model
+
+class BaseModel {
+    # id : Long
+    # createdAt : Instant
+    # updatedAt : Instant
+}
+
+class SoftDeleteModel {
+    # deletedAt : Instant
+}
+
+class User
+
+class Post {
+    - author : User
+    - title : String
+    - content : String
+    - status : PostStatus
+    - viewCount : long
+    - approvalInfo : ApprovalInfo
+    --
+    + incrementViewCount() : void
+}
+
+class ApprovalInfo {
+    - approvedBy : User
+    - approvedAt : Instant
+    - approvalNote : String
+    --
+    + isApproved() : boolean
+    + approve(moderator : User, note : String) : ApprovalInfo
+    + empty() : ApprovalInfo
+}
+
+class Comment {
+    - post : Post
+    - author : User
+    - content : String
+    - parent : Comment
+    - replies : List<Comment>
+    - likes : List<CommentLike>
+    --
+    + isReply() : boolean
+    + isRootComment() : boolean
+}
+
+class PostLike {
+    - user : User
+    - post : Post
+    - isActive : boolean
+    --
+    + of(user : User, post : Post) : PostLike
+}
+
+class CommentLike {
+    - user : User
+    - comment : Comment
+    - isActive : boolean
+    --
+    + of(user : User, comment : Comment) : CommentLike
+}
+
+enum PostStatus {
+    DRAFT
+    PENDING
+    APPROVE
+    DENIED
+}
+
+BaseModel <|-l- SoftDeleteModel
+SoftDeleteModel <|-- Post
+SoftDeleteModel <|-- Comment
+BaseModel <|-- PostLike
+BaseModel <|-- CommentLike
+
+Post --> PostStatus
+Post *-- ApprovalInfo : embeds >
+ApprovalInfo --> "0..1" User : approvedBy
+
+Post "0..*" --> "1" User : author
+Comment "0..*" --> "1" Post : belongs to >
+Comment "0..*" --> "1" User : author
+Comment "0..*" --> "0..1" Comment : parent
+Comment "1" o-- "0..*" Comment : replies
+
+PostLike "0..*" --> "1" User : user
+PostLike "0..*" --> "1" Post : post
+CommentLike "0..*" --> "1" User : user
+CommentLike "0..*" --> "1" Comment : comment
+
+note right of ApprovalInfo
+ApprovalInfo là embeddable trong Post,
+lưu thông tin người duyệt, thời điểm duyệt
+và ghi chú/lý do kiểm duyệt.
+end note
+
+note bottom of PostLike
+Mỗi user chỉ có một bản ghi like cho mỗi post.
+Trạng thái isActive dùng để bật/tắt like.
+end note
+
+note bottom of CommentLike
+Mỗi user chỉ có một bản ghi like cho mỗi comment.
+Trạng thái isActive dùng để bật/tắt like.
+end note
+
+@enduml
