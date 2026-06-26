@@ -1,11 +1,11 @@
 spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/graduation_test_db
-    username: ${TEST_DB_USER:${POSTGRES_USER:postgres}}
-    password: ${TEST_DB_PASS:${POSTGRES_PASSWORD:123456}}
   flyway:
     enabled: true
     clean-disabled: false
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
 
 app:
   security:
@@ -32,6 +32,9 @@ app:
     cloud-name: dummy_cloud
     api-key: dummy_key
     api-secret: dummy_secret
+  websocket:
+    broker-relay:
+      enabled: false
 
 users:
   scheduler:

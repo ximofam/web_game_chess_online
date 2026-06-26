@@ -1,12 +1,9 @@
 package com.ximofam.graduation_project;
 
+import com.ximofam.graduation_project.integration.base.AbstractSpringBootTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest
-@ActiveProfiles("test")
-class GraduationProjectApplicationTests {
+class GraduationProjectApplicationTests extends AbstractSpringBootTest {
 
     @Test
     void contextLoads() {

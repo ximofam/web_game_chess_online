@@ -1,39 +1,18 @@
 package com.ximofam.graduation_project.integration.auth;
 
+import com.ximofam.graduation_project.integration.base.AbstractIntegrationTest;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.entities.UserProfile;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
-import com.ximofam.graduation_project.users.repositories.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Transactional
-class ApiRegisterIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
+class ApiRegisterIntegrationTest extends AbstractIntegrationTest {
     private static final String REGISTER_API_URL = "/api/auth/register";
 
     @BeforeEach
