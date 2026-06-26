@@ -1,7 +1,6 @@
 package com.ximofam.graduation_project.notifications;
 
 import com.ximofam.graduation_project.common.helpers.utils.RoutingKeys;
-import com.ximofam.graduation_project.configs.RabbitMQConfig;
 import com.ximofam.graduation_project.notifications.dtos.request.NotificationRequest;
 import com.ximofam.graduation_project.notifications.entities.Notification;
 import com.ximofam.graduation_project.notifications.repositories.NotificationRepository;
@@ -21,11 +20,16 @@ public class NotificationEventListener {
     private final NotificationRepository notificationRepository;
     private final SimpMessagingTemplate simpMessagingTemplate;
 
-    @RabbitListener(queues = RabbitMQConfig.NOTIFICATION_QUEUE, concurrency = "2-5")
+    @RabbitListener(
+            queues = "${app.rabbitmq.queues.notification.name}",
+            concurrency = "2-5",
+            containerFactory = "rabbitListenerContainerFactory"
+    )
     public void handle(NotificationRequest event, @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey) {
         switch (routingKey) {
             case RoutingKeys.NOTIF_PUSH -> handlePush(event);
             case RoutingKeys.NOTIF_EMAIL -> handleEmail(event);
+            default -> throw new IllegalArgumentException("Không hỗ trợ Routing Key này: " + routingKey);
         }
     }
 

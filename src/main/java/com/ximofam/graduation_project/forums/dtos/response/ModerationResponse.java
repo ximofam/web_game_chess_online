@@ -6,6 +6,6 @@ import lombok.Setter;
 @Getter
 @Setter
 public class ModerationResponse {
-    private ModerationStatus status;
+    private String status;
     private String reason;
 }

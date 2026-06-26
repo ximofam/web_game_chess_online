@@ -83,6 +83,32 @@ app:
     rabbitmq-stomp-login: ${RABBITMQ_STOMP_LOGIN:guest}
     rabbitmq-stomp-passcode: ${RABBITMQ_STOMP_PASSCODE:guest}
 
+  rabbitmq:
+    exchange:
+      main: app.exchange
+      dlx: app.dlx
+    queues:
+      post:
+        name: post.queue
+        dlq: post.dead.queue
+        routing-key: post.#
+        dlq-routing-key: post.dead
+      comment:
+        name: comment.queue
+        dlq: comment.dead.queue
+        routing-key: comment.#
+        dlq-routing-key: comment.dead
+      notification:
+        name: notification.queue
+        dlq: notification.dead.queue
+        routing-key: notification.#
+        dlq-routing-key: notification.dead
+    retry:
+      max-attempts: 3
+      initial-interval: 1000
+      multiplier: 2.0
+      max-interval: 10000
+
 users:
   scheduler:
     clean-refresh-token:
