@@ -30,6 +30,7 @@
         <java.version>21</java.version>
         <org.mapstruct.version>1.6.3</org.mapstruct.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -37,13 +38,6 @@
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
                 <version>2.0.0</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.testcontainers</groupId>
-                <artifactId>testcontainers-bom</artifactId>
-                <version>1.20.4</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -160,12 +154,14 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
         <!-- PostgreSQL module -->
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>postgresql</artifactId>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
         <!--        WS + RabbitMQ-->
