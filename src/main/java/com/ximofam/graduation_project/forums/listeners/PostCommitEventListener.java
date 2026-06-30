@@ -25,7 +25,7 @@ public class PostCommitEventListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handlePostModeration(PostModerationCompletedEvent event) {
-        boolean isApproved = event.getStatus() == PostStatus.APPROVE;
+        boolean isApproved = event.getStatus() == PostStatus.APPROVED;
 
         eventPublisher.publish(RoutingKeys.NOTIF_PUSH, NotificationRequest.builder()
                 .recipientId(event.getRecipientId())

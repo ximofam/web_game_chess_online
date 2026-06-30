@@ -6,6 +6,7 @@ import com.ximofam.graduation_project.forums.dtos.request.CreateCommentRequest;
 import com.ximofam.graduation_project.forums.dtos.response.CommentResponse;
 import com.ximofam.graduation_project.forums.entities.Comment;
 import com.ximofam.graduation_project.forums.entities.Post;
+import com.ximofam.graduation_project.forums.entities.enums.PostStatus;
 import com.ximofam.graduation_project.forums.mappers.CommentMapper;
 import com.ximofam.graduation_project.forums.repositories.CommentRepository;
 import com.ximofam.graduation_project.forums.repositories.PostRepository;
@@ -35,7 +36,7 @@ public class CommentService {
     public CommentResponse createComment(CreateCommentRequest request) {
         User currentUser = userCurrentService.getCurrentUser();
 
-        Post post = postRepository.findById(request.getPostId())
+        Post post = postRepository.findByIdAndStatus(request.getPostId(), PostStatus.APPROVED)
                 .orElseThrow(() -> new NotFoundException("PostId %d không tồn tại", request.getPostId()));
 
         Comment comment = new Comment();
@@ -67,8 +68,8 @@ public class CommentService {
 
     @Transactional(readOnly = true)
     public Page<CommentResponse> getComments(Long postId, String sortBy, Pageable pageable) {
-        if (!postRepository.existsById(postId)) {
-            throw new NotFoundException("PostId %d không tồn tại", postId);
+        if (!postRepository.existsByIdAndStatus(postId, PostStatus.APPROVED)) {
+            throw new NotFoundException("PostId %d không tồn tại hoặc chưa được duyệt", postId);
         }
 
         Page<CommentWithLikeCountProjection> comments = commentRepository.findRootCommentsWithLikeCount(

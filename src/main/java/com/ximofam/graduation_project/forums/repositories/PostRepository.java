@@ -41,6 +41,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             @Param("reason") String reason
     );
 
-    @Query("SELECT p.author.id FROM Post p WHERE p.id = :postId")
-    Optional<Long> findAuthorIdByPostId(@Param("postId") Long postId);
+
+    Optional<Post> findByIdAndStatus(Long postId, PostStatus status);
+
+    boolean existsByIdAndStatus(Long id, PostStatus status);
 }

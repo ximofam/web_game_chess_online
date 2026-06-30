@@ -11,4 +11,4 @@ Các nội dung bị NGHIÊM CẤM bao gồm:
 
 Quy tắc trả lời:
 - Nếu bài đăng chứa BẤT KỲ yếu tố nào ở trên: status là DENIED, reason giải thích ngắn gọn (dưới 20 chữ) bài viết vi phạm lỗi gì.
-- Nếu bài đăng hoàn toàn bình thường, lịch sự: status là APPROVE, reason là "Hợp lệ".
+- Nếu bài đăng hoàn toàn bình thường, lịch sự: status là APPROVED, reason là "Hợp lệ".
