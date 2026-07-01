@@ -1,5 +1,6 @@
 package com.ximofam.graduation_project.forums.controllers;
 
+import com.ximofam.graduation_project.common.helpers.dtos.ApiResponse;
 import com.ximofam.graduation_project.forums.dtos.request.CreateCommentRequest;
 import com.ximofam.graduation_project.forums.dtos.response.CommentResponse;
 import com.ximofam.graduation_project.forums.services.CommentService;
@@ -29,5 +30,18 @@ public class ApiCommentController {
     @PostMapping
     public ResponseEntity<CommentResponse> createComment(@RequestBody CreateCommentRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(commentService.createComment(request));
+    }
+
+    @PostMapping("/{commentId}/likes")
+    public ResponseEntity<ApiResponse> likeComment(
+            @PathVariable Long commentId,
+            @RequestParam(defaultValue = "true") boolean isLike) {
+
+        commentService.likeComment(commentId, isLike);
+        ApiResponse res = ApiResponse.builder()
+                .message((isLike ? "Liked" : "Unliked") + " bình luận thành công")
+                .build();
+
+        return ResponseEntity.ok(res);
     }
 }

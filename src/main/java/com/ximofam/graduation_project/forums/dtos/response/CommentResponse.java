@@ -4,6 +4,8 @@ import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.Instant;
+
 @Getter
 @Setter
 public class CommentResponse {
@@ -12,5 +14,6 @@ public class CommentResponse {
     private Long parentId;
     private int replyCount;
     private int likeCount;
+    private Instant createdAt;
     private UserSimpleResponse author;
 }

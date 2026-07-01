@@ -42,7 +42,7 @@ public class ApiPostController {
         return ResponseEntity.ok(commentService.getComments(postId, sortBy, pageable));
     }
 
-    @PostMapping("/{postId}/like")
+    @PostMapping("/{postId}/likes")
     public ResponseEntity<ApiResponse> likePost(
             @PathVariable Long postId,
             @RequestParam(defaultValue = "true") boolean isLike) {

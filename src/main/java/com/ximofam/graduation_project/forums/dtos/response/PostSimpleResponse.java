@@ -4,6 +4,8 @@ import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.Instant;
+
 @Getter
 @Setter
 public class PostSimpleResponse {
@@ -12,4 +14,5 @@ public class PostSimpleResponse {
     private String title;
     private long viewCount;
     private long likeCount;
+    private Instant createdAt;
 }

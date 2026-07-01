@@ -5,9 +5,11 @@ import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.forums.dtos.request.CreateCommentRequest;
 import com.ximofam.graduation_project.forums.dtos.response.CommentResponse;
 import com.ximofam.graduation_project.forums.entities.Comment;
+import com.ximofam.graduation_project.forums.entities.CommentLike;
 import com.ximofam.graduation_project.forums.entities.Post;
 import com.ximofam.graduation_project.forums.entities.enums.PostStatus;
 import com.ximofam.graduation_project.forums.mappers.CommentMapper;
+import com.ximofam.graduation_project.forums.repositories.CommentLikeRepository;
 import com.ximofam.graduation_project.forums.repositories.CommentRepository;
 import com.ximofam.graduation_project.forums.repositories.PostRepository;
 import com.ximofam.graduation_project.forums.repositories.projection.CommentReplyCountProjection;
@@ -28,6 +30,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CommentService {
     private final CommentRepository commentRepository;
+    private final CommentLikeRepository commentLikeRepository;
     private final PostRepository postRepository;
     private final UserCurrentService userCurrentService;
     private final CommentMapper commentMapper;
@@ -134,5 +137,25 @@ public class CommentService {
                         CommentReplyCountProjection::getCommentId,
                         projection -> Math.toIntExact(projection.getReplyCount())
                 ));
+    }
+
+    @Transactional
+    public void likeComment(Long commentId, boolean isLike) {
+        User currentUser = userCurrentService.getReferenceUser();
+
+        if (!commentRepository.existsById(commentId)) {
+            throw new NotFoundException("CommentId %d không tồn tại", commentId);
+        }
+
+        commentLikeRepository.findByUserIdAndCommentId(currentUser.getId(), commentId)
+                .ifPresentOrElse(like -> {
+                    like.setActive(isLike);
+                }, () -> {
+                    if (isLike) {
+                        commentLikeRepository.save(
+                                CommentLike.of(currentUser, commentRepository.getReferenceById(commentId))
+                        );
+                    }
+                });
     }
 }
