@@ -54,7 +54,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query("""
                 SELECT p AS post,
-                       (SELECT COUNT(l) FROM PostLike l WHERE l.post.id = p.id) AS likeCount,
+                       (SELECT COUNT(l) FROM PostLike l WHERE l.post.id = p.id AND l.isActive = true) AS likeCount,
                        (SELECT COUNT(c) FROM Comment c WHERE c.post.id = p.id) AS commentCount
                 FROM Post p
                 JOIN FETCH p.author
