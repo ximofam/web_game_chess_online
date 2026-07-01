@@ -76,17 +76,6 @@ public class PostService {
         res.setLikeCount(projection.getLikeCount());
         res.setCommentCount(projection.getCommentCount());
 
-        boolean likedByUser = false;
-        try {
-            Long currentUserId = userCurrentService.getCurrentUserId();
-            likedByUser = postLikeRepository.findByUserIdAndPostId(currentUserId, postId)
-                    .map(PostLike::isActive)
-                    .orElse(false);
-        } catch (Exception ignored) {
-            // not authenticated or error fetching -> treat as not liked
-        }
-        res.setLikedByUser(likedByUser);
-
         return res;
     }
 

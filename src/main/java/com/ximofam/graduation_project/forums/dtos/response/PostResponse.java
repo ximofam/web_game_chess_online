@@ -17,5 +17,4 @@ public class PostResponse {
     private long likeCount;
     private long commentCount;
     private Instant createdAt;
-    private boolean likedByUser;
 }
