@@ -35,4 +35,8 @@ public class UserCurrentService {
 
         return cachedUser;
     }
+
+    public User getReferenceUser() {
+        return userRepository.getReferenceById(getCurrentUserId());
+    }
 }

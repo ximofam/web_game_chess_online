@@ -5,10 +5,12 @@ import com.ximofam.graduation_project.forums.dtos.request.CreatePostRequest;
 import com.ximofam.graduation_project.forums.dtos.response.PostDetailResponse;
 import com.ximofam.graduation_project.forums.dtos.response.PostResponse;
 import com.ximofam.graduation_project.forums.entities.Post;
+import com.ximofam.graduation_project.forums.entities.PostLike;
 import com.ximofam.graduation_project.forums.entities.enums.PostStatus;
 import com.ximofam.graduation_project.forums.events.PostModerationCompletedEvent;
 import com.ximofam.graduation_project.forums.events.PostModerationEvent;
 import com.ximofam.graduation_project.forums.mappers.PostMapper;
+import com.ximofam.graduation_project.forums.repositories.PostLikeRepository;
 import com.ximofam.graduation_project.forums.repositories.PostRepository;
 import com.ximofam.graduation_project.forums.repositories.projection.PostModerationProjection;
 import com.ximofam.graduation_project.forums.repositories.projection.PostViewProjection;
@@ -25,13 +27,14 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PostService {
     private final PostRepository postRepository;
+    private final PostLikeRepository postLikeRepository;
     private final PostMapper postMapper;
     private final UserCurrentService userCurrentService;
     private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     public PostDetailResponse createPost(CreatePostRequest request) {
-        User currentUser = userCurrentService.getCurrentUser();
+        User currentUser = userCurrentService.getReferenceUser();
 
         Post post = postMapper.toPost(request);
         post.setAuthor(currentUser);
@@ -74,5 +77,23 @@ public class PostService {
         res.setCommentCount(projection.getCommentCount());
 
         return res;
+    }
+
+    @Transactional
+    public void likePost(Long postId, boolean isLike) {
+        User currentUser = userCurrentService.getReferenceUser();
+
+        if (!postRepository.existsByIdAndStatus(postId, PostStatus.APPROVED)) {
+            throw new NotFoundException("PostId %d không tồn tại hoặc chưa được duyệt", postId);
+        }
+
+        postLikeRepository.findByUserIdAndPostId(currentUser.getId(), postId)
+                .ifPresentOrElse(like -> {
+                    like.setActive(isLike);
+                }, () -> {
+                    if (isLike) {
+                        postLikeRepository.save(PostLike.of(currentUser, postRepository.getReferenceById(postId)));
+                    }
+                });
     }
 }

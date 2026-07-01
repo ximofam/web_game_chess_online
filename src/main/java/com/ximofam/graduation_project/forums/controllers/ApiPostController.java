@@ -1,5 +1,6 @@
 package com.ximofam.graduation_project.forums.controllers;
 
+import com.ximofam.graduation_project.common.helpers.dtos.ApiResponse;
 import com.ximofam.graduation_project.forums.dtos.request.CreatePostRequest;
 import com.ximofam.graduation_project.forums.dtos.response.CommentResponse;
 import com.ximofam.graduation_project.forums.dtos.response.PostDetailResponse;
@@ -39,5 +40,18 @@ public class ApiPostController {
             @PageableDefault(size = 10) Pageable pageable) {
 
         return ResponseEntity.ok(commentService.getComments(postId, sortBy, pageable));
+    }
+
+    @PostMapping("/{postId}/like")
+    public ResponseEntity<ApiResponse> likePost(
+            @PathVariable Long postId,
+            @RequestParam(defaultValue = "true") boolean isLike) {
+
+        postService.likePost(postId, isLike);
+        ApiResponse res = ApiResponse.builder()
+                .message((isLike ? "Liked" : "Unliked") + " bai viết thành công")
+                .build();
+
+        return ResponseEntity.ok(res);
     }
 }
