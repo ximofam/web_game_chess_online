@@ -4,6 +4,7 @@ import com.ximofam.graduation_project.forums.entities.Post;
 import com.ximofam.graduation_project.forums.entities.enums.PostStatus;
 import com.ximofam.graduation_project.forums.repositories.projection.PostContentProjection;
 import com.ximofam.graduation_project.forums.repositories.projection.PostModerationProjection;
+import com.ximofam.graduation_project.forums.repositories.projection.PostViewProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -45,4 +46,19 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Optional<Post> findByIdAndStatus(Long postId, PostStatus status);
 
     boolean existsByIdAndStatus(Long id, PostStatus status);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Post p SET p.viewCount = p.viewCount + :delta WHERE p.id = :postId")
+    int incrementViewCount(@Param("postId") Long postId, @Param("delta") long delta);
+
+
+    @Query("""
+                SELECT p AS post,
+                       (SELECT COUNT(l) FROM PostLike l WHERE l.post.id = p.id) AS likeCount,
+                       (SELECT COUNT(c) FROM Comment c WHERE c.post.id = p.id) AS commentCount
+                FROM Post p
+                JOIN FETCH p.author
+                WHERE p.id = :postId AND p.status = 'APPROVED'
+            """)
+    Optional<PostViewProjection> findPostViewProjectionById(Long postId);
 }

@@ -1,17 +1,17 @@
 package com.ximofam.graduation_project.forums.dtos.response;
 
+import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
-public class PostDetailResponse {
+public class PostResponse {
     private Long id;
+    private UserSimpleResponse author;
     private String title;
     private String content;
-    private String status;
     private long viewCount;
     private long likeCount;
     private long commentCount;
-    private ApprovalInfoResponse approvalInfo;
 }

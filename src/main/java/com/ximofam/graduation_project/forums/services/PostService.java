@@ -3,6 +3,7 @@ package com.ximofam.graduation_project.forums.services;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.forums.dtos.request.CreatePostRequest;
 import com.ximofam.graduation_project.forums.dtos.response.PostDetailResponse;
+import com.ximofam.graduation_project.forums.dtos.response.PostResponse;
 import com.ximofam.graduation_project.forums.entities.Post;
 import com.ximofam.graduation_project.forums.entities.enums.PostStatus;
 import com.ximofam.graduation_project.forums.events.PostModerationCompletedEvent;
@@ -10,6 +11,7 @@ import com.ximofam.graduation_project.forums.events.PostModerationEvent;
 import com.ximofam.graduation_project.forums.mappers.PostMapper;
 import com.ximofam.graduation_project.forums.repositories.PostRepository;
 import com.ximofam.graduation_project.forums.repositories.projection.PostModerationProjection;
+import com.ximofam.graduation_project.forums.repositories.projection.PostViewProjection;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.services.UserCurrentService;
 import lombok.RequiredArgsConstructor;
@@ -58,5 +60,19 @@ public class PostService {
                 status,
                 reason
         ));
+    }
+
+    @Transactional
+    public PostResponse viewPost(Long postId) {
+        PostViewProjection projection = postRepository.findPostViewProjectionById(postId)
+                .orElseThrow(() -> new NotFoundException("PostId %d không tồn tại hoặc chưa được duyệt", postId));
+
+        postRepository.incrementViewCount(postId, 1L);
+
+        PostResponse res = postMapper.toPostResponse(projection.getPost());
+        res.setLikeCount(projection.getLikeCount());
+        res.setCommentCount(projection.getCommentCount());
+
+        return res;
     }
 }

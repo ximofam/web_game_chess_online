@@ -3,6 +3,7 @@ package com.ximofam.graduation_project.forums.controllers;
 import com.ximofam.graduation_project.forums.dtos.request.CreatePostRequest;
 import com.ximofam.graduation_project.forums.dtos.response.CommentResponse;
 import com.ximofam.graduation_project.forums.dtos.response.PostDetailResponse;
+import com.ximofam.graduation_project.forums.dtos.response.PostResponse;
 import com.ximofam.graduation_project.forums.services.CommentService;
 import com.ximofam.graduation_project.forums.services.PostService;
 import jakarta.validation.Valid;
@@ -21,17 +22,22 @@ public class ApiPostController {
     private final PostService postService;
     private final CommentService commentService;
 
+    @GetMapping("/{postId}")
+    public ResponseEntity<PostResponse> getPost(@PathVariable Long postId) {
+        return ResponseEntity.ok(postService.viewPost(postId));
+    }
+
     @PostMapping
     public ResponseEntity<PostDetailResponse> createPost(@RequestBody @Valid CreatePostRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(postService.createPost(request));
     }
 
-    @GetMapping("/{id}/comments")
+    @GetMapping("/{postId}/comments")
     public ResponseEntity<Page<CommentResponse>> getComments(
-            @PathVariable Long id,
+            @PathVariable Long postId,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @PageableDefault(size = 10) Pageable pageable) {
 
-        return ResponseEntity.ok(commentService.getComments(id, sortBy, pageable));
+        return ResponseEntity.ok(commentService.getComments(postId, sortBy, pageable));
     }
 }

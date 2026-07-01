@@ -8,6 +8,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+import java.util.Set;
+
 @Entity
 @Table(name = "posts")
 @Getter
@@ -34,7 +37,9 @@ public class Post extends SoftDeleteModel {
     @Embedded
     private ApprovalInfo approvalInfo = ApprovalInfo.empty();
 
-    public void incrementViewCount() {
-        this.viewCount++;
-    }
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<PostLike> likes;
+
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Comment> comments;
 }
