@@ -219,4 +219,180 @@ class ApiCommentControllerIntegrationTest extends BaseIntegrationTest {
                         .header("Authorization", "Bearer " + token.getAccessToken()))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void shouldReturnRepliesWithLikedTrue_WhenGetRepliesAndUserHasLiked() throws Exception {
+        var token = performLogin(validUser.getUsername(), PASSWORD);
+
+        // Create a reply
+        String createReplyPayload = """
+                {
+                    "postId": %d,
+                    "content": "This is a reply comment",
+                    "commentParentId": %d
+                }
+                """.formatted(approvedPost.getId(), rootComment.getId());
+
+        String replyResponse = mockMvc.perform(post("/api/comments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + token.getAccessToken())
+                        .content(createReplyPayload))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Long replyId = objectMapper.readTree(replyResponse).get("id").asLong();
+
+        // Like the reply
+        mockMvc.perform(post("/api/comments/{commentId}/likes", replyId)
+                        .param("isLike", "true")
+                        .header("Authorization", "Bearer " + token.getAccessToken()))
+                .andExpect(status().isOk());
+
+        // Get replies and verify liked is true
+        mockMvc.perform(get("/api/comments/{id}/replies", rootComment.getId())
+                        .header("Authorization", "Bearer " + token.getAccessToken())
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[?(@.id == %d)].liked", replyId).value(true));
+    }
+
+    @Test
+    void shouldReturnRepliesWithLikedFalse_WhenGetRepliesAndUserHasNotLiked() throws Exception {
+        var token = performLogin(validUser.getUsername(), PASSWORD);
+
+        // Create a reply
+        String createReplyPayload = """
+                {
+                    "postId": %d,
+                    "content": "This is a reply comment",
+                    "commentParentId": %d
+                }
+                """.formatted(approvedPost.getId(), rootComment.getId());
+
+        String replyResponse = mockMvc.perform(post("/api/comments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + token.getAccessToken())
+                        .content(createReplyPayload))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Long replyId = objectMapper.readTree(replyResponse).get("id").asLong();
+
+        // Get replies and verify liked is false
+        mockMvc.perform(get("/api/comments/{id}/replies", rootComment.getId())
+                        .header("Authorization", "Bearer " + token.getAccessToken())
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[?(@.id == %d)].liked", replyId).value(false));
+    }
+
+    @Test
+    void shouldReturnRepliesWithLikedFalse_WhenGetRepliesAsAnonymousUser() throws Exception {
+        // Get replies without authentication
+        mockMvc.perform(get("/api/comments/{id}/replies", rootComment.getId())
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray());
+    }
+
+    @Test
+    void shouldReturnCommentWithLikedFalse_WhenCreateComment() throws Exception {
+        var token = performLogin(validUser.getUsername(), PASSWORD);
+
+        String createCommentPayload = """
+                {
+                    "postId": %d,
+                    "content": "This is a new comment"
+                }
+                """.formatted(approvedPost.getId());
+
+        // Create comment should have liked = false
+        mockMvc.perform(post("/api/comments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + token.getAccessToken())
+                        .content(createCommentPayload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.liked").value(false));
+    }
+
+    @Test
+    void shouldReturnCommentWithLikedFalse_WhenUserUnlikedComment() throws Exception {
+        var token = performLogin(validUser.getUsername(), PASSWORD);
+
+        // Like the comment first
+        mockMvc.perform(post("/api/comments/{commentId}/likes", rootComment.getId())
+                        .param("isLike", "true")
+                        .header("Authorization", "Bearer " + token.getAccessToken()))
+                .andExpect(status().isOk());
+
+        // Unlike the comment
+        mockMvc.perform(post("/api/comments/{commentId}/likes", rootComment.getId())
+                        .param("isLike", "false")
+                        .header("Authorization", "Bearer " + token.getAccessToken()))
+                .andExpect(status().isOk());
+
+        // Get replies and verify liked is false
+        mockMvc.perform(get("/api/comments/{id}/replies", rootComment.getId())
+                        .header("Authorization", "Bearer " + token.getAccessToken())
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void shouldReturnMultipleCommentsWithCorrectLikedStatus_WhenGetComments() throws Exception {
+        var token = performLogin(validUser.getUsername(), PASSWORD);
+
+        // Create multiple comments
+        String createCommentPayload = """
+                {
+                    "postId": %d,
+                    "content": "This is a test comment"
+                }
+                """.formatted(approvedPost.getId());
+
+        String comment1Response = mockMvc.perform(post("/api/comments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + token.getAccessToken())
+                        .content(createCommentPayload))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Long comment1Id = objectMapper.readTree(comment1Response).get("id").asLong();
+
+        String comment2Response = mockMvc.perform(post("/api/comments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + token.getAccessToken())
+                        .content(createCommentPayload))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Long comment2Id = objectMapper.readTree(comment2Response).get("id").asLong();
+
+        // Like only the first comment
+        mockMvc.perform(post("/api/comments/{commentId}/likes", comment1Id)
+                        .param("isLike", "true")
+                        .header("Authorization", "Bearer " + token.getAccessToken()))
+                .andExpect(status().isOk());
+
+        // Get comments and verify liked status is correct
+        mockMvc.perform(get("/api/posts/{postId}/comments", approvedPost.getId())
+                        .header("Authorization", "Bearer " + token.getAccessToken())
+                        .param("page", "0")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[?(@.id == %d)].liked", comment1Id).value(true))
+                .andExpect(jsonPath("$.content[?(@.id == %d)].liked", comment2Id).value(false));
+    }
 }
