@@ -8,6 +8,4 @@ public interface PostViewProjection {
     long getLikeCount();
 
     long getCommentCount();
-
-    boolean isLiked();
 }

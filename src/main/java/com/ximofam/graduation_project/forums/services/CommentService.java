@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -66,7 +67,9 @@ public class CommentService {
         }
 
         comment = commentRepository.save(comment);
-        return commentMapper.toCommentResponse(comment);
+        CommentResponse response = commentMapper.toCommentResponse(comment);
+        response.setLiked(false);
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -115,11 +118,23 @@ public class CommentService {
                 .toList();
         Map<Long, Integer> replyCounts = getReplyCounts(commentEntities);
 
+        Long currentUserId = userCurrentService.getCurrentUserIdOrNull();
+        Set<Long> likedCommentIds;
+        if (currentUserId != null) {
+            likedCommentIds = commentLikeRepository.findLikedCommentIdsByUserId(
+                    currentUserId,
+                    commentEntities.stream().map(Comment::getId).toList()
+            );
+        } else {
+            likedCommentIds = Set.of();
+        }
+
         return comments.map(commentWithLikeCount -> {
             Comment comment = commentWithLikeCount.getComment();
             CommentResponse response = commentMapper.toCommentResponse(comment);
             response.setReplyCount(replyCounts.getOrDefault(comment.getId(), 0));
             response.setLikeCount(Math.toIntExact(commentWithLikeCount.getLikeCount()));
+            response.setLiked(likedCommentIds.contains(comment.getId()));
             return response;
         });
     }

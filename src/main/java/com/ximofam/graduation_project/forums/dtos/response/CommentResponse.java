@@ -15,5 +15,6 @@ public class CommentResponse {
     private int replyCount;
     private int likeCount;
     private Instant createdAt;
+    private boolean liked;
     private UserSimpleResponse author;
 }

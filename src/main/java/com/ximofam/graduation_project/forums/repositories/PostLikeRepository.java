@@ -14,6 +14,10 @@ import java.util.Set;
 public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
     Optional<PostLike> findByUserIdAndPostId(Long userId, Long postId);
 
-    @Query("SELECT l.post.id FROM PostLike l WHERE l.user.id = :userId AND l.post.id IN :postIds")
+    @Query("""
+            SELECT l.post.id
+            FROM PostLike l
+            WHERE l.user.id = :userId AND l.isActive = true AND l.post.id IN :postIds
+            """)
     Set<Long> findLikedPostIds(@Param("userId") Long userId, @Param("postIds") List<Long> postIds);
 }

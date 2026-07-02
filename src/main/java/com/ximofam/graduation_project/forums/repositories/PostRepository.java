@@ -58,16 +58,12 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("""
                 SELECT p AS post,
                        (SELECT COUNT(l) FROM PostLike l WHERE l.post.id = p.id AND l.isActive = true) AS likeCount,
-                       (SELECT COUNT(c) FROM Comment c WHERE c.post.id = p.id) AS commentCount,
-                       (CASE WHEN :currentUserId IS NOT NULL AND EXISTS (
-                            SELECT 1 FROM PostLike l2
-                            WHERE l2.post.id = p.id AND l2.user.id = :currentUserId
-                       ) THEN true ELSE false END) AS liked
+                       (SELECT COUNT(c) FROM Comment c WHERE c.post.id = p.id) AS commentCount
                 FROM Post p
                 JOIN FETCH p.author
                 WHERE p.id = :postId AND p.status = 'APPROVED'
             """)
-    Optional<PostViewProjection> findPostViewProjectionById(@Param("postId") Long postId, @Param("currentUserId") Long currentUserId);
+    Optional<PostViewProjection> findPostViewProjectionById(@Param("postId") Long postId);
 
     @Query(value = """
             SELECT p.id AS id,

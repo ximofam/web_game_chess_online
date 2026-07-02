@@ -74,9 +74,7 @@ public class PostService {
 
     @Transactional
     public PostResponse viewPost(Long postId) {
-        Long currentUserId = userCurrentService.getCurrentUserIdOrNull();
-
-        PostViewProjection projection = postRepository.findPostViewProjectionById(postId, currentUserId)
+        PostViewProjection projection = postRepository.findPostViewProjectionById(postId)
                 .orElseThrow(() -> new NotFoundException("PostId %d không tồn tại hoặc chưa được duyệt", postId));
 
         postRepository.incrementViewCount(postId, 1L);
@@ -84,7 +82,14 @@ public class PostService {
         PostResponse res = postMapper.toPostResponse(projection.getPost());
         res.setLikeCount(projection.getLikeCount());
         res.setCommentCount(projection.getCommentCount());
-        res.setLiked(projection.isLiked());
+
+        Long currentUserId = userCurrentService.getCurrentUserIdOrNull();
+        if (currentUserId != null) {
+            boolean liked = postLikeRepository.findByUserIdAndPostId(currentUserId, postId)
+                    .map(PostLike::isActive)
+                    .orElse(false);
+            res.setLiked(liked);
+        }
 
         return res;
     }
@@ -110,9 +115,14 @@ public class PostService {
     public Page<PostSimpleResponse> getPosts(Pageable pageable) {
         Page<PostSimpleProjection> projections = postRepository.findApprovedPosts(pageable);
 
-        Long currentUserId = userCurrentService.getCurrentUserId();
-        List<Long> postIds = projections.stream().map(PostSimpleProjection::getId).toList();
-        Set<Long> likedPostIds = postLikeRepository.findLikedPostIds(currentUserId, postIds);
+        Long currentUserId = userCurrentService.getCurrentUserIdOrNull();
+        Set<Long> likedPostIds;
+        if (currentUserId != null) {
+            List<Long> postIds = projections.stream().map(PostSimpleProjection::getId).toList();
+            likedPostIds = postLikeRepository.findLikedPostIds(currentUserId, postIds);
+        } else {
+            likedPostIds = Set.of();
+        }
 
         return projections.map(p -> postMapper.toPostSimpleResponse(p, likedPostIds.contains(p.getId())));
     }
