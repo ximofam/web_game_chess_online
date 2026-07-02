@@ -15,4 +15,5 @@ public class PostSimpleResponse {
     private long viewCount;
     private long likeCount;
     private Instant createdAt;
+    private boolean liked;
 }

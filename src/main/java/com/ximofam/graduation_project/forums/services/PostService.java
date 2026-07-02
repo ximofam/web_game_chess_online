@@ -4,6 +4,7 @@ import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.forums.dtos.request.CreatePostRequest;
 import com.ximofam.graduation_project.forums.dtos.response.PostDetailResponse;
 import com.ximofam.graduation_project.forums.dtos.response.PostResponse;
+import com.ximofam.graduation_project.forums.dtos.response.PostSimpleResponse;
 import com.ximofam.graduation_project.forums.entities.Post;
 import com.ximofam.graduation_project.forums.entities.PostLike;
 import com.ximofam.graduation_project.forums.entities.enums.PostStatus;
@@ -13,14 +14,20 @@ import com.ximofam.graduation_project.forums.mappers.PostMapper;
 import com.ximofam.graduation_project.forums.repositories.PostLikeRepository;
 import com.ximofam.graduation_project.forums.repositories.PostRepository;
 import com.ximofam.graduation_project.forums.repositories.projection.PostModerationProjection;
+import com.ximofam.graduation_project.forums.repositories.projection.PostSimpleProjection;
 import com.ximofam.graduation_project.forums.repositories.projection.PostViewProjection;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.services.UserCurrentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -75,6 +82,7 @@ public class PostService {
         PostResponse res = postMapper.toPostResponse(projection.getPost());
         res.setLikeCount(projection.getLikeCount());
         res.setCommentCount(projection.getCommentCount());
+        res.setLiked(projection.isLiked());
 
         return res;
     }
@@ -95,5 +103,15 @@ public class PostService {
                         postLikeRepository.save(PostLike.of(currentUser, postRepository.getReferenceById(postId)));
                     }
                 });
+    }
+
+    public Page<PostSimpleResponse> getPosts(Pageable pageable) {
+        Page<PostSimpleProjection> projections = postRepository.findApprovedPosts(pageable);
+
+        Long currentUserId = userCurrentService.getCurrentUserId();
+        List<Long> postIds = projections.stream().map(PostSimpleProjection::getId).toList();
+        Set<Long> likedPostIds = postLikeRepository.findLikedPostIds(currentUserId, postIds);
+
+        return projections.map(p -> postMapper.toPostSimpleResponse(p, likedPostIds.contains(p.getId())));
     }
 }
