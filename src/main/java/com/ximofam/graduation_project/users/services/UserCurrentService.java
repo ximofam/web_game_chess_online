@@ -5,6 +5,7 @@ import com.ximofam.graduation_project.common.exceptions.http.UnauthorizedExcepti
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -20,8 +21,17 @@ public class UserCurrentService {
 
     public Long getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()) {
+        if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken) {
             throw new UnauthorizedException("User not authenticated");
+        }
+
+        return (Long) auth.getPrincipal();
+    }
+
+    public Long getCurrentUserIdOrNull() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken) {
+            return null;
         }
 
         return (Long) auth.getPrincipal();

@@ -51,6 +51,10 @@ public class SecurityConfig {
                                 "/api/auth/register/**",
                                 "/api/auth/refresh"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/posts/**",
+                                "/api/comments/**"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)

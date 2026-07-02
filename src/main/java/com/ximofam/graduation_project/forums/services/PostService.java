@@ -74,7 +74,9 @@ public class PostService {
 
     @Transactional
     public PostResponse viewPost(Long postId) {
-        PostViewProjection projection = postRepository.findPostViewProjectionById(postId)
+        Long currentUserId = userCurrentService.getCurrentUserIdOrNull();
+
+        PostViewProjection projection = postRepository.findPostViewProjectionById(postId, currentUserId)
                 .orElseThrow(() -> new NotFoundException("PostId %d không tồn tại hoặc chưa được duyệt", postId));
 
         postRepository.incrementViewCount(postId, 1L);
