@@ -1,6 +1,5 @@
 package com.ximofam.graduation_project.configs;
 
-import com.ximofam.graduation_project.auth.securities.CustomUserDetails;
 import com.ximofam.graduation_project.auth.services.TokenService;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
 import io.jsonwebtoken.Claims;
@@ -19,13 +18,10 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
-
-import java.security.Principal;
 
 @Configuration
 @EnableWebSocketMessageBroker
@@ -98,28 +94,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     return message;
                 }
 
-                Principal existingPrincipal = accessor.getUser();
-                if (existingPrincipal != null) {
-                    if (existingPrincipal instanceof Authentication auth) {
-                        Object principalObj = auth.getPrincipal();
-
-                        if (principalObj instanceof CustomUserDetails customUserDetails) {
-
-                            Long sessionUserId = customUserDetails.getUserId();
-
-                            Authentication standardizedAuth = new UsernamePasswordAuthenticationToken(
-                                    sessionUserId,
-                                    null,
-                                    customUserDetails.getAuthorities()
-                            );
-
-                            accessor.setUser(standardizedAuth);
-                        }
-                        return message;
-                    }
-                }
-
-                throw new MessageDeliveryException("Unauthorized");
+                throw new MessageDeliveryException("Missing or invalid Authorization header");
             }
         });
     }

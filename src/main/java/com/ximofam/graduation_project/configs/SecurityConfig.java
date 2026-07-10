@@ -7,7 +7,6 @@ import com.ximofam.graduation_project.common.exceptions.CustomAuthenticationEntr
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -37,15 +36,16 @@ public class SecurityConfig {
     private final MyUserDetailsService myUserDetailsService;
 
     @Bean
-    @Order(1)
-    public SecurityFilterChain apiSecurity(HttpSecurity http) throws Exception {
+    public SecurityFilterChain security(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/api/**")
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s ->
                         s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/v3/api-docs/**",
+                                "/swagger-ui/**"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/auth/login",
                                 "/api/auth/register/**",
@@ -63,30 +63,6 @@ public class SecurityConfig {
                         .authenticationEntryPoint(customAuthenticationEntryPoint)
                         .accessDeniedHandler(customAccessDeniedHandler)
                 );
-
-        return http.build();
-    }
-
-    @Bean
-    @Order(2)
-    public SecurityFilterChain webSecurity(HttpSecurity http) throws Exception {
-        http
-                .securityMatcher("/admin/**", "/login", "/logout", "/", "/swagger-ui/**", "/v3/api-docs/**", "/ws/**")
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests((requests) -> requests
-                        .requestMatchers(
-                                "/",
-                                "/admin/**",
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**").hasAnyRole("ADMIN", "SUPERUSER")
-                        .anyRequest().permitAll()
-                ).formLogin(form -> form.loginPage("/admin/login")
-                        .loginProcessingUrl("/login")
-                        .defaultSuccessUrl("/admin/", true)
-                        .failureUrl("/admin/login?error=true")
-                        .permitAll()
-                ).logout((logout) -> logout.logoutSuccessUrl("/admin/login").permitAll());
 
         return http.build();
     }
