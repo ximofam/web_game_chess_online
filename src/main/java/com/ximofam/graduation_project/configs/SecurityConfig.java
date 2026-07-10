@@ -1,9 +1,9 @@
 package com.ximofam.graduation_project.configs;
 
+import com.ximofam.graduation_project.auth.securities.JwtFilter;
+import com.ximofam.graduation_project.auth.securities.MyUserDetailsService;
 import com.ximofam.graduation_project.common.exceptions.CustomAccessDeniedHandler;
 import com.ximofam.graduation_project.common.exceptions.CustomAuthenticationEntryPoint;
-import com.ximofam.graduation_project.users.securities.JwtFilter;
-import com.ximofam.graduation_project.users.securities.MyUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -49,7 +49,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST,
                                 "/api/auth/login",
                                 "/api/auth/register/**",
-                                "/api/auth/refresh"
+                                "/api/auth/refresh",
+                                "/api/auth/logout"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/posts/**",

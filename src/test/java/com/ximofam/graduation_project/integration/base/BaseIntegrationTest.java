@@ -1,7 +1,7 @@
 package com.ximofam.graduation_project.integration.base;
 
-import com.ximofam.graduation_project.users.dtos.request.LoginRequest;
-import com.ximofam.graduation_project.users.dtos.response.TokenResponse;
+import com.ximofam.graduation_project.auth.dtos.request.LoginRequest;
+import com.ximofam.graduation_project.auth.dtos.response.TokenResponse;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.utils.TestUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,7 +34,7 @@ public abstract class BaseIntegrationTest extends AbstractIntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        return objectMapper.readValue(body, TokenResponse.class);
+        return new TokenResponse(body, null);
     }
 
 }

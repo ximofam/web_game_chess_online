@@ -1,5 +1,6 @@
 package com.ximofam.graduation_project.forums.services;
 
+import com.ximofam.graduation_project.auth.services.UserCurrentService;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.forums.dtos.request.CreatePostRequest;
 import com.ximofam.graduation_project.forums.dtos.response.PostDetailResponse;
@@ -17,7 +18,6 @@ import com.ximofam.graduation_project.forums.repositories.projection.PostModerat
 import com.ximofam.graduation_project.forums.repositories.projection.PostSimpleProjection;
 import com.ximofam.graduation_project.forums.repositories.projection.PostViewProjection;
 import com.ximofam.graduation_project.users.entities.User;
-import com.ximofam.graduation_project.users.services.UserCurrentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;

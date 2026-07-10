@@ -1,6 +1,6 @@
 package com.ximofam.graduation_project.users;
 
-import com.ximofam.graduation_project.users.dtos.request.RegisterUserRequest;
+import com.ximofam.graduation_project.auth.dtos.request.RegisterUserRequest;
 import com.ximofam.graduation_project.users.dtos.request.UpdateUserProfileRequest;
 import com.ximofam.graduation_project.users.dtos.response.UserDetailResponse;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;

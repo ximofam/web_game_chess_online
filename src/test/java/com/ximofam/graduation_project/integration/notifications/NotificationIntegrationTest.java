@@ -1,11 +1,11 @@
 package com.ximofam.graduation_project.integration.notifications;
 
+import com.ximofam.graduation_project.auth.dtos.response.TokenResponse;
 import com.ximofam.graduation_project.integration.base.BaseIntegrationTest;
 import com.ximofam.graduation_project.notifications.entities.Notification;
 import com.ximofam.graduation_project.notifications.entities.enums.NotificationType;
 import com.ximofam.graduation_project.notifications.repositories.NotificationRepository;
 import com.ximofam.graduation_project.notifications.services.NotificationService;
-import com.ximofam.graduation_project.users.dtos.response.TokenResponse;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.utils.TestUtils;
 import org.junit.jupiter.api.BeforeEach;

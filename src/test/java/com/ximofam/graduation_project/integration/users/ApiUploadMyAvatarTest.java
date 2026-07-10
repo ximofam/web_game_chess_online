@@ -1,9 +1,9 @@
 package com.ximofam.graduation_project.integration.users;
 
+import com.ximofam.graduation_project.auth.dtos.response.TokenResponse;
 import com.ximofam.graduation_project.common.helpers.dtos.CloudinaryUploadResult;
 import com.ximofam.graduation_project.common.helpers.services.CloudinaryService;
 import com.ximofam.graduation_project.integration.base.BaseIntegrationTest;
-import com.ximofam.graduation_project.users.dtos.response.TokenResponse;
 import com.ximofam.graduation_project.users.entities.User;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;

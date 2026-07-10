@@ -1,5 +1,6 @@
 package com.ximofam.graduation_project.forums.services;
 
+import com.ximofam.graduation_project.auth.services.UserCurrentService;
 import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.forums.dtos.request.CreateCommentRequest;
@@ -15,7 +16,6 @@ import com.ximofam.graduation_project.forums.repositories.PostRepository;
 import com.ximofam.graduation_project.forums.repositories.projection.CommentReplyCountProjection;
 import com.ximofam.graduation_project.forums.repositories.projection.CommentWithLikeCountProjection;
 import com.ximofam.graduation_project.users.entities.User;
-import com.ximofam.graduation_project.users.services.UserCurrentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

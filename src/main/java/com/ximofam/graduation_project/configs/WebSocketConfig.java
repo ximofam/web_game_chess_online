@@ -1,8 +1,8 @@
 package com.ximofam.graduation_project.configs;
 
-import com.ximofam.graduation_project.common.helpers.services.JwtService;
+import com.ximofam.graduation_project.auth.securities.CustomUserDetails;
+import com.ximofam.graduation_project.auth.services.TokenService;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
-import com.ximofam.graduation_project.users.securities.CustomUserDetails;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +31,7 @@ import java.security.Principal;
 @EnableWebSocketMessageBroker
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
-    private final JwtService jwtService;
+    private final TokenService jwtService;
 
     @Value("${app.websocket.rabbitmq-stomp-host}")
     private String stompHost;

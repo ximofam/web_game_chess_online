@@ -1,14 +1,13 @@
 package com.ximofam.graduation_project.services;
 
-import com.ximofam.graduation_project.common.helpers.services.JwtService;
-import com.ximofam.graduation_project.users.dtos.request.LoginRequest;
-import com.ximofam.graduation_project.users.dtos.response.TokenResponse;
+import com.ximofam.graduation_project.auth.dtos.request.LoginRequest;
+import com.ximofam.graduation_project.auth.dtos.response.TokenResponse;
+import com.ximofam.graduation_project.auth.securities.CustomUserDetails;
+import com.ximofam.graduation_project.auth.services.AuthService;
+import com.ximofam.graduation_project.auth.services.TokenService;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
-import com.ximofam.graduation_project.users.securities.CustomUserDetails;
-import com.ximofam.graduation_project.users.services.AuthService;
-import com.ximofam.graduation_project.users.services.RefreshTokenService;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,9 +35,7 @@ class AuthServiceTest {
     @Mock
     UserRepository userRepository;
     @Mock
-    JwtService jwtService;
-    @Mock
-    RefreshTokenService refreshTokenService;
+    TokenService jwtService;
     @InjectMocks
     AuthService authService;
 
@@ -72,7 +69,7 @@ class AuthServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
 
         when(jwtService.generateAccessToken(any(), any())).thenReturn("mock-access-token");
-        when(refreshTokenService.generateRefreshToken(any())).thenReturn("mock-refresh-token");
+        when(jwtService.generateRefreshToken(any(), any())).thenReturn("mock-refresh-token");
 
         TokenResponse result = authService.login(loginRequest);
 

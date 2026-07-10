@@ -25,10 +25,10 @@ public class User extends SoftDeleteModel {
     private UserRole role;
 
     @Column(name = "is_active")
-    private boolean isActive;
+    private boolean isActive = true;
 
     @Column(name = "is_locked")
-    private boolean isLocked;
+    private boolean isLocked = false;
 
     @Embedded
     private UserProfile profile;
