@@ -1,6 +1,6 @@
 package com.ximofam.graduation_project.notifications;
 
-import com.ximofam.graduation_project.common.helpers.utils.RoutingKeys;
+import com.ximofam.graduation_project.common.utils.RoutingKeys;
 import com.ximofam.graduation_project.notifications.dtos.request.NotificationRequest;
 import com.ximofam.graduation_project.notifications.entities.Notification;
 import com.ximofam.graduation_project.notifications.repositories.NotificationRepository;

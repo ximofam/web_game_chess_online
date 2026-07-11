@@ -1,7 +1,7 @@
 package com.ximofam.graduation_project.forums.listeners;
 
 import com.ximofam.graduation_project.common.helpers.services.EventPublisher;
-import com.ximofam.graduation_project.common.helpers.utils.RoutingKeys;
+import com.ximofam.graduation_project.common.utils.RoutingKeys;
 import com.ximofam.graduation_project.forums.entities.enums.PostStatus;
 import com.ximofam.graduation_project.forums.events.PostModerationCompletedEvent;
 import com.ximofam.graduation_project.forums.events.PostModerationEvent;

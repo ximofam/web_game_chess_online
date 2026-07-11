@@ -128,3 +128,6 @@ app:
       initial-interval: 1000
       multiplier: 2.0
       max-interval: 10000
+
+  user:
+    guest-max-age-days: 30

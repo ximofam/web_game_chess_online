@@ -5,11 +5,14 @@ import com.ximofam.graduation_project.auth.dtos.request.RegisterUserRequest;
 import com.ximofam.graduation_project.auth.dtos.response.TokenResponse;
 import com.ximofam.graduation_project.auth.securities.CustomUserDetails;
 import com.ximofam.graduation_project.common.exceptions.http.ConflictException;
+import com.ximofam.graduation_project.common.exceptions.http.UnauthorizedException;
+import com.ximofam.graduation_project.common.utils.Utils;
 import com.ximofam.graduation_project.users.UserMapper;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -55,5 +58,40 @@ public class AuthService {
         user = userRepository.save(user);
 
         return userMapper.toUserResponse(user);
+    }
+
+    public String registerGuest() {
+        User guest = createGuestUser();
+        return tokenService.generateGuestToken(guest.getId());
+    }
+
+    public TokenResponse loginGuest(String guestToken) {
+        Claims claims = tokenService.verifyAndParseToken(guestToken, "guest");
+
+        Long guestId = tokenService.extractUserId(claims);
+        User guest = userRepository.findById(guestId)
+                .orElseThrow(() -> new UnauthorizedException(
+                        "Không thể xác thực tài khoản khách vào lúc này, vui lòng thử lại sau."));
+
+        if (guest.getRole() != UserRole.GUEST) {
+            throw new UnauthorizedException(
+                    "Tài khoản này đã được nâng cấp lên tài khoản người dùng, vui lòng đăng nhập bằng tài khoản của bạn.");
+        }
+
+        return tokenService.generateTokens(guest.getId(), guest.getRole().name());
+    }
+
+    private User createGuestUser() {
+        int maxAttempts = 5;
+        for (int i = 0; i < maxAttempts; i++) {
+            String username = "guest_" + Utils.generateRandomString(8);
+            if (!userRepository.existsByUsername(username)) {
+                User guest = new User();
+                guest.setRole(UserRole.GUEST);
+                guest.setUsername(username);
+                return userRepository.save(guest);
+            }
+        }
+        throw new RuntimeException("Không thể tạo tài khoản khách vào lúc này, vui lòng thử lại sau.");
     }
 }

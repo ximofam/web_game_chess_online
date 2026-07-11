@@ -2,7 +2,6 @@ package com.ximofam.graduation_project.auth.services;
 
 import com.ximofam.graduation_project.auth.RefreshSession;
 import com.ximofam.graduation_project.auth.dtos.response.TokenResponse;
-import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
 import com.ximofam.graduation_project.common.exceptions.http.UnauthorizedException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -30,6 +29,8 @@ public class TokenService {
     private long refreshTokenExpDays;
     @Value("${app.security.jwt.secret-key}")
     private String secretKey;
+    @Value("${app.user.guest-max-age-days}")
+    private int guestMaxAgeDays;
     private SecretKey signingKey;
     private final RedisTemplate<String, Object> redisTemplate;
 
@@ -69,6 +70,18 @@ public class TokenService {
                 .compact();
     }
 
+    public String generateGuestToken(Long guestId) {
+        long daysInMillis = guestMaxAgeDays * 24L * 60L * 60L * 1000L;
+
+        return Jwts.builder()
+                .subject(String.valueOf(guestId))
+                .claim("type", "guest")
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + daysInMillis))
+                .signWith(signingKey)
+                .compact();
+    }
+
     public Claims verifyAndParseToken(String token) {
         return Jwts.parser()
                 .verifyWith(signingKey)
@@ -77,12 +90,17 @@ public class TokenService {
                 .getPayload();
     }
 
-    public TokenResponse refresh(String refreshToken) {
-        Claims claims = verifyAndParseToken(refreshToken);
-
-        if (!isRefreshToken(claims)) {
-            throw new BadRequestException("Invalid token type");
+    public Claims verifyAndParseToken(String token, String type) {
+        Claims claims = verifyAndParseToken(token);
+        if (!type.equals(claims.get("type", String.class))) {
+            throw new UnauthorizedException("Token type không hợp lệ.");
         }
+
+        return claims;
+    }
+
+    public TokenResponse refresh(String refreshToken) {
+        Claims claims = verifyAndParseToken(refreshToken, "refresh");
 
         String jti = extractJti(claims);
         RefreshSession session = (RefreshSession) redisTemplate.opsForValue().get(buildRefreshTokenKey(jti));
@@ -96,11 +114,7 @@ public class TokenService {
     }
 
     public boolean deleteRefreshSession(String refreshToken) {
-        Claims claims = verifyAndParseToken(refreshToken);
-
-        if (!isRefreshToken(claims)) {
-            throw new BadRequestException("Invalid token type");
-        }
+        Claims claims = verifyAndParseToken(refreshToken, "refresh");
 
         String jti = extractJti(claims);
         return redisTemplate.delete(buildRefreshTokenKey(jti));
@@ -123,10 +137,6 @@ public class TokenService {
 
     public String extractJti(Claims claims) {
         return claims.getId();
-    }
-
-    public boolean isRefreshToken(Claims claims) {
-        return "refresh".equals(claims.get("type", String.class));
     }
 
     private String buildRefreshTokenKey(String jti) {

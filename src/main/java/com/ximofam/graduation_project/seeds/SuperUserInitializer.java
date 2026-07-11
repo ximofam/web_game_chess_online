@@ -1,6 +1,6 @@
 package com.ximofam.graduation_project.seeds;
 
-import com.ximofam.graduation_project.common.helpers.utils.Utils;
+import com.ximofam.graduation_project.common.utils.Utils;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.entities.UserProfile;
 import com.ximofam.graduation_project.users.entities.enums.UserRole;

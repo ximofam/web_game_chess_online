@@ -1,4 +1,4 @@
-package com.ximofam.graduation_project.common.helpers.utils;
+package com.ximofam.graduation_project.common.utils;
 
 public final class RoutingKeys {
     private RoutingKeys() {

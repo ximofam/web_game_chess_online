@@ -8,7 +8,8 @@ import java.util.Set;
 public enum UserRole {
     SUPERUSER,
     ADMIN,
-    USER;
+    USER,
+    GUEST;
 
     public Set<SimpleGrantedAuthority> getAuthorities() {
         Set<SimpleGrantedAuthority> perms = new HashSet<>();
