@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -53,21 +54,21 @@ public class ApiAuthController {
     }
 
     @PostMapping("/login/guest")
-    public ResponseEntity<String> loginGuest(
+    public ResponseEntity<Map<String, String>> loginGuest(
             @CookieValue(name = GUEST_COOKIE_NAME) String guestToken,
             HttpServletResponse response) {
 
         TokenResponse tokens = authService.loginGuest(guestToken);
         setRefreshTokenCookie(response, tokens.getRefreshToken());
 
-        return ResponseEntity.ok(tokens.getAccessToken());
+        return ResponseEntity.ok(buildAccessTokenRes(tokens.getAccessToken()));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody @Valid LoginRequest request, HttpServletResponse response) {
+    public ResponseEntity<Map<String, String>> login(@RequestBody @Valid LoginRequest request, HttpServletResponse response) {
         TokenResponse tokens = authService.login(request);
         setRefreshTokenCookie(response, tokens.getRefreshToken());
-        return ResponseEntity.ok(tokens.getAccessToken());
+        return ResponseEntity.ok(buildAccessTokenRes(tokens.getAccessToken()));
     }
 
     @PostMapping("/refresh/guest-token")
@@ -85,12 +86,12 @@ public class ApiAuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<String> refreshToken(
+    public ResponseEntity<Map<String, String>> refreshToken(
             @CookieValue(name = REFRESH_COOKIE_NAME) String refreshToken,
             HttpServletResponse response) {
         TokenResponse tokens = tokenService.refresh(refreshToken);
         setRefreshTokenCookie(response, tokens.getRefreshToken());
-        return ResponseEntity.ok(tokens.getAccessToken());
+        return ResponseEntity.ok(buildAccessTokenRes(tokens.getAccessToken()));
     }
 
     @PostMapping("/logout")
@@ -126,5 +127,9 @@ public class ApiAuthController {
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
+    }
+
+    private Map<String, String> buildAccessTokenRes(String accessToken) {
+        return Map.of("accessToken", accessToken);
     }
 }
