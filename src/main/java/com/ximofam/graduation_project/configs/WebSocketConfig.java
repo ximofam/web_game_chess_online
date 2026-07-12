@@ -82,7 +82,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 if (authHeader != null && authHeader.startsWith("Bearer ")) {
                     String token = authHeader.substring(7);
                     try {
-                        Claims claims = jwtService.verifyAndParseToken(token);
+                        Claims claims = jwtService.verifyAndParseToken(token, "access");
                         Long userId = jwtService.extractUserId(claims);
                         String role = jwtService.extractRole(claims);
                         UserRole userRole = UserRole.valueOf(role);

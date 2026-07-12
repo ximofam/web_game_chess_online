@@ -16,6 +16,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -30,6 +31,7 @@ public class ApiPostController {
         return ResponseEntity.ok(postService.viewPost(postId));
     }
 
+    @PreAuthorize("!hasRole('GUEST')")
     @PostMapping
     public ResponseEntity<PostDetailResponse> createPost(@RequestBody @Valid CreatePostRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(postService.createPost(request));
@@ -44,6 +46,7 @@ public class ApiPostController {
         return ResponseEntity.ok(commentService.getComments(postId, sortBy, pageable));
     }
 
+    @PreAuthorize("!hasRole('GUEST')")
     @PostMapping("/{postId}/likes")
     public ResponseEntity<ApiResponse> likePost(
             @PathVariable Long postId,
@@ -60,7 +63,7 @@ public class ApiPostController {
     @GetMapping
     public ResponseEntity<Page<PostSimpleResponse>> getPosts(
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        
+
         return ResponseEntity.ok(postService.getPosts(pageable));
     }
 }

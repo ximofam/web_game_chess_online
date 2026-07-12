@@ -9,6 +9,7 @@ import com.ximofam.graduation_project.users.services.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,6 +32,7 @@ public class ApiUserController {
         return ResponseEntity.ok(userService.getUserById(userId));
     }
 
+    @PreAuthorize("!hasRole('GUEST')")
     @PatchMapping("/me")
     public ResponseEntity<UserDetailResponse> updateMyProfile(
             @AuthenticationPrincipal Long userId,
@@ -39,6 +41,7 @@ public class ApiUserController {
         return ResponseEntity.ok(userService.updateUserProfile(userId, request));
     }
 
+    @PreAuthorize("!hasRole('GUEST')")
     @PatchMapping("/me/avatar")
     public ResponseEntity<ApiResponse> uploadMyAvatar(
             @AuthenticationPrincipal Long userId,
