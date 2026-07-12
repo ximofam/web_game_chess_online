@@ -18,7 +18,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -54,21 +53,21 @@ public class ApiAuthController {
     }
 
     @PostMapping("/login/guest")
-    public ResponseEntity<Map<String, String>> loginGuest(
+    public ResponseEntity<TokenResponse> loginGuest(
             @CookieValue(name = GUEST_COOKIE_NAME) String guestToken,
             HttpServletResponse response) {
 
         TokenResponse tokens = authService.loginGuest(guestToken);
         setRefreshTokenCookie(response, tokens.getRefreshToken());
 
-        return ResponseEntity.ok(buildAccessTokenRes(tokens.getAccessToken()));
+        return ResponseEntity.ok(tokens);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Map<String, String>> login(@RequestBody @Valid LoginRequest request, HttpServletResponse response) {
+    public ResponseEntity<TokenResponse> login(@RequestBody @Valid LoginRequest request, HttpServletResponse response) {
         TokenResponse tokens = authService.login(request);
         setRefreshTokenCookie(response, tokens.getRefreshToken());
-        return ResponseEntity.ok(buildAccessTokenRes(tokens.getAccessToken()));
+        return ResponseEntity.ok(tokens);
     }
 
     @PostMapping("/refresh/guest-token")
@@ -86,12 +85,12 @@ public class ApiAuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<Map<String, String>> refreshToken(
+    public ResponseEntity<TokenResponse> refreshToken(
             @CookieValue(name = REFRESH_COOKIE_NAME) String refreshToken,
             HttpServletResponse response) {
         TokenResponse tokens = tokenService.refresh(refreshToken);
         setRefreshTokenCookie(response, tokens.getRefreshToken());
-        return ResponseEntity.ok(buildAccessTokenRes(tokens.getAccessToken()));
+        return ResponseEntity.ok(tokens);
     }
 
     @PostMapping("/logout")
@@ -127,9 +126,5 @@ public class ApiAuthController {
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
-    }
-
-    private Map<String, String> buildAccessTokenRes(String accessToken) {
-        return Map.of("accessToken", accessToken);
     }
 }

@@ -6,6 +6,7 @@ import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.utils.TestUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.http.MediaType;
+import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 public abstract class BaseIntegrationTest extends AbstractIntegrationTest {
     protected User validUser;
     protected final String PASSWORD = "valid_password";
+    protected final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void setUpBaseData() {
@@ -34,7 +36,7 @@ public abstract class BaseIntegrationTest extends AbstractIntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        return new TokenResponse(body, null);
+        return objectMapper.readValue(body, TokenResponse.class);
     }
 
 }

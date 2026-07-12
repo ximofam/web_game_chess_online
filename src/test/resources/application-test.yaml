@@ -22,8 +22,7 @@ app:
     jwt:
       secret-key: RGF5TGFNb3RDaHVvaUJpTWF0RGFuaENob01vaVRydW9uZ1Rlc3REdURhaTI1NkJpdA==
       access-token-exp-sec: 3600
-    refresh-token:
-      exp-days: 7
+      refresh-token-exp-days: 7
   thread-pool:
     async:
       core-size: 2
@@ -37,7 +36,6 @@ app:
     email:
     username:
     password:
-    full-name:
   cloudinary:
     cloud-name: dummy_cloud
     api-key: dummy_key
