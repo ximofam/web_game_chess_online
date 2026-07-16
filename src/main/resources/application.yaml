@@ -77,6 +77,10 @@ app:
       access-token-exp-sec: ${ACCESS_TOKEN_EXP_SEC}
       refresh-token-exp-days: ${REFRESH_TOKEN_EXP_DAYS}
 
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+
   thread-pool:
     async:
       core-size: ${ASYNC_CORE_SIZE}
