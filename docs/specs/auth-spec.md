@@ -1,14 +1,12 @@
 # Đặc tả API: Authentication (Auth API Specification)
 
-Tài liệu này đặc tả chi tiết về hệ thống xác thực (Authentication) của dự án, hỗ trợ đăng nhập/đăng ký cho người dùng
-thông thường (**User**) và người dùng ẩn danh (**Guest**).
+Tài liệu này đặc tả chi tiết về hệ thống xác thực (Authentication) của dự án, hỗ trợ đăng nhập/đăng ký cho người dùng thông thường (**User**) và người dùng ẩn danh (**Guest**).
 
 ---
 
 ## 1. Tổng quan & Cơ chế xác thực
 
-Hệ thống sử dụng cơ chế xác thực dựa trên **JSON Web Token (JWT)** kết hợp với **Redis** để quản lý phiên và xoay vòng
-Refresh Token (Token Rotation).
+Hệ thống sử dụng cơ chế xác thực dựa trên **JSON Web Token (JWT)** kết hợp với **Redis** để quản lý phiên và xoay vòng Refresh Token (Token Rotation).
 
 ### Cơ chế Access Token
 
@@ -22,12 +20,9 @@ Refresh Token (Token Rotation).
 ### Cơ chế Refresh Token
 
 - **Kiểu:** JWT chứa ID phiên làm việc (`jti`).
-- **Nơi lưu trữ ở Client:** Cookie `refreshToken` (thuộc tính `HttpOnly`, `Secure`, `SameSite=Strict`,
-  `Path=/api/auth`).
-- **Xác thực phiên (Session-backed):** Lưu trữ thông tin phiên (`userId`, `userRole`) trong Redis với key
-  `refresh_token:<jti>`.
-- **Cơ chế xoay vòng (Token Rotation):** Mỗi lần gọi API `/refresh`, `refreshToken` cũ sẽ bị xóa khỏi Redis và một cặp
-  token mới (Access + Refresh) được sinh ra để thay thế.
+- **Nơi lưu trữ ở Client:** Cookie `refreshToken` (thuộc tính `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/auth`).
+- **Xác thực phiên (Session-backed):** Lưu trữ thông tin phiên (`userId`, `userRole`) trong Redis với key `refresh_token:<jti>`.
+- **Cơ chế xoay vòng (Token Rotation):** Mỗi lần gọi API `/refresh`, `refreshToken` cũ sẽ bị xóa khỏi Redis và một cặp token mới (Access + Refresh) được sinh ra để thay thế.
 
 ### Cơ chế Guest Token
 
@@ -296,5 +291,4 @@ Hệ thống sử dụng cấu trúc lỗi tiêu chuẩn:
 - `400 Bad Request`: Định dạng request không hợp lệ (ví dụ: thiếu body, sai kiểu dữ liệu).
 - `401 Unauthorized`: Xác thực không thành công (sai mật khẩu, token hết hạn, token không hợp lệ).
 - `409 Conflict`: Xung đột dữ liệu (ví dụ: trùng username hoặc email khi đăng ký).
-- `422 Unprocessable Entity`: Dữ liệu không thỏa mãn các điều kiện Validation (ví dụ: mật khẩu quá ngắn, email sai định
-  dạng).
+- `422 Unprocessable Entity`: Dữ liệu không thỏa mãn các điều kiện Validation (ví dụ: mật khẩu quá ngắn, email sai định dạng).
