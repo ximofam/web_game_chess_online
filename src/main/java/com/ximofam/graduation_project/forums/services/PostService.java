@@ -1,6 +1,10 @@
 package com.ximofam.graduation_project.forums.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ximofam.graduation_project.auth.services.UserCurrentService;
+import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.forums.dtos.request.CreatePostRequest;
 import com.ximofam.graduation_project.forums.dtos.response.PostDetailResponse;
@@ -12,6 +16,7 @@ import com.ximofam.graduation_project.forums.entities.enums.PostStatus;
 import com.ximofam.graduation_project.forums.events.PostModerationCompletedEvent;
 import com.ximofam.graduation_project.forums.events.PostModerationEvent;
 import com.ximofam.graduation_project.forums.mappers.PostMapper;
+import com.ximofam.graduation_project.forums.repositories.PostImageRepository;
 import com.ximofam.graduation_project.forums.repositories.PostLikeRepository;
 import com.ximofam.graduation_project.forums.repositories.PostRepository;
 import com.ximofam.graduation_project.forums.repositories.projection.PostModerationProjection;
@@ -26,6 +31,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -35,17 +41,27 @@ import java.util.Set;
 public class PostService {
     private final PostRepository postRepository;
     private final PostLikeRepository postLikeRepository;
+    private final PostImageRepository postImageRepository;
     private final PostMapper postMapper;
     private final UserCurrentService userCurrentService;
     private final ApplicationEventPublisher applicationEventPublisher;
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
     public PostDetailResponse createPost(CreatePostRequest request) {
         User currentUser = userCurrentService.getReferenceUser();
 
+        JsonNode doc = parseTiptapContent(request.getContent());
+
         Post post = postMapper.toPost(request);
         post.setAuthor(currentUser);
         post = postRepository.save(post);
+
+        List<String> publicIds = extractImagePublicIds(doc);
+        if (!publicIds.isEmpty()) {
+            postImageRepository.attachToPost(post.getId(), currentUser.getId(), publicIds);
+        }
 
         applicationEventPublisher.publishEvent(new PostModerationEvent(post.getId()));
 
@@ -126,4 +142,40 @@ public class PostService {
 
         return projections.map(p -> postMapper.toPostSimpleResponse(p, likedPostIds.contains(p.getId())));
     }
+
+    private JsonNode parseTiptapContent(String content) {
+        try {
+            JsonNode node = objectMapper.readTree(content);
+            if (node == null || !"doc".equals(node.path("type").asText())) {
+                throw new BadRequestException("Nội dung không đúng định dạng Tiptap");
+            }
+            return node;
+        } catch (JsonProcessingException e) {
+            throw new BadRequestException("Nội dung không phải JSON hợp lệ");
+        }
+    }
+
+    // ponytail: recursive DFS over ProseMirror tree — O(n) nodes, good enough
+    // unless posts contain thousands of nodes; upgrade path: iterative stack.
+    private List<String> extractImagePublicIds(JsonNode node) {
+        List<String> ids = new ArrayList<>();
+        collectImagePublicIds(node, ids);
+        return ids.stream().distinct().toList();
+    }
+
+    private void collectImagePublicIds(JsonNode node, List<String> ids) {
+        if ("image".equals(node.path("type").asText())) {
+            String publicId = node.path("attrs").path("data-public-id").asText(null);
+            if (publicId != null && !publicId.isBlank()) {
+                ids.add(publicId);
+            }
+        }
+        JsonNode content = node.get("content");
+        if (content != null && content.isArray()) {
+            for (JsonNode child : content) {
+                collectImagePublicIds(child, ids);
+            }
+        }
+    }
 }
+
