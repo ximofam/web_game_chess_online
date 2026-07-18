@@ -1,6 +1,7 @@
 package com.ximofam.graduation_project.common.helpers.services;
 
 import com.cloudinary.Cloudinary;
+import com.cloudinary.api.ApiResponse;
 import com.cloudinary.utils.ObjectUtils;
 import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
 import com.ximofam.graduation_project.common.helpers.dtos.CloudinaryUploadResult;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -20,10 +22,15 @@ public class CloudinaryService {
 
     private final Cloudinary cloudinary;
 
-    public CloudinaryUploadResult upload(MultipartFile file, Map<?, ?> options) throws IOException {
+    public CloudinaryUploadResult upload(MultipartFile file, Map<?, ?> options) {
         validateImageFile(file);
 
-        Map<?, ?> result = cloudinary.uploader().upload(file.getBytes(), options);
+        Map<?, ?> result = null;
+        try {
+            result = cloudinary.uploader().upload(file.getBytes(), options);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         return CloudinaryUploadResult.builder()
                 .publicId((String) result.get("public_id"))
@@ -34,11 +41,44 @@ public class CloudinaryService {
                 .build();
     }
 
-    public void delete(String publicId) throws IOException {
-        Map<?, ?> result = cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
+    public void delete(String publicId) {
+        Map<?, ?> result = null;
+        try {
+            result = cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         if (!"ok".equals(result.get("result"))) {
             throw new RuntimeException("Xóa ảnh thất bại, publicId: " + publicId);
+        }
+    }
+
+
+    public void deleteAll(List<String> publicIds) {
+        if (publicIds.isEmpty()) {
+            return;
+        }
+
+        ApiResponse response = null;
+        try {
+            response = cloudinary.api().deleteResources(
+                    publicIds,
+                    ObjectUtils.emptyMap()
+            );
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        @SuppressWarnings("unchecked")
+        var deleted = (Map<String, String>) response.get("deleted");
+
+        for (String publicId : publicIds) {
+            if (!"deleted".equals(deleted.get(publicId))) {
+                throw new RuntimeException(
+                        "Delete image failed: " + publicId
+                );
+            }
         }
     }
 

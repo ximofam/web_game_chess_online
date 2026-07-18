@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.util.UUID;
 
 @Service
@@ -58,28 +57,24 @@ public class UserService {
                         new NotFoundException("UserId %d không tồn tại", userId));
         UserProfile profile = user.getProfile();
         String oldPublicId = profile.getAvatarPublicId();
-        try {
-            String publicId = String.format("%s_%s", user.getUsername(), UUID.randomUUID());
+        String publicId = String.format("%s_%s", user.getUsername(), UUID.randomUUID());
 
-            CloudinaryUploadResult result = cloudinaryService.upload(
-                    file,
-                    ObjectUtils.asMap(
-                            "folder", "users/avatars",
-                            "public_id", publicId,
-                            "resource_type", "image"
-                    )
-            );
+        CloudinaryUploadResult result = cloudinaryService.upload(
+                file,
+                ObjectUtils.asMap(
+                        "folder", "users/avatars",
+                        "public_id", publicId,
+                        "resource_type", "image"
+                )
+        );
 
-            profile.setAvatarPublicId(result.getPublicId());
-            profile.setAvatarUrl(result.getSecureUrl());
-            
-            if (oldPublicId != null) {
-                cloudinaryService.deleteAsync(oldPublicId);
-            }
+        profile.setAvatarPublicId(result.getPublicId());
+        profile.setAvatarUrl(result.getSecureUrl());
 
-            return result;
-        } catch (IOException e) {
-            throw new RuntimeException("Upload avatar thất bại: " + e.getMessage(), e);
+        if (oldPublicId != null) {
+            cloudinaryService.deleteAsync(oldPublicId);
         }
+
+        return result;
     }
 }
