@@ -57,31 +57,12 @@ classDiagram
             "read": false
           }
         ],
-        "pageable": {
-          "sort": {
-            "empty": false,
-            "sorted": true,
-            "unsorted": false
-          },
-          "offset": 0,
-          "pageNumber": 0,
-          "pageSize": 20,
-          "paged": true,
-          "unpaged": false
-        },
-        "totalPages": 1,
-        "totalElements": 1,
-        "last": true,
-        "size": 20,
-        "number": 0,
-        "sort": {
-          "empty": false,
-          "sorted": true,
-          "unsorted": false
-        },
-        "numberOfElements": 1,
-        "first": true,
-        "empty": false
+        "page": {
+          "size": 20,
+          "number": 0,
+          "totalElements": 1,
+          "totalPages": 1
+        }
       }
       ```
     - **Error:** `401 Unauthorized`.
