@@ -11,7 +11,7 @@ Tài liệu này đặc tả chi tiết về các API liên quan đến diễn �
 - Các API liên quan đến hình ảnh bài viết có tiền tố (base path) là `/api/post-images`.
 - Một số API thay đổi dữ liệu hoặc tương tác (tạo bài viết, thích bài viết, bình luận, quản lý hình ảnh) yêu cầu xác
   thực bằng Access Token thông qua Header `Authorization: Bearer <token>`.
-- Trạng thái bài viết (`PostStatus`) bao gồm: `DRAFT`, `PENDING`, `APPROVED`, `DENIED`.
+- Trạng thái bài viết (`PostStatus`) bao gồm: `PENDING`, `APPROVED`, `DENIED`.
 - Trạng thái ảnh bài viết (`ImageStatus`) bao gồm: `ORPHAN` (ảnh mới upload, chưa gắn vào bài) và `ATTACHED` (ảnh đã gắn
   vào bài viết).
 - Khi bài viết mới được tạo, hệ thống sẽ đẩy vào hàng đợi RabbitMQ để thực hiện kiểm duyệt tự động thông qua AI (chuyển
@@ -27,10 +27,11 @@ Tài liệu này đặc tả chi tiết về các API liên quan đến diễn �
 classDiagram
     class ApiPostController {
         +getPost(Long postId) ResponseEntity~PostResponse~
+        +getMyPost(Long postId) ResponseEntity~PostDetailResponse~
         +createPost(CreatePostRequest request) ResponseEntity~PostDetailResponse~
         +getComments(Long postId, String sortBy, Pageable pageable) ResponseEntity~Page~CommentResponse~~
         +likePost(Long postId, boolean isLike) ResponseEntity~ApiResponse~
-        +getPosts(Pageable pageable) ResponseEntity~Page~PostSimpleResponse~~
+        +getPosts(String search, String sortBy, boolean mine, String status, Pageable pageable) ResponseEntity~Page~PostSimpleResponse~~
     }
     class ApiCommentController {
         +getReplies(Long id, String sortBy, Pageable pageable) ResponseEntity~Page~CommentResponse~~
@@ -50,14 +51,25 @@ classDiagram
 ### 3.1. Lấy danh sách bài viết (Get List of Posts)
 
 - **Endpoint:** `GET /api/posts`
-- **Mô tả:** Lấy danh sách các bài viết đã được phê duyệt (`APPROVED`), có hỗ trợ phân trang.
+- **Mô tả:** Lấy danh sách bài viết có hỗ trợ phân trang, tìm kiếm, sắp xếp và lọc bài viết của chính mình.
+    - Mặc định: chỉ trả về bài viết đã được phê duyệt (`APPROVED`).
+    - Khi `mine=true`: trả về tất cả bài viết của người dùng đang đăng nhập (mọi trạng thái), có thể lọc thêm theo
+      `status`.
 - **Headers:**
-    - `Authorization: Bearer <Access_Token>` (Không bắt buộc. Nếu có, hệ thống sẽ kiểm tra trạng thái thích của người
-      dùng đối với các bài viết qua trường `liked`).
+    - `Authorization: Bearer <Access_Token>` (Không bắt buộc cho listing công khai. **Bắt buộc** khi `mine=true`. Nếu
+      có, hệ thống sẽ kiểm tra trạng thái thích của người dùng đối với các bài viết qua trường `liked`).
 - **Query Parameters:**
     - `page` (int, default: 0): Số thứ tự trang cần lấy.
     - `size` (int, default: 20): Số lượng phần tử trên mỗi trang.
-    - `sort` (String, default: "createdAt,desc"): Trường và chiều hướng sắp xếp.
+    - `search` (String, tùy chọn): Từ khóa tìm kiếm theo tiêu đề bài viết (Full-Text Search + ILIKE fallback).
+    - `sortBy` (String, default: `"newest"`): Kiểu sắp xếp. Giá trị hợp lệ:
+        - `newest` — Mới nhất (`createdAt DESC`).
+        - `mostViewed` — Nhiều lượt xem nhất (`viewCount DESC`, `createdAt DESC`).
+        - `mostLiked` — Nhiều lượt thích nhất (`likeCount DESC`, `viewCount DESC` nếu bằng nhau, `createdAt DESC`).
+    - `mine` (boolean, default: `false`): Nếu `true`, chỉ trả về bài viết của người dùng đang đăng nhập (yêu cầu xác
+      thực).
+    - `status` (String, tùy chọn): Lọc theo trạng thái bài viết (`PENDING`, `APPROVED`, `DENIED`). Chỉ có hiệu
+      lực khi `mine=true`.
 - **Response:**
     - **Success:** `200 OK` (Cấu trúc phân trang chứa danh sách `PostSimpleResponse`)
       ```json
@@ -73,8 +85,10 @@ classDiagram
             "title": "Làm thế nào để bắt đầu với Spring Boot?",
             "viewCount": 150,
             "likeCount": 24,
+            "commentCount": 5,
             "createdAt": "2026-07-17T14:16:28Z",
-            "liked": true
+            "liked": true,
+            "status": null
           }
         ],
         "page": {
@@ -85,6 +99,8 @@ classDiagram
         }
       }
       ```
+      *Lưu ý:* Trường `status` chỉ có giá trị khi `mine=true`, trả về `null` cho listing công khai.
+    - **Error (Bad Request):** `400 Bad Request` (khi `mine=true` nhưng chưa đăng nhập).
 
 ---
 
@@ -156,7 +172,40 @@ classDiagram
 
 ---
 
-### 3.4. Thích / Bỏ thích bài viết (Like / Unlike Post)
+### 3.4. Xem chi tiết bài viết của mình (Get My Post Detail)
+
+- **Endpoint:** `GET /api/posts/{postId}/my`
+- **Mô tả:** Lấy thông tin chi tiết bài viết của người dùng đang đăng nhập (mọi trạng thái: `PENDING`,
+  `APPROVED`, `DENIED`). Không tăng lượt xem.
+- **Path Parameters:**
+    - `postId` (Long): ID của bài viết cần xem.
+- **Headers:**
+    - `Authorization: Bearer <Access_Token>` (Bắt buộc)
+- **Quyền truy cập:** Không cho phép tài khoản có vai trò `GUEST`.
+- **Response:**
+    - **Success:** `200 OK` (`PostDetailResponse`)
+      ```json
+      {
+        "id": 1,
+        "title": "Làm thế nào để bắt đầu với Spring Boot?",
+        "content": "Nội dung chi tiết của bài viết hướng dẫn Spring Boot...",
+        "status": "APPROVED",
+        "viewCount": 150,
+        "likeCount": 24,
+        "commentCount": 5,
+        "approvalInfo": {
+          "approvalNote": "Bài viết phù hợp với quy định cộng đồng.",
+          "approvedAt": "2026-07-17T14:20:00Z"
+        }
+      }
+      ```
+    - **Error (Bad Request):** `400 Bad Request` (khi chưa đăng nhập).
+    - **Error (Not Found):** `404 Not Found` (bài viết không tồn tại hoặc không phải của người dùng).
+    - **Error (Forbidden):** `403 Forbidden` (đối với GUEST).
+
+---
+
+### 3.5. Thích / Bỏ thích bài viết (Like / Unlike Post)
 
 - **Endpoint:** `POST /api/posts/{postId}/likes`
 - **Mô tả:** Thích hoặc bỏ thích một bài viết đã được phê duyệt.
@@ -185,7 +234,7 @@ classDiagram
 
 ---
 
-### 3.5. Lấy danh sách bình luận của bài viết (Get Comments of Post)
+### 3.6. Lấy danh sách bình luận của bài viết (Get Comments of Post)
 
 - **Endpoint:** `GET /api/posts/{postId}/comments`
 - **Mô tả:** Lấy danh sách các bình luận cấp 1 (bình luận trực tiếp vào bài viết) có hỗ trợ phân trang.
