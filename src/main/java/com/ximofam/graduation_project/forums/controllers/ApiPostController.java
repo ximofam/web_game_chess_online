@@ -32,6 +32,12 @@ public class ApiPostController {
     }
 
     @PreAuthorize("!hasRole('GUEST')")
+    @GetMapping("/{postId}/my")
+    public ResponseEntity<PostDetailResponse> getMyPost(@PathVariable Long postId) {
+        return ResponseEntity.ok(postService.getMyPost(postId));
+    }
+
+    @PreAuthorize("!hasRole('GUEST')")
     @PostMapping
     public ResponseEntity<PostDetailResponse> createPost(@RequestBody @Valid CreatePostRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(postService.createPost(request));
@@ -62,8 +68,12 @@ public class ApiPostController {
 
     @GetMapping
     public ResponseEntity<Page<PostSimpleResponse>> getPosts(
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "newest") String sortBy,
+            @RequestParam(defaultValue = "false") boolean mine,
+            @RequestParam(required = false) String status,
+            @PageableDefault(size = 20) Pageable pageable) {
 
-        return ResponseEntity.ok(postService.getPosts(pageable));
+        return ResponseEntity.ok(postService.getPosts(search, sortBy, mine, status, pageable));
     }
 }

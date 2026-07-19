@@ -14,6 +14,8 @@ public class PostSimpleResponse {
     private String title;
     private long viewCount;
     private long likeCount;
+    private long commentCount;
     private Instant createdAt;
     private boolean liked;
+    private String status;
 }

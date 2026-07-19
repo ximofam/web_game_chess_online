@@ -65,6 +65,16 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             """)
     Optional<PostViewProjection> findPostViewProjectionById(@Param("postId") Long postId);
 
+    @Query("""
+                SELECT p AS post,
+                       (SELECT COUNT(l) FROM PostLike l WHERE l.post.id = p.id AND l.isActive = true) AS likeCount,
+                       (SELECT COUNT(c) FROM Comment c WHERE c.post.id = p.id) AS commentCount
+                FROM Post p
+                JOIN FETCH p.author
+                WHERE p.id = :postId AND p.author.id = :authorId
+            """)
+    Optional<PostViewProjection> findMyPostById(@Param("postId") Long postId, @Param("authorId") Long authorId);
+
     @Query(value = """
             SELECT p.id AS id,
                    u.id AS authorId,
@@ -73,6 +83,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                    p.title AS title,
                    p.view_count AS viewCount,
                    (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id AND pl.is_active = true) AS likeCount,
+                   (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id AND c.deleted_at IS NULL) AS commentCount,
                    p.created_at AS createdAt
             FROM posts p
             JOIN users u ON u.id = p.author_id
@@ -85,4 +96,90 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                     """,
             nativeQuery = true)
     Page<PostSimpleProjection> findApprovedPosts(Pageable pageable);
+
+    @Query(value = """
+            SELECT p.id AS id,
+                   u.id AS authorId,
+                   u.username AS authorUsername,
+                   u.avatar_url AS authorAvatarUrl,
+                   p.title AS title,
+                   p.view_count AS viewCount,
+                   (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id AND pl.is_active = true) AS likeCount,
+                   (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id AND c.deleted_at IS NULL) AS commentCount,
+                   p.created_at AS createdAt,
+                   p.status AS status
+            FROM posts p
+            JOIN users u ON u.id = p.author_id
+            WHERE p.author_id = :authorId
+              AND (CAST(:status AS VARCHAR) IS NULL OR p.status = :status)
+            """,
+            countQuery = """
+                    SELECT COUNT(*)
+                    FROM posts p
+                    WHERE p.author_id = :authorId
+                      AND (CAST(:status AS VARCHAR) IS NULL OR p.status = :status)
+                    """,
+            nativeQuery = true)
+    Page<PostSimpleProjection> findMyPosts(@Param("authorId") Long authorId, @Param("status") String status, Pageable pageable);
+
+    // ponytail: FTS first, ILIKE fallback via UNION ALL + dedup; both hit GIN indexes.
+    // Upgrade path: switch to websearch_to_tsquery for quoted-phrase support.
+    @Query(value = """
+            SELECT * FROM (
+                SELECT DISTINCT ON (id) id, authorId, authorUsername, authorAvatarUrl,
+                       title, viewCount, likeCount, commentCount, createdAt, searchPriority
+                FROM (
+                    SELECT p.id AS id,
+                           u.id AS authorId,
+                           u.username AS authorUsername,
+                           u.avatar_url AS authorAvatarUrl,
+                           p.title AS title,
+                           p.view_count AS viewCount,
+                           (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id AND pl.is_active = true) AS likeCount,
+                           (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id AND c.deleted_at IS NULL) AS commentCount,
+                           p.created_at AS createdAt,
+                           1 AS searchPriority
+                    FROM posts p
+                    JOIN users u ON u.id = p.author_id
+                    WHERE p.status = 'APPROVED'
+                      AND p.title_tsv @@ plainto_tsquery('simple', immutable_unaccent(:keyword))
+            
+                    UNION ALL
+            
+                    SELECT p.id AS id,
+                           u.id AS authorId,
+                           u.username AS authorUsername,
+                           u.avatar_url AS authorAvatarUrl,
+                           p.title AS title,
+                           p.view_count AS viewCount,
+                           (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id AND pl.is_active = true) AS likeCount,
+                           (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id AND c.deleted_at IS NULL) AS commentCount,
+                           p.created_at AS createdAt,
+                           2 AS searchPriority
+                    FROM posts p
+                    JOIN users u ON u.id = p.author_id
+                    WHERE p.status = 'APPROVED'
+                      AND p.title ILIKE '%' || immutable_unaccent(:keyword) || '%'
+                ) combined
+                ORDER BY id, searchPriority
+            ) deduped
+            ORDER BY searchPriority,
+                     CASE :sortBy
+                         WHEN 'mostViewed' THEN viewCount
+                         WHEN 'mostLiked' THEN likeCount
+                         ELSE 0 END DESC,
+                     CASE :sortBy
+                         WHEN 'mostLiked' THEN viewCount
+                         ELSE 0 END DESC,
+                     createdAt DESC
+            """,
+            countQuery = """
+                    SELECT COUNT(DISTINCT p.id)
+                    FROM posts p
+                    WHERE p.status = 'APPROVED'
+                      AND (p.title_tsv @@ plainto_tsquery('simple', :keyword)
+                           OR p.title ILIKE '%' || :keyword || '%')
+                    """,
+            nativeQuery = true)
+    Page<PostSimpleProjection> searchApprovedPosts(@Param("keyword") String keyword, @Param("sortBy") String sortBy, Pageable pageable);
 }

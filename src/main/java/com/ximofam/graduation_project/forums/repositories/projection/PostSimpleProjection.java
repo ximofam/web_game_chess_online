@@ -17,5 +17,10 @@ public interface PostSimpleProjection {
 
     long getLikeCount();
 
+    long getCommentCount();
+
     Instant getCreatedAt();
+
+    // ponytail: nullable — only populated for mine=true queries, null for public listing
+    String getStatus();
 }

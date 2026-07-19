@@ -27,7 +27,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -128,8 +130,34 @@ public class PostService {
                 });
     }
 
-    public Page<PostSimpleResponse> getPosts(Pageable pageable) {
-        Page<PostSimpleProjection> projections = postRepository.findApprovedPosts(pageable);
+    public PostDetailResponse getMyPost(Long postId) {
+        Long userId = userCurrentService.getCurrentUserIdOrNull();
+        if (userId == null) throw new BadRequestException("Bạn cần đăng nhập để xem bài viết của mình");
+
+        PostViewProjection projection = postRepository.findMyPostById(postId, userId)
+                .orElseThrow(() -> new NotFoundException("Bài viết không tồn tại hoặc không phải của bạn"));
+
+        PostDetailResponse res = postMapper.toPostDetailResponse(projection.getPost());
+        res.setLikeCount(projection.getLikeCount());
+        res.setCommentCount(projection.getCommentCount());
+        return res;
+    }
+
+    public Page<PostSimpleResponse> getPosts(String search, String sortBy, boolean mine, String status, Pageable pageable) {
+        Page<PostSimpleProjection> projections;
+        Pageable sorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), buildSort(sortBy));
+
+        if (mine) {
+            Long userId = userCurrentService.getCurrentUserIdOrNull();
+            if (userId == null) throw new BadRequestException("Bạn cần đăng nhập để xem bài viết của mình");
+            projections = postRepository.findMyPosts(userId, status, sorted);
+        } else if (search == null || search.isBlank()) {
+            projections = postRepository.findApprovedPosts(sorted);
+        } else {
+            // ponytail: search query has its own ORDER BY with CASE WHEN; pass unsorted pageable for LIMIT/OFFSET only
+            Pageable unsorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+            projections = postRepository.searchApprovedPosts(search.strip(), sortBy, unsorted);
+        }
 
         Long currentUserId = userCurrentService.getCurrentUserIdOrNull();
         Set<Long> likedPostIds;
@@ -141,6 +169,17 @@ public class PostService {
         }
 
         return projections.map(p -> postMapper.toPostSimpleResponse(p, likedPostIds.contains(p.getId())));
+    }
+
+    private Sort buildSort(String sortBy) {
+        return switch (sortBy) {
+            case "mostViewed" -> Sort.by(Sort.Direction.DESC, "viewCount")
+                    .and(Sort.by(Sort.Direction.DESC, "createdAt"));
+            case "mostLiked" -> Sort.by(Sort.Direction.DESC, "likeCount")
+                    .and(Sort.by(Sort.Direction.DESC, "viewCount"))
+                    .and(Sort.by(Sort.Direction.DESC, "createdAt"));
+            default -> Sort.by(Sort.Direction.DESC, "createdAt");
+        };
     }
 
     private JsonNode parseTiptapContent(String content) {
