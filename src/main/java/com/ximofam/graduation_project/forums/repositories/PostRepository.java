@@ -76,18 +76,29 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Optional<PostViewProjection> findMyPostById(@Param("postId") Long postId, @Param("authorId") Long authorId);
 
     @Query(value = """
-            SELECT p.id AS id,
-                   u.id AS authorId,
-                   u.username AS authorUsername,
-                   u.avatar_url AS authorAvatarUrl,
-                   p.title AS title,
-                   p.view_count AS viewCount,
-                   (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id AND pl.is_active = true) AS likeCount,
-                   (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id AND c.deleted_at IS NULL) AS commentCount,
-                   p.created_at AS createdAt
-            FROM posts p
-            JOIN users u ON u.id = p.author_id
-            WHERE p.status = 'APPROVED'
+            SELECT * FROM (
+                SELECT p.id AS id,
+                       u.id AS authorId,
+                       u.username AS authorUsername,
+                       u.avatar_url AS authorAvatarUrl,
+                       p.title AS title,
+                       p.view_count AS viewCount,
+                       (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id AND pl.is_active = true) AS likeCount,
+                       (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id AND c.deleted_at IS NULL) AS commentCount,
+                       p.created_at AS createdAt
+                FROM posts p
+                JOIN users u ON u.id = p.author_id
+                WHERE p.status = 'APPROVED'
+            ) result
+            ORDER BY
+                CASE :sortBy
+                    WHEN 'mostViewed' THEN viewCount
+                    WHEN 'mostLiked' THEN likeCount
+                    ELSE 0 END DESC,
+                CASE :sortBy
+                    WHEN 'mostLiked' THEN viewCount
+                    ELSE 0 END DESC,
+                createdAt DESC
             """,
             countQuery = """
                     SELECT COUNT(*)
@@ -95,7 +106,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                     WHERE p.status = 'APPROVED'
                     """,
             nativeQuery = true)
-    Page<PostSimpleProjection> findApprovedPosts(Pageable pageable);
+    Page<PostSimpleProjection> findApprovedPosts(@Param("sortBy") String sortBy, Pageable pageable);
 
     @Query(value = """
             SELECT p.id AS id,

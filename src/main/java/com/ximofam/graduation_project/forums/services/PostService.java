@@ -167,7 +167,8 @@ public class PostService {
             Long userId = userCurrentService.getCurrentUserId();
             projections = postRepository.findMyPosts(userId, status, sorted);
         } else if (search == null || search.isBlank()) {
-            projections = postRepository.findApprovedPosts(sorted);
+            Pageable unsorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+            projections = postRepository.findApprovedPosts(sortBy, unsorted);
         } else {
             // ponytail: search query has its own ORDER BY with CASE WHEN; pass unsorted pageable for LIMIT/OFFSET only
             Pageable unsorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
