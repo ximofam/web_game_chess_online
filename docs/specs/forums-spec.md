@@ -29,6 +29,7 @@ classDiagram
         +getPost(Long postId) ResponseEntity~PostResponse~
         +getMyPost(Long postId) ResponseEntity~PostDetailResponse~
         +createPost(CreatePostRequest request) ResponseEntity~PostDetailResponse~
+        +deletePost(Long postId) ResponseEntity~ApiResponse~
         +getComments(Long postId, String sortBy, Pageable pageable) ResponseEntity~Page~CommentResponse~~
         +likePost(Long postId, boolean isLike) ResponseEntity~ApiResponse~
         +getPosts(String search, String sortBy, boolean mine, String status, Pageable pageable) ResponseEntity~Page~PostSimpleResponse~~
@@ -272,6 +273,28 @@ classDiagram
         }
       }
       ```
+
+---
+
+### 3.7. Xóa bài viết của mình (Delete My Post)
+
+- **Endpoint:** `DELETE /api/posts/{postId}`
+- **Mô tả:** Xóa (soft delete) bài viết của người dùng đang đăng nhập. Chỉ chủ bài viết mới có quyền xóa.
+- **Path Parameters:**
+    - `postId` (Long): ID của bài viết cần xóa.
+- **Headers:**
+    - `Authorization: Bearer <Access_Token>` (Bắt buộc)
+- **Quyền truy cập:** Không cho phép tài khoản có vai trò `GUEST`. Chỉ tác giả của bài viết mới được phép xóa.
+- **Response:**
+    - **Success:** `200 OK`
+      ```json
+      {
+        "message": "Xóa bài viết thành công"
+      }
+      ```
+    - **Error (Unauthorized):** `401 Unauthorized` (chưa đăng nhập).
+    - **Error (Forbidden):** `403 Forbidden` (tài khoản GUEST hoặc không phải chủ bài viết).
+    - **Error (Not Found):** `404 Not Found` (bài viết không tồn tại).
 
 ---
 

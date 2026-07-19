@@ -76,4 +76,11 @@ public class ApiPostController {
 
         return ResponseEntity.ok(postService.getPosts(search, sortBy, mine, status, pageable));
     }
+
+    @PreAuthorize("!hasRole('GUEST')")
+    @DeleteMapping("/{postId}")
+    public ResponseEntity<ApiResponse> deletePost(@PathVariable Long postId) {
+        postService.deleteMyPost(postId);
+        return ResponseEntity.ok(ApiResponse.builder().message("Xóa bài viết thành công").build());
+    }
 }

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ximofam.graduation_project.auth.services.UserCurrentService;
 import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
+import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.forums.dtos.request.CreatePostRequest;
 import com.ximofam.graduation_project.forums.dtos.response.PostDetailResponse;
@@ -143,13 +144,27 @@ public class PostService {
         return res;
     }
 
+    @Transactional
+    public void deleteMyPost(Long postId) {
+        Long userId = userCurrentService.getCurrentUserId();
+
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new NotFoundException("Bài viết không tồn tại"));
+
+        if (!post.getAuthor().getId().equals(userId)) {
+            throw new ForbiddenException("Bạn không có quyền xóa bài viết này");
+        }
+
+        // ponytail: SoftDeleteModel @SQLDelete handles setting deleted_at
+        postRepository.delete(post);
+    }
+
     public Page<PostSimpleResponse> getPosts(String search, String sortBy, boolean mine, String status, Pageable pageable) {
         Page<PostSimpleProjection> projections;
         Pageable sorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), buildSort(sortBy));
 
         if (mine) {
-            Long userId = userCurrentService.getCurrentUserIdOrNull();
-            if (userId == null) throw new BadRequestException("Bạn cần đăng nhập để xem bài viết của mình");
+            Long userId = userCurrentService.getCurrentUserId();
             projections = postRepository.findMyPosts(userId, status, sorted);
         } else if (search == null || search.isBlank()) {
             projections = postRepository.findApprovedPosts(sorted);
