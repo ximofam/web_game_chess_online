@@ -7,6 +7,7 @@ import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -17,6 +18,8 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -29,6 +32,8 @@ import org.springframework.web.socket.config.annotation.WebSocketTransportRegist
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final TokenService jwtService;
 
+    @Value("${websocket.broker.type:simple}")
+    private String brokerType;
     @Value("${app.websocket.rabbitmq-stomp-host}")
     private String stompHost;
     @Value("${app.websocket.rabbitmq-stomp-port}")
@@ -44,20 +49,34 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     }
 
     @Override
-    public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableStompBrokerRelay("/topic", "/queue")
-                .setRelayHost(stompHost)
-                .setRelayPort(stompPort)
-                .setSystemLogin(stompLogin)
-                .setSystemPasscode(stompPasscode)
-                .setClientLogin(stompLogin)
-                .setClientPasscode(stompPasscode)
-                .setSystemHeartbeatSendInterval(10000)
-                .setSystemHeartbeatReceiveInterval(10000);
+    public void configureMessageBroker(@NonNull MessageBrokerRegistry registry) {
+        if ("relay".equalsIgnoreCase(brokerType)) {
+            registry.enableStompBrokerRelay("/topic", "/queue")
+                    .setRelayHost(stompHost)
+                    .setRelayPort(stompPort)
+                    .setSystemLogin(stompLogin)
+                    .setSystemPasscode(stompPasscode)
+                    .setClientLogin(stompLogin)
+                    .setClientPasscode(stompPasscode)
+                    .setSystemHeartbeatSendInterval(10000)
+                    .setSystemHeartbeatReceiveInterval(10000);
+        } else {
+            registry.enableSimpleBroker("/topic", "/queue")
+                    .setHeartbeatValue(new long[]{10000, 10000})
+                    .setTaskScheduler(heartBeatScheduler());
+        }
 
         registry.setApplicationDestinationPrefixes("/app");
-
         registry.setUserDestinationPrefix("/user");
+    }
+
+    @Bean
+    public TaskScheduler heartBeatScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(1);
+        scheduler.setThreadNamePrefix("wss-heartbeat-");
+        scheduler.initialize();
+        return scheduler;
     }
 
     @Override
