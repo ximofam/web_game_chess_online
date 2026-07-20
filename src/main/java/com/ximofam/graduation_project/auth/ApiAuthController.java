@@ -5,7 +5,7 @@ import com.ximofam.graduation_project.auth.dtos.request.RegisterUserRequest;
 import com.ximofam.graduation_project.auth.dtos.response.TokenResponse;
 import com.ximofam.graduation_project.auth.services.AuthService;
 import com.ximofam.graduation_project.auth.services.TokenService;
-import com.ximofam.graduation_project.common.utils.Utils;
+import com.ximofam.graduation_project.common.utils.CookieUtils;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -27,11 +27,11 @@ public class ApiAuthController {
     private final TokenService tokenService;
     @Value("${app.user.guest-max-age-days}")
     private int guestMaxAgeDays;
+    private final CookieUtils cookieUtils;
 
     private static final String GUEST_COOKIE_NAME = "guestToken";
     private static final String REFRESH_COOKIE_NAME = "refreshToken";
     private static final String REFRESH_COOKIE_PATH = "/api/auth";
-    private static final String REFRESH_COOKIE_SAME_SITE = "Strict";
 
     @PostMapping("/register")
     public ResponseEntity<UserResponse> register(@RequestBody @Valid RegisterUserRequest request) {
@@ -48,7 +48,7 @@ public class ApiAuthController {
         }
 
         String newGuestToken = authService.registerGuest();
-        Utils.addCookie(response, GUEST_COOKIE_NAME, newGuestToken, Duration.ofDays(guestMaxAgeDays));
+        cookieUtils.addCookie(response, GUEST_COOKIE_NAME, newGuestToken, Duration.ofDays(guestMaxAgeDays));
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
@@ -79,7 +79,7 @@ public class ApiAuthController {
 
         Long guestId = tokenService.extractUserId(claims);
         String newGuestToken = tokenService.generateGuestToken(guestId);
-        Utils.addCookie(response, GUEST_COOKIE_NAME, newGuestToken, Duration.ofDays(guestMaxAgeDays));
+        cookieUtils.addCookie(response, GUEST_COOKIE_NAME, newGuestToken, Duration.ofDays(guestMaxAgeDays));
 
         return ResponseEntity.ok().build();
     }
@@ -100,19 +100,17 @@ public class ApiAuthController {
         if (refreshToken != null) {
             tokenService.deleteRefreshSession(refreshToken);
         }
-        Utils.clearCookie(response, REFRESH_COOKIE_NAME, REFRESH_COOKIE_PATH, REFRESH_COOKIE_SAME_SITE, false);
+        cookieUtils.clearCookie(response, REFRESH_COOKIE_NAME, REFRESH_COOKIE_PATH);
         return ResponseEntity.ok("Logged out successfully");
     }
 
     private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
-        Utils.addCookie(
+        cookieUtils.addCookie(
                 response,
                 REFRESH_COOKIE_NAME,
                 refreshToken,
                 Duration.ofDays(tokenService.getRefreshTokenExpDays()),
-                REFRESH_COOKIE_PATH,
-                REFRESH_COOKIE_SAME_SITE,
-                false
+                REFRESH_COOKIE_PATH
         );
     }
 

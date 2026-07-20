@@ -139,5 +139,9 @@ app:
       multiplier: 2.0
       max-interval: 10000
 
+  cookie:
+    secure: ${COOKIE_SECURE:false}
+    same-site: ${COOKIE_SAME_SITE:Lax}
+
   user:
     guest-max-age-days: 30

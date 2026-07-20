@@ -1,13 +1,6 @@
 package com.ximofam.graduation_project.common.utils;
 
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
-
 import java.security.SecureRandom;
-import java.time.Duration;
 
 public class Utils {
     public static boolean hasText(String text) {
@@ -37,47 +30,4 @@ public class Utils {
         return sb.toString();
     }
 
-    public static String extractValueFromCookie(HttpServletRequest request, String cookieName) {
-        if (request == null || cookieName == null || cookieName.isEmpty()) {
-            return null;
-        }
-
-        Cookie[] cookies = request.getCookies();
-        if (cookies == null) {
-            return null;
-        }
-
-        for (Cookie cookie : cookies) {
-            if (cookieName.equals(cookie.getName())) {
-                return cookie.getValue();
-            }
-        }
-
-        return null;
-    }
-
-    public static void addCookie(HttpServletResponse response, String name, String value, Duration maxAge) {
-        addCookie(response, name, value, maxAge, "/", "Lax", false);
-    }
-
-    public static void addCookie(HttpServletResponse response, String name, String value,
-                                 Duration maxAge, String path, String sameSite, boolean secure) {
-        ResponseCookie cookie = ResponseCookie.from(name, value)
-                .httpOnly(true)
-                .secure(secure)
-                .path(path)
-                .maxAge(maxAge)
-                .sameSite(sameSite)
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-    }
-
-    public static void clearCookie(HttpServletResponse response, String name) {
-        clearCookie(response, name, "/", "Lax", false);
-    }
-
-    public static void clearCookie(HttpServletResponse response, String name,
-                                   String path, String sameSite, boolean secure) {
-        addCookie(response, name, "", Duration.ZERO, path, sameSite, secure);
-    }
 }
