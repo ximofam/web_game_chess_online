@@ -54,22 +54,22 @@ spring:
       chat:
         model: ${GROQ_MODEL}
 
-    model:
-      embedding: transformers
-
-    embedding:
-      transformer:
-        onnx:
-          model-uri: ${EMBEDDING_TRANSFORMER_ONNX_MODEL_URI}
-        tokenizer:
-          uri: ${EMBEDDING_TRANSFORMER_TOKENIZER_URI}
-
-    vectorstore:
-      pgvector:
-        initialize-schema: false
-        dimensions: 384
-        distance-type: cosine_distance
-        index-type: hnsw
+#    model:
+#      embedding: transformers
+#
+#    embedding:
+#      transformer:
+#        onnx:
+#          model-uri: ${EMBEDDING_TRANSFORMER_ONNX_MODEL_URI}
+#        tokenizer:
+#          uri: ${EMBEDDING_TRANSFORMER_TOKENIZER_URI}
+#
+#    vectorstore:
+#      pgvector:
+#        initialize-schema: false
+#        dimensions: 384
+#        distance-type: cosine_distance
+#        index-type: hnsw
 
 logging:
   level:
