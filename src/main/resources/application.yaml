@@ -83,8 +83,7 @@ app:
       refresh-token-exp-days: ${REFRESH_TOKEN_EXP_DAYS}
 
   cors:
-    allowed-origins:
-      - http://localhost:5173
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
 
   thread-pool:
     async:
