@@ -23,10 +23,7 @@ spring:
 
   data:
     redis:
-      url: ${REDIS_URL:redis://localhost:6379}
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:123456}
+      url: ${REDIS_URL:redis://:123456@localhost:6379}
       ssl:
         enabled: ${REDIS_SSL:false}
       timeout: ${REDIS_TIMEOUT:60000ms}
@@ -45,7 +42,7 @@ spring:
     password: ${RABBITMQ_PASSWORD:guest}
     virtual-host: ${RABBITMQ_VHOST:/}
     ssl:
-      enabled: ${RABBITMQ_SSL:true}
+      enabled: ${RABBITMQ_SSL:false}
 
   ai:
     openai:

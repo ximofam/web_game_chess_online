@@ -38,7 +38,7 @@ public class SecurityConfig {
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final MyUserDetailsService myUserDetailsService;
-    @Value("${cors.allowed-origins}")
+    @Value("${app.cors.allowed-origins}")
     private String allowedOriginsRaw;
 
     @Bean
