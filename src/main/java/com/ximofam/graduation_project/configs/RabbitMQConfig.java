@@ -136,11 +136,13 @@ public class RabbitMQConfig {
     @Bean
     SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
             ConnectionFactory connectionFactory,
-            MessageConverter jsonMessageConverter) {
+            MessageConverter jsonMessageConverter,
+            @org.springframework.beans.factory.annotation.Value("${spring.rabbitmq.listener.simple.auto-startup:true}") boolean autoStartup) {
 
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(jsonMessageConverter);
+        factory.setAutoStartup(autoStartup);
         factory.setAcknowledgeMode(AcknowledgeMode.AUTO);
         factory.setDefaultRequeueRejected(false);
         factory.setAdviceChain(retryInterceptor());

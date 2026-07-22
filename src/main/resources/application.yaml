@@ -46,10 +46,10 @@ spring:
 
   ai:
     openai:
-      api-key: ${GROQ_API_KEY}
+      api-key: ${GROQ_API_KEY:dummy_groq_key}
       base-url: ${GROQ_BASE_URL:https://api.groq.com/openai/v1}
       chat:
-        model: ${GROQ_MODEL}
+        model: ${GROQ_MODEL:llama3-8b-8192}
 
 #    model:
 #      embedding: transformers
@@ -75,32 +75,32 @@ logging:
 app:
   security:
     jwt:
-      secret-key: ${JWT_SECRET_KEY}
-      access-token-exp-sec: ${ACCESS_TOKEN_EXP_SEC}
-      refresh-token-exp-days: ${REFRESH_TOKEN_EXP_DAYS}
+      secret-key: ${JWT_SECRET_KEY:RGF5TGFNb3RDaHVvaUJpTWF0RGFuaENob01vaVRydW9uZ1Rlc3REdURhaTI1NkJpdA==}
+      access-token-exp-sec: ${ACCESS_TOKEN_EXP_SEC:3600}
+      refresh-token-exp-days: ${REFRESH_TOKEN_EXP_DAYS:7}
 
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
 
   thread-pool:
     async:
-      core-size: ${ASYNC_CORE_SIZE}
-      max-size: ${ASYNC_MAX_SIZE}
-      queue-capacity: ${ASYNC_QUEUE_CAPACITY}
-      await-termination-seconds: ${ASYNC_AWAIT_TERMINATION}
+      core-size: ${ASYNC_CORE_SIZE:2}
+      max-size: ${ASYNC_MAX_SIZE:5}
+      queue-capacity: ${ASYNC_QUEUE_CAPACITY:10}
+      await-termination-seconds: ${ASYNC_AWAIT_TERMINATION:60}
     scheduler:
-      pool-size: ${SCHEDULER_POOL_SIZE}
-      await-termination-seconds: ${SCHEDULER_AWAIT_TERMINATION}
+      pool-size: ${SCHEDULER_POOL_SIZE:2}
+      await-termination-seconds: ${SCHEDULER_AWAIT_TERMINATION:60}
 
   superuser:
-    email: ${SUPERUSER_EMAIL}
-    username: ${SUPERUSER_USERNAME}
-    password: ${SUPERUSER_PASSWORD}
+    email: ${SUPERUSER_EMAIL:admin@example.com}
+    username: ${SUPERUSER_USERNAME:admin}
+    password: ${SUPERUSER_PASSWORD:admin123}
 
   cloudinary:
-    cloud-name: ${CLOUDINARY_CLOUD_NAME}
-    api-key: ${CLOUDINARY_API_KEY}
-    api-secret: ${CLOUDINARY_API_SECRET}
+    cloud-name: ${CLOUDINARY_CLOUD_NAME:dummy_cloud}
+    api-key: ${CLOUDINARY_API_KEY:dummy_key}
+    api-secret: ${CLOUDINARY_API_SECRET:dummy_secret}
 
   websocket:
     broker:

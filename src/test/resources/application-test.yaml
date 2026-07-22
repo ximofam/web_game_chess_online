@@ -44,7 +44,4 @@ app:
     broker-relay:
       enabled: false
 
-users:
-  scheduler:
-    clean-refresh-token:
-      cron: "0 0 0 * * ?"
+
