@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.SQLDelete;
 
+import java.time.Instant;
+
 @Entity
 @Table(name = "users")
 @SQLDelete(sql = "UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
@@ -31,6 +33,9 @@ public class User extends SoftDeleteModel {
 
     @Column(name = "is_locked")
     private boolean isLocked = false;
+
+    @Column(name = "last_seen")
+    private Instant lastSeen;
 
     @Embedded
     private UserProfile profile;

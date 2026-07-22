@@ -1,5 +1,6 @@
 package com.ximofam.graduation_project.users.services;
 
+import com.ximofam.graduation_project.users.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
@@ -18,6 +19,7 @@ import java.util.List;
 public class PresenceService {
 
     private final StringRedisTemplate redisTemplate;
+    private final UserRepository userRepository;
     private static final Duration SESSION_TTL = Duration.ofSeconds(30);
 
     private final RedisScript<Long> connectScript =
@@ -28,20 +30,16 @@ public class PresenceService {
 
 
     public void handleConnect(String userId, String sessionId) {
-        String now = String.valueOf(Instant.now().getEpochSecond());
-
         Long becameOnline = redisTemplate.execute(
                 connectScript,
                 List.of(sessionsKey(userId), userKey(userId)),
-                sessionId, now
+                sessionId
         );
 
         redisTemplate.opsForValue().set(sessionKey(userId, sessionId), "1", SESSION_TTL);
 
         if (becameOnline != null && becameOnline == 1) {
             log.debug("User {} came online (session {})", userId, sessionId);
-            // TODO: publish event qua RabbitMQ/Redis Pub-Sub nếu có nhiều instance
-            // và cần broadcast trạng thái online cho toàn bộ cluster.
         }
     }
 
@@ -57,17 +55,19 @@ public class PresenceService {
     }
 
     private void applyDisconnect(String userId, String sessionId) {
-        String now = String.valueOf(Instant.now().getEpochSecond());
-
         Long becameOffline = redisTemplate.execute(
                 disconnectScript,
                 List.of(sessionsKey(userId), userKey(userId)),
-                sessionId, now
+                sessionId
         );
 
         if (becameOffline != null && becameOffline == 1) {
-            log.debug("User {} went offline", userId);
-            // TODO: publish event tương tự như handleConnect
+            log.debug("User {} went offline, saving lastSeen to DB", userId);
+            try {
+                userRepository.updateLastSeen(Long.parseLong(userId), Instant.now());
+            } catch (NumberFormatException e) {
+                log.warn("Invalid userId format for lastSeen update: {}", userId);
+            }
         }
     }
 

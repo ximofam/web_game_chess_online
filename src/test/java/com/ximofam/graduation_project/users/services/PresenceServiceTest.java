@@ -1,5 +1,6 @@
 package com.ximofam.graduation_project.users.services;
 
+import com.ximofam.graduation_project.users.repositories.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,6 +13,7 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.script.RedisScript;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,6 +25,9 @@ class PresenceServiceTest {
 
     @Mock
     private StringRedisTemplate redisTemplate;
+
+    @Mock
+    private UserRepository userRepository;
 
     @Mock
     private ValueOperations<String, String> valueOperations;
@@ -41,67 +46,66 @@ class PresenceServiceTest {
 
     @Test
     void handleConnect_ShouldExecuteConnectScriptAndSetSessionTTL() {
-        when(redisTemplate.execute(any(RedisScript.class), anyList(), any(), any())).thenReturn(1L);
+        when(redisTemplate.execute(any(RedisScript.class), anyList(), any())).thenReturn(1L);
 
-        presenceService.handleConnect("user1", "session1");
+        presenceService.handleConnect("1", "session1");
 
         verify(redisTemplate).execute(
                 any(RedisScript.class),
-                eq(List.of("presence:sessions:user1", "presence:user:user1")),
-                eq("session1"),
-                anyString()
+                eq(List.of("presence:sessions:1", "presence:user:1")),
+                eq("session1")
         );
-        verify(valueOperations).set("presence:session:user1:session1", "1", Duration.ofSeconds(30));
+        verify(valueOperations).set("presence:session:1:session1", "1", Duration.ofSeconds(30));
     }
 
     @Test
-    void handleDisconnect_ShouldExecuteDisconnectScriptAndDeleteSessionKey() {
-        when(redisTemplate.execute(any(RedisScript.class), anyList(), any(), any())).thenReturn(1L);
+    void handleDisconnect_ShouldExecuteDisconnectScriptSaveLastSeenDBAndDeleteSessionKey() {
+        when(redisTemplate.execute(any(RedisScript.class), anyList(), any())).thenReturn(1L);
 
-        presenceService.handleDisconnect("user1", "session1");
+        presenceService.handleDisconnect("1", "session1");
 
         verify(redisTemplate).execute(
                 any(RedisScript.class),
-                eq(List.of("presence:sessions:user1", "presence:user:user1")),
-                eq("session1"),
-                anyString()
+                eq(List.of("presence:sessions:1", "presence:user:1")),
+                eq("session1")
         );
-        verify(redisTemplate).delete("presence:session:user1:session1");
+        verify(userRepository).updateLastSeen(eq(1L), any(Instant.class));
+        verify(redisTemplate).delete("presence:session:1:session1");
     }
 
     @Test
-    void handleExpiredSession_ShouldExecuteDisconnectScriptWithoutDeletingKey() {
-        when(redisTemplate.execute(any(RedisScript.class), anyList(), any(), any())).thenReturn(1L);
+    void handleExpiredSession_ShouldExecuteDisconnectScriptAndSaveLastSeenDB() {
+        when(redisTemplate.execute(any(RedisScript.class), anyList(), any())).thenReturn(1L);
 
-        presenceService.handleExpiredSession("user1", "session1");
+        presenceService.handleExpiredSession("1", "session1");
 
         verify(redisTemplate).execute(
                 any(RedisScript.class),
-                eq(List.of("presence:sessions:user1", "presence:user:user1")),
-                eq("session1"),
-                anyString()
+                eq(List.of("presence:sessions:1", "presence:user:1")),
+                eq("session1")
         );
+        verify(userRepository).updateLastSeen(eq(1L), any(Instant.class));
         verify(redisTemplate, never()).delete(anyString());
     }
 
     @Test
     void handleHeartbeat_ShouldExtendSessionTTL() {
-        presenceService.handleHeartbeat("user1", "session1");
+        presenceService.handleHeartbeat("1", "session1");
 
-        verify(redisTemplate).expire("presence:session:user1:session1", Duration.ofSeconds(30));
+        verify(redisTemplate).expire("presence:session:1:session1", Duration.ofSeconds(30));
     }
 
     @Test
     void isOnline_ShouldReturnTrueWhenStatusIsOnline() {
-        when(hashOperations.get("presence:user:user1", "status")).thenReturn("online");
+        when(hashOperations.get("presence:user:1", "status")).thenReturn("online");
 
-        assertThat(presenceService.isOnline("user1")).isTrue();
+        assertThat(presenceService.isOnline("1")).isTrue();
     }
 
     @Test
     void isOnline_ShouldReturnFalseWhenStatusIsNotOnline() {
-        when(hashOperations.get("presence:user:user1", "status")).thenReturn("offline");
+        when(hashOperations.get("presence:user:1", "status")).thenReturn(null);
 
-        assertThat(presenceService.isOnline("user1")).isFalse();
+        assertThat(presenceService.isOnline("1")).isFalse();
     }
 }
