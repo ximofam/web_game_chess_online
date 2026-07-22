@@ -87,8 +87,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                        (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id AND c.deleted_at IS NULL) AS commentCount,
                        p.created_at AS createdAt
                 FROM posts p
-                JOIN users u ON u.id = p.author_id
-                WHERE p.status = 'APPROVED'
+                JOIN users u ON u.id = p.author_id AND u.deleted_at IS NULL
+                WHERE p.status = 'APPROVED' AND p.deleted_at IS NULL
             ) result
             ORDER BY
                 CASE :sortBy
@@ -103,7 +103,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             countQuery = """
                     SELECT COUNT(*)
                     FROM posts p
-                    WHERE p.status = 'APPROVED'
+                    WHERE p.status = 'APPROVED' AND p.deleted_at IS NULL
                     """,
             nativeQuery = true)
     Page<PostSimpleProjection> findApprovedPosts(@Param("sortBy") String sortBy, Pageable pageable);
@@ -120,14 +120,16 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                    p.created_at AS createdAt,
                    p.status AS status
             FROM posts p
-            JOIN users u ON u.id = p.author_id
+            JOIN users u ON u.id = p.author_id AND u.deleted_at IS NULL
             WHERE p.author_id = :authorId
+              AND p.deleted_at IS NULL
               AND (CAST(:status AS VARCHAR) IS NULL OR p.status = :status)
             """,
             countQuery = """
                     SELECT COUNT(*)
                     FROM posts p
                     WHERE p.author_id = :authorId
+                      AND p.deleted_at IS NULL
                       AND (CAST(:status AS VARCHAR) IS NULL OR p.status = :status)
                     """,
             nativeQuery = true)
@@ -151,8 +153,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                            p.created_at AS createdAt,
                            1 AS searchPriority
                     FROM posts p
-                    JOIN users u ON u.id = p.author_id
-                    WHERE p.status = 'APPROVED'
+                    JOIN users u ON u.id = p.author_id AND u.deleted_at IS NULL
+                    WHERE p.status = 'APPROVED' AND p.deleted_at IS NULL
                       AND p.title_tsv @@ plainto_tsquery('simple', immutable_unaccent(:keyword))
             
                     UNION ALL
@@ -168,8 +170,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                            p.created_at AS createdAt,
                            2 AS searchPriority
                     FROM posts p
-                    JOIN users u ON u.id = p.author_id
-                    WHERE p.status = 'APPROVED'
+                    JOIN users u ON u.id = p.author_id AND u.deleted_at IS NULL
+                    WHERE p.status = 'APPROVED' AND p.deleted_at IS NULL
                       AND p.title ILIKE '%' || immutable_unaccent(:keyword) || '%'
                 ) combined
                 ORDER BY id, searchPriority
@@ -187,7 +189,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             countQuery = """
                     SELECT COUNT(DISTINCT p.id)
                     FROM posts p
-                    WHERE p.status = 'APPROVED'
+                    WHERE p.status = 'APPROVED' AND p.deleted_at IS NULL
                       AND (p.title_tsv @@ plainto_tsquery('simple', :keyword)
                            OR p.title ILIKE '%' || :keyword || '%')
                     """,

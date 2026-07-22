@@ -5,12 +5,14 @@ import com.ximofam.graduation_project.users.entities.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.SQLDelete;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "comments")
+@SQLDelete(sql = "UPDATE comments SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
 @Getter
 @Setter
 public class Comment extends SoftDeleteModel {
