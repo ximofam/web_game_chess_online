@@ -4,6 +4,7 @@ import com.ximofam.graduation_project.users.services.PresenceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.annotation.SubscribeMapping;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
@@ -23,6 +24,11 @@ public class WsPresenceController {
         if (userId != null && sessionId != null) {
             presenceService.handleHeartbeat(userId, sessionId);
         }
+    }
+
+    @SubscribeMapping("/presence.online-count")
+    public long subscribeOnlineCount() {
+        return presenceService.getOnlineUserCount();
     }
 
     private String resolveUserId(Principal principal) {

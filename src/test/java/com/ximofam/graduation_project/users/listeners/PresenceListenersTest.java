@@ -9,12 +9,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.connection.DefaultMessage;
 import org.springframework.data.redis.connection.Message;
-import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 
 import java.security.Principal;
-import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -67,5 +66,12 @@ class PresenceListenersTest {
         wsPresenceController.heartbeat(accessor);
 
         verifyNoInteractions(presenceService);
+    }
+
+    @Test
+    void subscribeOnlineCount_ShouldReturnCountFromPresenceService() {
+        when(presenceService.getOnlineUserCount()).thenReturn(10L);
+
+        assertThat(wsPresenceController.subscribeOnlineCount()).isEqualTo(10L);
     }
 }
