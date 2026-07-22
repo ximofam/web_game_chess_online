@@ -8,7 +8,6 @@ import com.ximofam.graduation_project.auth.services.TokenService;
 import com.ximofam.graduation_project.common.utils.CookieUtils;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -39,14 +38,7 @@ public class ApiAuthController {
     }
 
     @PostMapping("/register/guest")
-    public ResponseEntity<Void> registerGuest(
-            @CookieValue(name = GUEST_COOKIE_NAME, required = false) String guestToken,
-            HttpServletResponse response) {
-
-        if (isValidGuestToken(guestToken)) {
-            return ResponseEntity.ok().build();
-        }
-
+    public ResponseEntity<Void> registerGuest(HttpServletResponse response) {
         String newGuestToken = authService.registerGuest();
         cookieUtils.addCookie(response, GUEST_COOKIE_NAME, newGuestToken, Duration.ofDays(guestMaxAgeDays));
         return ResponseEntity.status(HttpStatus.CREATED).build();
@@ -114,15 +106,4 @@ public class ApiAuthController {
         );
     }
 
-    private boolean isValidGuestToken(String guestToken) {
-        if (guestToken == null) {
-            return false;
-        }
-        try {
-            tokenService.verifyAndParseToken(guestToken, "guest");
-            return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
-        }
-    }
 }
