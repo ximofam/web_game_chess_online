@@ -140,5 +140,8 @@ app:
     secure: ${COOKIE_SECURE:false}
     same-site: ${COOKIE_SAME_SITE:Lax}
 
+  presence:
+    session-ttl-seconds: ${PRESENCE_SESSION_TTL_SECONDS:30}
+
   user:
     guest-max-age-days: 30

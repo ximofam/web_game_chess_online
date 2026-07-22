@@ -3,6 +3,8 @@ package com.ximofam.graduation_project.users.services;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.convert.DurationUnit;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -12,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 
@@ -23,7 +26,10 @@ public class PresenceService {
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
-    private static final Duration SESSION_TTL = Duration.ofSeconds(30);
+    @DurationUnit(ChronoUnit.SECONDS)
+    @Value("${app.presence.session-ttl-seconds:30}")
+    private Duration sessionTtl = Duration.ofSeconds(30);
+
     private final RedisScript<Long> connectScript = RedisScript.of(new ClassPathResource("scripts/presence_connect.lua"), Long.class);
     private final RedisScript<Long> disconnectScript = RedisScript.of(new ClassPathResource("scripts/presence_disconnect.lua"), Long.class);
     private static final String ONLINE_USERS_KEY = "presence:online_users";
@@ -36,7 +42,7 @@ public class PresenceService {
                 sessionId, userId
         );
 
-        redisTemplate.opsForValue().set(sessionKey(userId, sessionId), "1", SESSION_TTL);
+        redisTemplate.opsForValue().set(sessionKey(userId, sessionId), "1", sessionTtl);
 
         if (becameOnline != null && becameOnline == 1) {
             log.debug("User {} came online (session {})", userId, sessionId);
@@ -81,7 +87,7 @@ public class PresenceService {
 
 
     public void handleHeartbeat(String userId, String sessionId) {
-        redisTemplate.expire(sessionKey(userId, sessionId), SESSION_TTL);
+        redisTemplate.expire(sessionKey(userId, sessionId), sessionTtl);
     }
 
     public boolean isOnline(String userId) {
