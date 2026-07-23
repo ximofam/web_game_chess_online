@@ -1,5 +1,6 @@
 package com.ximofam.graduation_project.users.controllers;
 
+import com.ximofam.graduation_project.common.utils.AuthUtils;
 import com.ximofam.graduation_project.users.services.PresenceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -19,7 +20,7 @@ public class WsPresenceController {
     public void heartbeat(SimpMessageHeaderAccessor accessor) {
         Principal principal = accessor.getUser();
         String sessionId = accessor.getSessionId();
-        String userId = resolveUserId(principal);
+        String userId = AuthUtils.resolveUserId(principal);
 
         if (userId != null && sessionId != null) {
             presenceService.handleHeartbeat(userId, sessionId);
@@ -31,19 +32,5 @@ public class WsPresenceController {
         return presenceService.getOnlineUserCount();
     }
 
-    private String resolveUserId(Principal principal) {
-        if (principal == null) {
-            return null;
-        }
-        if (principal instanceof org.springframework.security.core.Authentication auth) {
-            Object p = auth.getPrincipal();
-            if (p instanceof Long id) {
-                return id.toString();
-            }
-            if (p instanceof com.ximofam.graduation_project.auth.securities.CustomUserDetails userDetails && userDetails.getUserId() != null) {
-                return userDetails.getUserId().toString();
-            }
-        }
-        return principal.getName();
-    }
+
 }

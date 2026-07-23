@@ -8,6 +8,7 @@ import com.ximofam.graduation_project.users.UserMapper;
 import com.ximofam.graduation_project.users.dtos.request.UpdateUserProfileRequest;
 import com.ximofam.graduation_project.users.dtos.response.UserDetailResponse;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;
+import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.entities.UserProfile;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
@@ -24,6 +25,13 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final CloudinaryService cloudinaryService;
+
+    public UserSimpleResponse getUserSimpleResponseById(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("UserId %d không tồn tại", id));
+
+        return userMapper.toUserSimpleResponse(user);
+    }
 
     public UserResponse getUserByUsername(String username) {
         User user = userRepository.findByUsername(username)
