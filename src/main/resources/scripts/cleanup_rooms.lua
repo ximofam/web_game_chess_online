@@ -3,9 +3,9 @@
 --
 -- Logic: Lặp qua tất cả roomId của user. Nếu status == WAITING thì xoá room và khỏi lobby.
 -- Xoá roomId đó khỏi user:{userId}:rooms.
--- Trả về số room đã dọn.
+-- Trả về danh sách các roomId đã bị xoá.
 
-local count = 0
+local deleted_rooms = {}
 local rooms = redis.call('SMEMBERS', KEYS[1])
 
 for _, roomId in ipairs(rooms) do
@@ -16,8 +16,8 @@ for _, roomId in ipairs(rooms) do
         redis.call('DEL', roomKey)
         redis.call('ZREM', KEYS[2], roomId)
         redis.call('SREM', KEYS[1], roomId)
-        count = count + 1
+        table.insert(deleted_rooms, roomId)
     end
 end
 
-return count
+return deleted_rooms

@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 
 
 @Service
@@ -32,7 +33,7 @@ public class PresenceService {
 
     private final RedisScript<Long> connectScript = RedisScript.of(new ClassPathResource("scripts/presence_connect.lua"), Long.class);
     private final RedisScript<Long> disconnectScript = RedisScript.of(new ClassPathResource("scripts/presence_disconnect.lua"), Long.class);
-    private final RedisScript<Long> cleanupRoomsScript = RedisScript.of(new ClassPathResource("scripts/cleanup_rooms.lua"), Long.class);
+    private final RedisScript<List> cleanupRoomsScript = RedisScript.of(new ClassPathResource("scripts/cleanup_rooms.lua"), List.class);
     private static final String ONLINE_USERS_KEY = "presence:online_users";
     private static final String ONLINE_COUNT_TOPIC = "/topic/presence.online-count";
 
@@ -78,13 +79,17 @@ public class PresenceService {
             } catch (NumberFormatException e) {
                 log.warn("Invalid userId format for lastSeen update: {}", userId);
             }
-            
-            Long cleaned = redisTemplate.execute(
+            @SuppressWarnings("unchecked")
+            List<String> cleanedRooms = redisTemplate.execute(
                     cleanupRoomsScript,
                     List.of("user:" + userId + ":rooms", "rooms:lobby")
             );
-            if (cleaned != null && cleaned > 0) {
-                log.debug("Cleaned up {} waiting rooms for offline host {}", cleaned, userId);
+            if (cleanedRooms != null && !cleanedRooms.isEmpty()) {
+                log.debug("Cleaned up {} waiting rooms for offline host {}", cleanedRooms.size(), userId);
+                for (String roomId : cleanedRooms) {
+                    messagingTemplate.convertAndSend("/topic/lobbies",
+                            (Object) Map.of("type", "ROOM_DELETED", "data", Map.of("roomId", roomId)));
+                }
             }
 
             broadcastOnlineUserCount();
