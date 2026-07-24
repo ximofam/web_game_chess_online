@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -59,7 +58,7 @@ public class RoomService {
         java.util.Map<String, Object> roomData = new java.util.HashMap<>();
         roomData.put("roomId", roomId);
         roomData.put("host", hostInfo);
-        roomData.put("name", request.getName() != null ? request.getName() : "");
+        roomData.put("name", request.getName());
         roomData.put("createdAt", createdAt);
         roomData.put("settings", request.getSettings());
         roomData.put("white", hostInfo);

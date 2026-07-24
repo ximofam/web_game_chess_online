@@ -3,13 +3,13 @@ package com.ximofam.graduation_project.chess.controllers;
 import com.ximofam.graduation_project.chess.dtos.request.CreateRoomRequest;
 import com.ximofam.graduation_project.chess.services.RoomService;
 import com.ximofam.graduation_project.users.services.PresenceService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -23,7 +23,7 @@ public class RoomController {
     @PostMapping
     public ResponseEntity<?> createRoom(
             @AuthenticationPrincipal Long userId,
-            @RequestBody CreateRoomRequest request) {
+            @RequestBody @Valid CreateRoomRequest request) {
 
         String userIdStr = userId.toString();
         if (!presenceService.isOnline(userIdStr)) {
