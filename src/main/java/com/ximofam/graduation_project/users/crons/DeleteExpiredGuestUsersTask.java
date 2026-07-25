@@ -1,6 +1,6 @@
 package com.ximofam.graduation_project.users.crons;
 
-import com.ximofam.graduation_project.users.entities.enums.UserRole;
+import com.ximofam.graduation_project.users.enums.UserRole;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

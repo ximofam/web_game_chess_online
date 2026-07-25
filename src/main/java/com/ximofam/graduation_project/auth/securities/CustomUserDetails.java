@@ -1,6 +1,6 @@
 package com.ximofam.graduation_project.auth.securities;
 
-import com.ximofam.graduation_project.users.entities.enums.UserRole;
+import com.ximofam.graduation_project.users.enums.UserRole;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.User;

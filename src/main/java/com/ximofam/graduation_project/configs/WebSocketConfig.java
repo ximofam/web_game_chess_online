@@ -1,7 +1,7 @@
 package com.ximofam.graduation_project.configs;
 
 import com.ximofam.graduation_project.auth.services.TokenService;
-import com.ximofam.graduation_project.users.entities.enums.UserRole;
+import com.ximofam.graduation_project.users.enums.UserRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;

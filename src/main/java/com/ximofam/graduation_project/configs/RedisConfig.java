@@ -47,10 +47,10 @@ public class RedisConfig {
 
     @Bean
     public RedisMessageListenerContainer redisMessageListenerContainer(
-            PresenceSessionExpiredListener listener) {
+            PresenceSessionExpiredListener presenceListener) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
-        container.addMessageListener(listener, new PatternTopic("__keyevent@0__:expired"));
+        container.addMessageListener(presenceListener, new PatternTopic("__keyevent@*__:expired"));
         return container;
     }
 }

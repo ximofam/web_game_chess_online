@@ -1,6 +1,6 @@
 -- KEYS[1] = room:{roomId}
 -- KEYS[2] = rooms:lobby
--- KEYS[3] = user:{hostId}:rooms
+-- KEYS[3] = presence:user:{hostId}
 -- ARGV[1] = hostId
 -- ARGV[2] = settings json
 -- ARGV[3] = createdAt (epoch ms)
@@ -18,6 +18,6 @@ redis.call('HSET', KEYS[1],
 )
 
 redis.call('ZADD', KEYS[2], tonumber(ARGV[3]), ARGV[4])
-redis.call('SADD', KEYS[3], ARGV[4])
+redis.call('HSET', KEYS[3], 'status', 'IN_ROOM', 'roomId', ARGV[4], 'is_host', 'true', 'role', 'white')
 
 return 1

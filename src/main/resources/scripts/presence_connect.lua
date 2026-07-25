@@ -11,7 +11,7 @@ local wasEmpty = (redis.call('SCARD', KEYS[1]) == 0)
 redis.call('SADD', KEYS[1], ARGV[1])
 
 if wasEmpty then
-  redis.call('HSET', KEYS[2], 'status', 'online')
+  redis.call('HSET', KEYS[2], 'status', 'ONLINE')
   redis.call('SADD', KEYS[3], ARGV[2])
   return 1
 end

@@ -1,4 +1,4 @@
-package com.ximofam.graduation_project.users.entities.enums;
+package com.ximofam.graduation_project.users.enums;
 
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 

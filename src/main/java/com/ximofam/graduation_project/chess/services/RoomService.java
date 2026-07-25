@@ -3,6 +3,8 @@ package com.ximofam.graduation_project.chess.services;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ximofam.graduation_project.chess.dtos.request.CreateRoomRequest;
+import com.ximofam.graduation_project.chess.enums.RoomStatus;
+import com.ximofam.graduation_project.common.utils.RedisKeys;
 import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import com.ximofam.graduation_project.users.services.UserService;
 import lombok.RequiredArgsConstructor;
@@ -24,31 +26,26 @@ public class RoomService {
     private final RedisScript<Long> createRoomScript = RedisScript.of(new ClassPathResource("scripts/create_room.lua"), Long.class);
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
-    private static final String ROOM_KEY_PREFIX = "room:";
-    private static final String LOBBY_KEY = "rooms:lobby";
-    private static final String USER_ROOMS_PREFIX = "user:%s:rooms";
 
     public String createRoom(String hostId, CreateRoomRequest request) {
         String roomId = UUID.randomUUID().toString();
-        String roomKey = ROOM_KEY_PREFIX + roomId;
-        String userRoomsKey = String.format(USER_ROOMS_PREFIX, hostId);
+        String roomKey = RedisKeys.roomInfo(roomId);
+        String userPresenceKey = RedisKeys.presenceUser(hostId);
         long createdAt = Instant.now().toEpochMilli();
 
         UserSimpleResponse hostInfo = userService.getUserSimpleResponseById(Long.parseLong(hostId));
 
         String settingsJson;
-        String hostInfoJson;
         try {
             settingsJson = objectMapper.writeValueAsString(request.getSettings());
-            hostInfoJson = objectMapper.writeValueAsString(hostInfo);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to serialize room data", e);
         }
 
         redisTemplate.execute(
                 createRoomScript,
-                List.of(roomKey, LOBBY_KEY, userRoomsKey),
-                hostInfoJson,
+                List.of(roomKey, RedisKeys.LOBBY_INDEX, userPresenceKey),
+                hostId,
                 settingsJson,
                 String.valueOf(createdAt),
                 roomId,
@@ -63,10 +60,10 @@ public class RoomService {
         roomData.put("settings", request.getSettings());
         roomData.put("white", hostInfo);
         roomData.put("black", null);
-        roomData.put("status", "WAITING");
+        roomData.put("status", RoomStatus.WAITING.name());
 
         messagingTemplate.convertAndSend("/topic/lobbies",
-                (Object) java.util.Map.of("type", "ROOM_CREATED", "data", roomData)
+                (Object) Map.of("type", "ROOM_CREATED", "data", roomData)
         );
 
         return roomId;
@@ -76,37 +73,41 @@ public class RoomService {
         long start = (long) page * size;
         long end = start + size - 1;
 
-        Long totalElements = redisTemplate.opsForZSet().zCard(LOBBY_KEY);
+        Long totalElements = redisTemplate.opsForZSet().zCard(RedisKeys.LOBBY_INDEX);
         if (totalElements == null) totalElements = 0L;
 
         List<Map<String, Object>> content = new ArrayList<>();
         if (totalElements > 0) {
-            Set<String> roomIds = redisTemplate.opsForZSet().reverseRange(LOBBY_KEY, start, end);
+            Set<String> roomIds = redisTemplate.opsForZSet().reverseRange(RedisKeys.LOBBY_INDEX, start, end);
             if (roomIds != null && !roomIds.isEmpty()) {
+                Set<Long> userIdsToFetch = new HashSet<>();
+                List<Map<Object, Object>> rawRooms = new ArrayList<>();
+                List<String> validRoomIds = new ArrayList<>();
+
                 for (String id : roomIds) {
-                    Map<Object, Object> raw = redisTemplate.opsForHash().entries("room:" + id);
+                    Map<Object, Object> raw = redisTemplate.opsForHash().entries(RedisKeys.roomInfo(id));
                     if (raw.isEmpty()) continue;
 
-                    Map<String, Object> room = new HashMap<>();
-                    room.put("roomId", id);
-                    for (Map.Entry<Object, Object> entry : raw.entrySet()) {
-                        String key = entry.getKey().toString();
-                        String value = entry.getValue().toString();
-                        try {
-                            if (key.equals("host") || key.equals("settings") || key.equals("white") || key.equals("black")) {
-                                if (value == null || value.isBlank()) {
-                                    room.put(key, null); // Explicitly send null so frontend knows the seat is empty
-                                } else {
-                                    room.put(key, objectMapper.readValue(value, Map.class));
-                                }
-                            } else {
-                                room.put(key, value);
+                    rawRooms.add(raw);
+                    validRoomIds.add(id);
+
+                    for (String role : new String[]{"host", "white", "black"}) {
+                        Object uId = raw.get(role);
+                        if (uId != null && !uId.toString().isBlank()) {
+                            try {
+                                userIdsToFetch.add(Long.parseLong(uId.toString()));
+                            } catch (Exception ignored) {
                             }
-                        } catch (Exception e) {
-                            room.put(key, value);
                         }
                     }
-                    content.add(room);
+                }
+
+                Map<Long, UserSimpleResponse> hydratedUsers = userIdsToFetch.isEmpty()
+                        ? Collections.emptyMap()
+                        : userService.getUsersSimpleResponseByIds(userIdsToFetch);
+
+                for (int i = 0; i < rawRooms.size(); i++) {
+                    content.add(hydrateRoom(validRoomIds.get(i), rawRooms.get(i), hydratedUsers));
                 }
             }
         }
@@ -124,5 +125,36 @@ public class RoomService {
         result.put("page", pageMeta);
 
         return result;
+    }
+
+    private Map<String, Object> hydrateRoom(String roomId, Map<Object, Object> raw, Map<Long, UserSimpleResponse> hydratedUsers) {
+        Map<String, Object> room = new HashMap<>();
+        room.put("roomId", roomId);
+
+        for (Map.Entry<Object, Object> entry : raw.entrySet()) {
+            String key = entry.getKey().toString();
+            String value = entry.getValue().toString();
+
+            if (key.equals("settings")) {
+                try {
+                    room.put(key, objectMapper.readValue(value, Map.class));
+                } catch (Exception e) {
+                    room.put(key, value);
+                }
+            } else if (key.equals("host") || key.equals("white") || key.equals("black")) {
+                if (value == null || value.isBlank()) {
+                    room.put(key, null);
+                } else {
+                    try {
+                        room.put(key, hydratedUsers.get(Long.parseLong(value)));
+                    } catch (Exception e) {
+                        room.put(key, null);
+                    }
+                }
+            } else {
+                room.put(key, value);
+            }
+        }
+        return room;
     }
 }

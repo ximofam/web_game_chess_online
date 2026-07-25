@@ -1,6 +1,6 @@
 package com.ximofam.graduation_project.users.entities;
 
-import com.ximofam.graduation_project.users.entities.enums.Gender;
+import com.ximofam.graduation_project.users.enums.Gender;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;

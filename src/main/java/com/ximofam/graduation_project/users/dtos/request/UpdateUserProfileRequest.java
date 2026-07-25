@@ -1,7 +1,7 @@
 package com.ximofam.graduation_project.users.dtos.request;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.ximofam.graduation_project.users.entities.enums.Gender;
+import com.ximofam.graduation_project.users.enums.Gender;
 import lombok.Getter;
 import lombok.Setter;
 

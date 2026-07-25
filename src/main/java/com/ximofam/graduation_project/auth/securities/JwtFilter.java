@@ -1,7 +1,7 @@
 package com.ximofam.graduation_project.auth.securities;
 
 import com.ximofam.graduation_project.auth.services.TokenService;
-import com.ximofam.graduation_project.users.entities.enums.UserRole;
+import com.ximofam.graduation_project.users.enums.UserRole;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

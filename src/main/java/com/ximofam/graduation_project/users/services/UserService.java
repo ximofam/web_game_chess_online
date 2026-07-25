@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +31,15 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException("UserId %d không tồn tại", id));
 
         return userMapper.toUserSimpleResponse(user);
+    }
+
+    public Map<Long, UserSimpleResponse> getUsersSimpleResponseByIds(Collection<Long> ids) {
+        List<User> users = userRepository.findAllById(ids);
+        Map<Long, UserSimpleResponse> map = new HashMap<>();
+        for (User u : users) {
+            map.put(u.getId(), userMapper.toUserSimpleResponse(u));
+        }
+        return map;
     }
 
     public UserResponse getUserByUsername(String username) {

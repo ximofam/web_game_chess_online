@@ -31,6 +31,11 @@ public class RoomController {
                     .body(Map.of("error", "You must be online to create a room."));
         }
 
+        if (presenceService.isInRoom(userIdStr)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", "You are already in a room."));
+        }
+
         String roomId = roomService.createRoom(userIdStr, request);
         return ResponseEntity.ok(Map.of("roomId", roomId));
     }
