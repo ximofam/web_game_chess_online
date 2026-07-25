@@ -3,16 +3,20 @@ package com.ximofam.graduation_project.users.controllers;
 import com.ximofam.graduation_project.common.utils.AuthUtils;
 import com.ximofam.graduation_project.users.services.PresenceService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.annotation.SubscribeMapping;
-import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
+import java.util.HashMap;
+import java.util.Map;
 
-@Controller
+@RestController
 @RequiredArgsConstructor
-public class WsPresenceController {
+public class PresenceController {
 
     private final PresenceService presenceService;
 
@@ -32,5 +36,23 @@ public class WsPresenceController {
         return presenceService.getOnlineUserCount();
     }
 
+    @GetMapping("/api/presence/me")
+    public ResponseEntity<Map<String, Object>> getMyPresence(Principal principal) {
+        String userId = AuthUtils.resolveUserId(principal);
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
 
+        Map<Object, Object> presenceData = presenceService.getUserPresence(userId);
+        if (presenceData == null || presenceData.isEmpty()) {
+            return ResponseEntity.ok(Map.of("status", "OFFLINE"));
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        for (Map.Entry<Object, Object> entry : presenceData.entrySet()) {
+            response.put(entry.getKey().toString(), entry.getValue());
+        }
+
+        return ResponseEntity.ok(response);
+    }
 }

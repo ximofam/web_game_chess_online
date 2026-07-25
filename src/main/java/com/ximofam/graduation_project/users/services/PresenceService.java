@@ -153,4 +153,8 @@ public class PresenceService {
         Long count = redisTemplate.opsForSet().size(RedisKeys.ONLINE_USERS);
         return count != null ? count : 0L;
     }
+
+    public Map<Object, Object> getUserPresence(String userId) {
+        return redisTemplate.opsForHash().entries(RedisKeys.presenceUser(userId));
+    }
 }
