@@ -25,4 +25,8 @@ public final class RedisKeys {
     public static String roomInfo(String roomId) {
         return "room:" + roomId;
     }
+
+    public static String roomSpectators(String roomId) {
+        return "room:" + roomId + ":spectators";
+    }
 }

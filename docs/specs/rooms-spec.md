@@ -1,37 +1,45 @@
 # Đặc tả API: Quản lý Phòng chơi (Rooms Spec)
 
-Tài liệu này đặc tả chi tiết về cấu trúc dữ liệu, luồng hoạt động và các API/WebSocket Topic liên quan đến hệ thống quản lý Phòng chơi (Lobby & Rooms).
+Tài liệu này đặc tả chi tiết về cấu trúc dữ liệu, luồng hoạt động và các API/WebSocket Topic liên quan đến hệ thống quản
+lý Phòng chơi (Lobby & Rooms).
 
 ---
 
 ## 1. Tổng quan & Kiến trúc
 
-Hệ thống sử dụng **Redis** làm database chính cho Room để tối ưu tốc độ và khả năng dọn dẹp rác (Garbage Collection) khi người chơi ngắt kết nối.
-Các API được thiết kế theo dạng **Hybrid**: 
-- **REST API** để thực hiện các thao tác Command (Tạo phòng, Chơi game) và lấy trạng thái khởi tạo.
-- **WebSocket (STOMP)** để truyền tải các sự kiện thay đổi trạng thái theo thời gian thực (Event Broadcasting).
+Hệ thống sử dụng **Redis** làm database chính cho Room để tối ưu tốc độ và khả năng dọn dẹp rác (Garbage Collection) khi
+người chơi ngắt kết nối.
+Các API được thiết kế theo dạng **Hybrid**:
+
+- **REST API** để thực hiện các thao tác Command (Tạo phòng, Chơi game) và lấy trạng thái khởi tạo (Initial State).
+- **WebSocket (STOMP)** để truyền tải các sự kiện thay đổi trạng thái theo thời gian thực (Event Broadcasting) như di
+  chuyển quân cờ.
 
 ---
 
 ## 2. Cấu trúc dữ liệu trong Redis
 
-Hệ thống tách biệt Metadata của phòng, Danh sách các phòng, và Danh sách người xem ra các keys khác nhau để tối ưu hóa tần suất đọc/ghi độc lập:
+Hệ thống tách biệt Metadata của phòng, Danh sách các phòng, và Danh sách người xem ra các keys khác nhau để tối ưu hóa
+tần suất đọc/ghi độc lập.
+*Lưu ý (Kiến trúc chuẩn Ponytail):* Thông tin người dùng (`host`, `white`, `black`, `spectators`) trong Redis **chỉ lưu
+ID (chuỗi)** để tránh rác JSON và tránh Race Condition. Dữ liệu chi tiết (Avatar, Username) sẽ được Java tự động
+Hydrate (ráp nối) bằng 1 câu query DB duy nhất trước khi trả về Frontend.
 
-| Tên Key | Kiểu (Type) | Mô tả |
-| :--- | :--- | :--- |
-| `room:{roomId}` | Hash | Chứa metadata chi tiết của một phòng. |
-| `rooms:lobby` | ZSet (Sorted Set) | Danh sách các phòng đang hiển thị ở sảnh chờ. `score` là timestamp (để phân trang). |
-| `user:{userId}:rooms` | Set | Danh sách ID các phòng mà user này đang làm host. Dùng để dọn rác tự động. |
-| `room:{roomId}:spectators` | ZSet | Danh sách người đang xem (Spectators). `score` là timestamp lúc join. |
+| Tên Key (`RedisKeys.java`) | Kiểu (Type)       | Mô tả                                                                               |
+|:---------------------------|:------------------|:------------------------------------------------------------------------------------|
+| `room:{roomId}`            | Hash              | Chứa metadata chi tiết của một phòng.                                               |
+| `room:idx:lobby`           | ZSet (Sorted Set) | Danh sách các phòng đang hiển thị ở sảnh chờ. `score` là timestamp (để phân trang). |
+| `room:{roomId}:spectators` | ZSet              | Danh sách người đang xem (Spectators). `score` là timestamp lúc join.               |
 
 ### Cấu trúc chi tiết của Hash `room:{roomId}`
-- `status`: Trạng thái phòng (`WAITING`, `IN_PROGRESS`, `FINISHED`).
-- `host`: Thông tin host (JSON String của đối tượng `UserSimpleResponse`).
+
+- `status`: Trạng thái phòng sử dụng Enum (`WAITING`, `IN_PROGRESS`, `FINISHED`).
+- `host`: ID của host (Ví dụ: `"1"`).
 - `settings`: Cấu hình phòng (JSON String: `timeMinutes`, `incrementSeconds`, `variant`, `rated`, `isPrivate`...).
 - `createdAt`: Thời điểm tạo phòng (epoch millis).
 - `name`: Tên phòng (chuỗi rỗng nếu không nhập).
-- `white`: JSON String của đối tượng `UserSimpleResponse` cầm quân Trắng (hoặc rỗng nếu ghế trống).
-- `black`: JSON String của đối tượng `UserSimpleResponse` cầm quân Đen (hoặc rỗng nếu ghế trống).
+- `white`: ID của người chơi cầm quân Trắng (hoặc rỗng nếu ghế trống).
+- `black`: ID của người chơi cầm quân Đen (hoặc rỗng nếu ghế trống).
 
 ---
 
@@ -40,103 +48,110 @@ Hệ thống tách biệt Metadata của phòng, Danh sách các phòng, và Dan
 ### 3.1. REST API
 
 #### Lấy danh sách phòng ở Sảnh (Initial State)
+
 - **Method:** `GET /api/rooms`
 - **Params:** `page` (mặc định 0), `size` (mặc định 20)
-- **Mô tả:** Lấy danh sách 20 phòng mới nhất đang ở trạng thái hiển thị trên Sảnh. (Sử dụng ZREVRANGE trên `rooms:lobby`).
-- **Response:** Object JSON chứa mảng `content` (thông tin các phòng) và `page` (thông tin phân trang). Các trường JSON String trong phòng như `host`, `settings`, `white`, `black` được parse ngược thành Object lồng nhau, ghế trống sẽ trả về `null`.
+- **Mô tả:** Lấy danh sách 20 phòng mới nhất đang ở trạng thái hiển thị trên Sảnh. (Sử dụng ZREVRANGE trên
+  `room:idx:lobby`).
+- **Response:** Object JSON chứa mảng `content` (thông tin các phòng) và `page` (thông tin phân trang). Các ID (`host`,
+  `white`, `black`) sẽ được tự động Hydrate thành Object.
 
-**Response Example:**
+#### Lấy chi tiết một phòng chơi (Initial State khi vào phòng)
+
+- **Method:** `GET /api/rooms/{roomId}`
+- **Mô tả:** Lấy toàn bộ thông tin của phòng bao gồm cài đặt, thành viên (`host`, `white`, `black`) và khán giả (
+  `spectators`).
+- **Authorization:** Nếu `isPrivate == true`, chỉ những user đang ngồi trong ghế (`host`, `white`, `black`) mới được
+  phép fetch thông tin. Nếu không sẽ trả về `403 FORBIDDEN`.
+- **Response Example:**
+
 ```json
 {
-  "content": [
+  "roomId": "123-abc",
+  "name": "Giao lưu cờ chớp",
+  "createdAt": "1718029381000",
+  "status": "WAITING",
+  "host": {
+    "id": 1,
+    "username": "player1",
+    "avatarUrl": "..."
+  },
+  "white": {
+    "id": 1,
+    "username": "player1",
+    "avatarUrl": "..."
+  },
+  "black": {
+    "id": 2,
+    "username": "player2",
+    "avatarUrl": "..."
+  },
+  "spectators": [
     {
-      "roomId": "123-abc",
-      "name": "Giao lưu cờ chớp",
-      "createdAt": "1718029381000",
-      "status": "WAITING",
-      "host": {
-        "id": 1,
-        "username": "player1"
-      },
-      "white": {
-        "id": 1,
-        "username": "player1"
-      },
-      "black": null,
-      "settings": {
-        "timeMinutes": 3,
-        "incrementSeconds": 2,
-        "variant": "STANDARD",
-        "rated": false,
-        "isPrivate": false
-      }
+      "id": 3,
+      "username": "viewer1",
+      "avatarUrl": "..."
     }
   ],
-  "page": {
-    "size": 20,
-    "number": 0,
-    "totalElements": 1,
-    "totalPages": 1
+  "settings": {
+    "timeMinutes": 3,
+    "incrementSeconds": 2,
+    "variant": "STANDARD",
+    "rated": false,
+    "isPrivate": false
   }
 }
 ```
 
 #### Tạo phòng mới
+
 - **Method:** `POST /api/rooms`
 - **Body:** `CreateRoomRequest` (chứa `name` và `settings`).
-- **Điều kiện:** Người dùng phải đang **Online (có kết nối WebSocket)** thì mới được phép gọi API này. Nếu không, hệ thống trả về mã `403 FORBIDDEN`.
+- **Điều kiện:** Người dùng phải đang **Online (có kết nối WebSocket)** (`PresenceStatus.ONLINE`) thì mới được phép gọi
+  API này. Nếu không, hệ thống trả về mã `403 FORBIDDEN`. Trạng thái Presence của host sẽ chuyển sang `IN_ROOM`.
 - **Response:** `{ "roomId": "xxx-yyy-zzz" }`
 
 ### 3.2. Realtime Updates (WebSocket)
 
-Client cần `subscribe` vào topic **`/topic/lobbies`** để nhận các cập nhật Real-time trên sảnh mà không cần polling lại REST API.
+Client cần `subscribe` vào topic **`/topic/lobbies`** để nhận các cập nhật Real-time trên sảnh mà không cần polling lại
+REST API.
 
 #### Event: Phòng mới được tạo
+
 ```json
 {
   "type": "ROOM_CREATED",
   "data": {
     "roomId": "123-abc",
-    "host": { "id": 1, "username": "player1" },
-    "name": "Giao lưu cờ chớp",
-    "createdAt": 1718029381000,
-    "settings": { 
-      "timeMinutes": 3, 
-      "incrementSeconds": 2, 
-      "variant": "STANDARD", 
-      "rated": false 
+    "host": {
+      "id": 1,
+      "username": "player1"
     },
-    "white": { "id": 1, "username": "player1" },
-    "black": null,
-    "status": "WAITING"
+    ...
   }
 }
 ```
 
 #### Event: Phòng bị xoá (Host thoát)
+
 ```json
 {
   "type": "ROOM_DELETED",
-  "data": { "roomId": "123-abc" }
-}
-```
-
-#### Event: Trạng thái phòng thay đổi (Vào game)
-*(Dự kiến)*
-```json
-{
-  "type": "ROOM_UPDATED",
-  "data": { "roomId": "123-abc", "status": "IN_PROGRESS" }
+  "data": {
+    "roomId": "123-abc"
+  }
 }
 ```
 
 ---
 
-## 4. Dọn rác tự động (Lazy Cleanup)
+## 4. Dọn rác tự động & Disconnect Logic
 
-Vì ứng dụng là một hệ thống Multi-device WebSocket, việc kết nối có thể bị ngắt (Mất mạng, đóng tab). Hệ thống sử dụng cơ chế **Lazy Cleanup** thông qua file Script Lua `cleanup_rooms.lua`:
+Ứng dụng quản lý ngắt kết nối qua cơ chế tập trung tại `PresenceService` và các Lua Scripts (`presence_disconnect.lua`):
 
-1. Khi hệ thống `PresenceService` phát hiện một người chơi hoàn toàn disconnect (session cuối cùng đóng).
-2. Hệ thống gọi Lua Script xoá bỏ toàn bộ các phòng thuộc sỡ hữu của `userId` đó mà đang ở trạng thái `WAITING`.
-3. Trả về danh sách các `roomId` vừa bị xoá.
-4. `PresenceService` phát tín hiệu `ROOM_DELETED` ra `/topic/lobbies` để tất cả client khác đang ở Sảnh lập tức gỡ bỏ phòng này khỏi UI.
+1. **Giữ kết nối IN_GAME:** Nếu user rớt mạng khi trạng thái là `IN_GAME`, hệ thống **GIỮ NGUYÊN** hash presence để chờ
+   reconnect hoặc xử lý timeout (xử thua).
+2. **Dọn dẹp IN_ROOM:** Nếu user rớt mạng khi đang ngồi chờ (`IN_ROOM`):
+    - Nếu user đó là `host`, phòng sẽ bị huỷ bỏ (xoá khỏi `room:idx:lobby`, xoá `room:{roomId}`).
+    - Gửi broadcast `ROOM_DELETED` ra `/topic/lobbies`.
+    - Tiến hành xoá bỏ Presence Hash để dọn dẹp bộ nhớ triệt để.

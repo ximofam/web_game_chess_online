@@ -127,32 +127,95 @@ public class RoomService {
         return result;
     }
 
+    public boolean isMember(String roomId, String userId) {
+        String roomKey = RedisKeys.roomInfo(roomId);
+        List<Object> userIds = redisTemplate.opsForHash().multiGet(roomKey, Arrays.asList("host", "white", "black"));
+        if (userIds == null) return false;
+
+        for (Object id : userIds) {
+            if (id != null && userId.equals(id.toString())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Map<String, Object> getRoomDetails(String roomId) {
+        Map<Object, Object> raw = redisTemplate.opsForHash().entries(RedisKeys.roomInfo(roomId));
+        if (raw.isEmpty()) {
+            return null;
+        }
+
+        Set<String> spectatorIdsStr = redisTemplate.opsForZSet().reverseRange(RedisKeys.roomSpectators(roomId), 0, -1);
+        List<String> spectatorIds = (spectatorIdsStr != null) ? new ArrayList<>(spectatorIdsStr) : new ArrayList<>();
+        raw.put("spectators", spectatorIds);
+
+        Set<Long> userIdsToFetch = new HashSet<>();
+        for (String role : new String[]{"host", "white", "black"}) {
+            Object uId = raw.get(role);
+            if (uId != null && !uId.toString().isBlank()) {
+                try {
+                    userIdsToFetch.add(Long.parseLong(uId.toString()));
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        for (String spId : spectatorIds) {
+            try {
+                userIdsToFetch.add(Long.parseLong(spId));
+            } catch (Exception ignored) {
+            }
+        }
+
+        Map<Long, UserSimpleResponse> hydratedUsers = userIdsToFetch.isEmpty()
+                ? Collections.emptyMap()
+                : userService.getUsersSimpleResponseByIds(userIdsToFetch);
+
+        return hydrateRoom(roomId, raw, hydratedUsers);
+    }
+
     private Map<String, Object> hydrateRoom(String roomId, Map<Object, Object> raw, Map<Long, UserSimpleResponse> hydratedUsers) {
         Map<String, Object> room = new HashMap<>();
         room.put("roomId", roomId);
 
         for (Map.Entry<Object, Object> entry : raw.entrySet()) {
             String key = entry.getKey().toString();
-            String value = entry.getValue().toString();
+            Object valueObj = entry.getValue();
 
-            if (key.equals("settings")) {
-                try {
-                    room.put(key, objectMapper.readValue(value, Map.class));
-                } catch (Exception e) {
-                    room.put(key, value);
-                }
-            } else if (key.equals("host") || key.equals("white") || key.equals("black")) {
-                if (value == null || value.isBlank()) {
-                    room.put(key, null);
-                } else {
+            switch (key) {
+                case "settings" -> {
                     try {
-                        room.put(key, hydratedUsers.get(Long.parseLong(value)));
+                        room.put(key, objectMapper.readValue(valueObj.toString(), Map.class));
                     } catch (Exception e) {
-                        room.put(key, null);
+                        room.put(key, valueObj);
                     }
                 }
-            } else {
-                room.put(key, value);
+                case "host", "white", "black" -> {
+                    if (valueObj == null || valueObj.toString().isBlank()) {
+                        room.put(key, null);
+                    } else {
+                        try {
+                            room.put(key, hydratedUsers.get(Long.parseLong(valueObj.toString())));
+                        } catch (Exception e) {
+                            room.put(key, null);
+                        }
+                    }
+                }
+                case "spectators" -> {
+                    @SuppressWarnings("unchecked")
+                    List<String> spIds = (List<String>) valueObj;
+                    List<UserSimpleResponse> hydratedSpectators = new ArrayList<>();
+                    for (String spId : spIds) {
+                        try {
+                            UserSimpleResponse u = hydratedUsers.get(Long.parseLong(spId));
+                            if (u != null) hydratedSpectators.add(u);
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    room.put(key, hydratedSpectators);
+                }
+                default -> room.put(key, valueObj);
             }
         }
         return room;
