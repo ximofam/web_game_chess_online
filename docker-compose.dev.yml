@@ -1,0 +1,68 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: job_platform_backend
+    restart: always
+    ports:
+      - "8080:8080"
+    env_file:
+      - ${ENV:-.env.dev}
+    environment:
+      - DATABASE_URL=jdbc:postgresql://postgres-db:5432/${POSTGRES_DB}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_STOMP_HOST=rabbitmq
+      - REDIS_HOST=redis
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+    depends_on:
+      - postgres-db
+      - rabbitmq
+      - redis
+
+  postgres-db:
+    image: pgvector/pgvector:pg16
+    container_name: job_platform_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: always
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "15672:15672"
+      - "${RABBITMQ_STOMP_PORT:-61613}:61613"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    command: >
+      bash -c "rabbitmq-plugins enable rabbitmq_stomp && rabbitmq-server"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  redis:
+    image: redis:8.8.0-alpine
+    container_name: job-platform-redis
+    restart: always
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --appendonly yes
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
