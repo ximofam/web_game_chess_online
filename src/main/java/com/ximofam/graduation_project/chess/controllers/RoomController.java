@@ -1,6 +1,7 @@
 package com.ximofam.graduation_project.chess.controllers;
 
 import com.ximofam.graduation_project.chess.dtos.request.CreateRoomRequest;
+import com.ximofam.graduation_project.chess.dtos.request.JoinRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.response.RoomResponse;
 import com.ximofam.graduation_project.chess.services.RoomService;
 import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
@@ -23,7 +24,7 @@ public class RoomController {
     private final PresenceService presenceService;
 
     @PostMapping
-    public ResponseEntity<?> createRoom(
+    public ResponseEntity<RoomResponse> createRoom(
             @AuthenticationPrincipal Long userId,
             @RequestBody @Valid CreateRoomRequest request) {
 
@@ -36,8 +37,25 @@ public class RoomController {
             throw new BadRequestException("You are already in a room.");
         }
 
-        String roomId = roomService.createRoom(userIdStr, request);
-        return ResponseEntity.ok(Map.of("roomId", roomId));
+        return ResponseEntity.ok(roomService.createRoom(userIdStr, request));
+    }
+
+    @PostMapping("/{roomId}/join")
+    public ResponseEntity<RoomResponse> joinRoom(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable String roomId,
+            @RequestBody(required = false) @Valid JoinRoomRequest request) {
+
+        String userIdStr = userId.toString();
+        if (!presenceService.isOnline(userIdStr)) {
+            throw new ForbiddenException("You must be online to join a room.");
+        }
+        if (presenceService.isInRoom(userIdStr)) {
+            throw new BadRequestException("You are already in a room.");
+        }
+
+        if (request == null) request = new JoinRoomRequest(); // default role = black
+        return ResponseEntity.ok(roomService.joinRoom(roomId, userIdStr, request));
     }
 
     @GetMapping

@@ -3,9 +3,11 @@ package com.ximofam.graduation_project.chess.services;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ximofam.graduation_project.chess.dtos.request.CreateRoomRequest;
+import com.ximofam.graduation_project.chess.dtos.request.JoinRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.response.RoomResponse;
 import com.ximofam.graduation_project.chess.enums.RoomStatus;
 import com.ximofam.graduation_project.chess.models.RoomSettings;
+import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
 import com.ximofam.graduation_project.common.utils.RedisKeys;
 import com.ximofam.graduation_project.common.utils.Utils;
 import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
@@ -31,10 +33,11 @@ public class RoomService {
     private final SimpMessagingTemplate messagingTemplate;
     private final RedisScript<Long> createRoomScript = RedisScript.of(new ClassPathResource("scripts/create_room.lua"), Long.class);
     private final RedisScript<List> searchLobbyScript = RedisScript.of(new ClassPathResource("scripts/search_lobby.lua"), List.class);
+    private final RedisScript<List> joinRoomScript = RedisScript.of(new ClassPathResource("scripts/join_room.lua"), List.class);
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    public String createRoom(String hostId, CreateRoomRequest request) {
+    public RoomResponse createRoom(String hostId, CreateRoomRequest request) {
         String roomId = UUID.randomUUID().toString();
         String roomKey = RedisKeys.roomInfo(roomId);
         String userPresenceKey = RedisKeys.presenceUser(hostId);
@@ -75,7 +78,7 @@ public class RoomService {
                 (Object) Map.of("type", "ROOM_CREATED", "data", roomData)
         );
 
-        return roomId;
+        return roomData;
     }
 
     public Map<String, Object> getLobbyRooms(String query, int page, int size) {
@@ -161,6 +164,40 @@ public class RoomService {
         return result;
     }
 
+    public RoomResponse joinRoom(String roomId, String userId, JoinRoomRequest request) {
+        String role = request.getRole();
+        long now = Instant.now().toEpochMilli();
+
+        @SuppressWarnings("unchecked")
+        List<Object> result = redisTemplate.execute(
+                joinRoomScript,
+                List.of(RedisKeys.roomInfo(roomId), RedisKeys.presenceUser(userId), RedisKeys.roomSpectators(roomId)),
+                userId, roomId, role, String.valueOf(now)
+        );
+
+        if (result == null) throw new RuntimeException("Lua script returned null");
+
+        switch (((Number) result.getFirst()).intValue()) {
+            case -1 -> throw new BadRequestException("Room not found.");
+            case -2 -> throw new BadRequestException("Room is not accepting players.");
+            case -3 -> throw new BadRequestException("You are already seated in this room.");
+            case -4 -> throw new BadRequestException("The " + role + " seat is already taken.");
+            case -5 -> throw new BadRequestException("Spectators are not allowed in this room.");
+            case -6 -> throw new BadRequestException("Invalid role.");
+        }
+
+        UserSimpleResponse userInfo = userService.getUserSimpleResponseById(Long.parseLong(userId));
+        messagingTemplate.convertAndSend("/topic/room/" + roomId,
+                (Object) Map.of("type", "PLAYER_JOINED", "data", Map.of("role", role, "user", userInfo)));
+
+        if (!"spectator".equals(role)) {
+            messagingTemplate.convertAndSend("/topic/lobbies",
+                    (Object) Map.of("type", "ROOM_UPDATED", "data", Map.of("roomId", roomId, "role", role, "user", userInfo)));
+        }
+
+        return getRoomDetails(roomId);
+    }
+
     public boolean isMember(String roomId, String userId) {
         String roomKey = RedisKeys.roomInfo(roomId);
         List<Object> userIds = redisTemplate.opsForHash().multiGet(roomKey, Arrays.asList("host", "white", "black"));
@@ -184,7 +221,10 @@ public class RoomService {
         Set<Long> userIdsToFetch = new HashSet<>();
         collectParticipantIds(raw, userIdsToFetch);
         for (String spId : spectatorIds) {
-            try { userIdsToFetch.add(Long.parseLong(spId)); } catch (NumberFormatException ignored) {}
+            try {
+                userIdsToFetch.add(Long.parseLong(spId));
+            } catch (NumberFormatException ignored) {
+            }
         }
 
         Map<Long, UserSimpleResponse> users = userIdsToFetch.isEmpty()
@@ -192,7 +232,13 @@ public class RoomService {
                 : userService.getUsersSimpleResponseByIds(userIdsToFetch);
 
         List<UserSimpleResponse> spectators = spectatorIds.stream()
-                .map(id -> { try { return users.get(Long.parseLong(id)); } catch (Exception e) { return null; } })
+                .map(id -> {
+                    try {
+                        return users.get(Long.parseLong(id));
+                    } catch (Exception e) {
+                        return null;
+                    }
+                })
                 .filter(Objects::nonNull)
                 .toList();
 
