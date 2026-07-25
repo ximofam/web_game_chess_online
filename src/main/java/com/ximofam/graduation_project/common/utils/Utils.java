@@ -1,6 +1,8 @@
 package com.ximofam.graduation_project.common.utils;
 
 import java.security.SecureRandom;
+import java.util.Map;
+import java.util.Objects;
 
 public class Utils {
     public static boolean hasText(String text) {
@@ -30,4 +32,16 @@ public class Utils {
         return sb.toString();
     }
 
+    public static String str(Map<Object, Object> raw, String key) {
+        Object v = raw.get(key);
+        return (v == null || v.toString().isBlank()) ? null : v.toString();
+    }
+
+    public static long parseLong(Map<Object, Object> raw, String key) {
+        try {
+            return Long.parseLong(Objects.requireNonNull(str(raw, key)));
+        } catch (Exception e) {
+            return 0L;
+        }
+    }
 }

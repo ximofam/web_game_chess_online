@@ -1,6 +1,7 @@
 package com.ximofam.graduation_project.chess.controllers;
 
 import com.ximofam.graduation_project.chess.dtos.request.CreateRoomRequest;
+import com.ximofam.graduation_project.chess.dtos.response.RoomResponse;
 import com.ximofam.graduation_project.chess.services.RoomService;
 import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
 import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
@@ -41,29 +42,25 @@ public class RoomController {
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> getLobbyRooms(
+            @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        return ResponseEntity.ok(roomService.getLobbyRooms(page, size));
+        return ResponseEntity.ok(roomService.getLobbyRooms(q, page, size));
     }
 
     @GetMapping("/{roomId}")
-    public ResponseEntity<?> getRoomDetails(
+    public ResponseEntity<RoomResponse> getRoomDetails(
             @AuthenticationPrincipal Long userId,
             @PathVariable String roomId) {
 
-        Map<String, Object> room = roomService.getRoomDetails(roomId);
+        RoomResponse room = roomService.getRoomDetails(roomId);
+        if (room == null) throw new BadRequestException("Room not found.");
 
-        Map<String, Object> settings = (Map<String, Object>) room.get("settings");
-
-        String userIdStr = userId.toString();
-        if (!roomService.isMember(roomId, userIdStr)) {
-            throw new ForbiddenException("This is a private room. You are not allowed to view it.");
-        }
-
-        boolean isPrivate = settings != null && Boolean.TRUE.equals(settings.get("isPrivate"));
-        if (isPrivate) {
-            throw new ForbiddenException("This is a private room. You are not allowed to view it.");
+        if (room.getSettings() != null && room.getSettings().isPrivate()) {
+            if (!roomService.isMember(roomId, userId.toString())) {
+                throw new ForbiddenException("This is a private room. You are not allowed to view it.");
+            }
         }
 
         return ResponseEntity.ok(room);

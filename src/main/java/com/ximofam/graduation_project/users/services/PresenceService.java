@@ -154,7 +154,7 @@ public class PresenceService {
         return count != null ? count : 0L;
     }
 
-    public Map<Object, Object> getUserPresence(String userId) {
-        return redisTemplate.opsForHash().entries(RedisKeys.presenceUser(userId));
+    public Map<String, Object> getUserPresence(String userId) {
+        return redisTemplate.<String, Object>opsForHash().entries(RedisKeys.presenceUser(userId));
     }
 }

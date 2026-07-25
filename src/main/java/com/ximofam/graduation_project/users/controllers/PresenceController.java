@@ -43,16 +43,11 @@ public class PresenceController {
             return ResponseEntity.status(401).build();
         }
 
-        Map<Object, Object> presenceData = presenceService.getUserPresence(userId);
+        Map<String, Object> presenceData = presenceService.getUserPresence(userId);
         if (presenceData == null || presenceData.isEmpty()) {
             return ResponseEntity.ok(Map.of("status", "OFFLINE"));
         }
-
-        Map<String, Object> response = new HashMap<>();
-        for (Map.Entry<Object, Object> entry : presenceData.entrySet()) {
-            response.put(entry.getKey().toString(), entry.getValue());
-        }
-
-        return ResponseEntity.ok(response);
+        
+        return ResponseEntity.ok(presenceData);
     }
 }
