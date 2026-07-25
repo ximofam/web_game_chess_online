@@ -106,15 +106,40 @@ public class PresenceService {
                         String roomStatus = (String) redisTemplate.opsForHash().get(roomKey, "status");
 
                         if (RoomStatus.WAITING.name().equals(roomStatus)) {
+                            // Lấy white/black trước khi xóa phòng để reset presence của họ
+                            List<Object> seats = redisTemplate.opsForHash().multiGet(roomKey, List.of("white", "black"));
+
                             redisTemplate.delete(roomKey);
                             redisTemplate.opsForZSet().remove(RedisKeys.LOBBY_INDEX, roomId);
                             log.debug("Cleaned up waiting room {} for offline host {}", roomId, userId);
 
-                            messagingTemplate.convertAndSend("/topic/lobbies",
-                                    (Object) Map.of("type", "ROOM_DELETED", "data", Map.of("roomId", roomId)));
+                            // Reset presence của các player đang ngồi trong phòng
+                            if (seats != null) {
+                                for (Object seat : seats) {
+                                    if (seat != null && !seat.toString().isBlank() && !seat.toString().equals(userId)) {
+                                        String seatKey = RedisKeys.presenceUser(seat.toString());
+                                        redisTemplate.opsForHash().delete(seatKey, "roomId", "is_host", "role");
+                                        redisTemplate.opsForHash().put(seatKey, "status", PresenceStatus.ONLINE.name());
+                                    }
+                                }
+                            }
+
+                            // Broadcast tới lobby và trong phòng
+                            Map<String, Object> deletedPayload = Map.of("type", "ROOM_DELETED", "data", Map.of("roomId", roomId));
+                            messagingTemplate.convertAndSend("/topic/lobbies", (Object) deletedPayload);
+                            messagingTemplate.convertAndSend("/topic/room/" + roomId, (Object) deletedPayload);
                         }
                     } else {
-                        // ponytail: YAGNI - handle clearing standard player seat if needed later.
+                        // Non-host disconnect: clear ghế của họ
+                        String roomId2 = userData.get("roomId");
+                        String role = userData.get("role");
+                        if (roomId2 != null && role != null) {
+                            redisTemplate.opsForHash().put(RedisKeys.roomInfo(roomId2), role, "");
+                            messagingTemplate.convertAndSend("/topic/room/" + roomId2,
+                                    (Object) Map.of("type", "PLAYER_LEFT", "data", Map.of("role", role, "userId", userId)));
+                            messagingTemplate.convertAndSend("/topic/lobbies",
+                                    (Object) Map.of("type", "ROOM_UPDATED", "data", Map.of("roomId", roomId2, "role", role, "user", Map.of())));
+                        }
                     }
 
                     // Done with in_room, delete presence

@@ -142,18 +142,34 @@ Tham gia phòng với vai trò cụ thể.
 
 ### Subscribe `/topic/room/{roomId}` — Cập nhật trong Phòng
 
-| `type`          | Khi nào                         | `data`                                                              |
-|:----------------|:--------------------------------|:--------------------------------------------------------------------|
-| `PLAYER_JOINED` | Có người join ghế hoặc spectate | `{ role: "white"\|"black"\|"spectator", user: UserSimpleResponse }` |
+| `type`          | Khi nào                              | `data`                                                              |
+| :-------------- | :----------------------------------- | :------------------------------------------------------------------ |
+| `PLAYER_JOINED` | Có người join ghế hoặc spectate      | `{ role: "white"\|"black"\|"spectator", user: UserSimpleResponse }` |
+| `PLAYER_LEFT`   | Non-host disconnect / rời ghế        | `{ role: "white"\|"black", userId: string }`                        |
+| `ROOM_DELETED`  | Host disconnect khi phòng `WAITING`  | `{ roomId }` — client phải redirect ra lobby                        |
 
 ---
 
 ## 5. Disconnect & Cleanup
 
-Tập trung tại `PresenceService` + `presence_disconnect.lua`:
+Tập trung tại `PresenceService.applyDisconnect` + `presence_disconnect.lua`.
 
-1. **`IN_GAME`**: Giữ nguyên presence hash để chờ reconnect / xử lý timeout thua cuộc.
-2. **`IN_ROOM` (host)**: Xoá `room:{roomId}` và `room:idx:lobby` entry → broadcast `ROOM_DELETED` tới `/topic/lobbies` →
-   xoá presence hash.
-3. **`IN_ROOM` (non-host)**: *(YAGNI — chưa implement, cần xử lý clear ghế)*.
-4. **`ONLINE`**: Xoá presence hash.
+### Host disconnect (`is_host = true`, `status = IN_ROOM`)
+
+Khi host mất kết nối và phòng đang `WAITING`:
+
+1. Đọc `white` và `black` từ room hash **trước khi xóa**.
+2. Xóa `room:{roomId}` và entry trong `room:idx:lobby`.
+3. Reset presence của mỗi player đang ngồi ghế (trừ host): xóa `roomId`, `is_host`, `role` → set `status = ONLINE`.
+4. Broadcast `ROOM_DELETED` tới cả `/topic/lobbies` (xóa card) **và** `/topic/room/{roomId}` (kick client ra khỏi phòng).
+
+### Non-host disconnect (`is_host = false`, `status = IN_ROOM`)
+
+1. Đọc `role` (`white`/`black`) từ presence.
+2. Set ghế đó về `""` trong room hash.
+3. Broadcast `PLAYER_LEFT` tới `/topic/room/{roomId}`.
+4. Broadcast `ROOM_UPDATED` (với `user: null`) tới `/topic/lobbies` để lobby card cập nhật ghế trống.
+
+### `IN_GAME` disconnect
+
+Giữ nguyên presence hash — chờ reconnect hoặc xử lý timeout thua cuộc (chưa implement).
