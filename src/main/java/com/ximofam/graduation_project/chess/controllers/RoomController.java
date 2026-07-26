@@ -58,6 +58,19 @@ public class RoomController {
         return ResponseEntity.ok(roomService.joinRoom(roomId, userIdStr, request));
     }
 
+    @PostMapping("/{roomId}/leave")
+    public ResponseEntity<?> leaveRoom(@AuthenticationPrincipal Long userId,
+                                       @PathVariable String roomId) {
+
+        String userIdStr = userId.toString();
+        if (!presenceService.isOnline(userIdStr)) {
+            throw new ForbiddenException("You must be online to leave a room.");
+        }
+
+        roomService.leaveRoom(roomId, userIdStr);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping
     public ResponseEntity<Map<String, Object>> getLobbyRooms(
             @RequestParam(required = false) String q,
