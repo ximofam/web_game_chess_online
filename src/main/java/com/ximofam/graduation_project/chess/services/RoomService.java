@@ -7,7 +7,6 @@ import com.ximofam.graduation_project.chess.dtos.request.JoinRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.response.RoomResponse;
 import com.ximofam.graduation_project.chess.enums.RoomStatus;
 import com.ximofam.graduation_project.chess.models.RoomSettings;
-import com.ximofam.graduation_project.common.events.UserWentOfflineEvent;
 import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
 import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
@@ -15,17 +14,13 @@ import com.ximofam.graduation_project.common.utils.RedisKeys;
 import com.ximofam.graduation_project.common.utils.Utils;
 import com.ximofam.graduation_project.common.ws.*;
 import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
-import com.ximofam.graduation_project.users.enums.PresenceStatus;
 import com.ximofam.graduation_project.users.services.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
-import org.springframework.context.event.EventListener;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -40,11 +35,11 @@ public class RoomService {
     private final StringRedisTemplate redisTemplate;
     private final UserService userService;
     private final SimpMessagingTemplate messagingTemplate;
-    private final RedisScript<Long> createRoomScript = RedisScript.of(new ClassPathResource("scripts/create_room.lua"), Long.class);
-    private final RedisScript<List> searchLobbyScript = RedisScript.of(new ClassPathResource("scripts/search_lobby.lua"), List.class);
-    private final RedisScript<List> joinRoomScript = RedisScript.of(new ClassPathResource("scripts/join_room.lua"), List.class);
-    private final RedisScript<List> leaveRoomScript = RedisScript.of(new ClassPathResource("scripts/leave_room.lua"), List.class);
-    private final DefaultRedisScript<Long> presenceSetStatusScript;
+    private final RedisScript<Long> createRoomScript;
+    private final RedisScript<List<Object>> searchLobbyScript;
+    private final RedisScript<List<Object>> joinRoomScript;
+    private final RedisScript<List<Object>> leaveRoomScript;
+    private final RedisScript<Long> presenceSetStatusScript;
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -139,7 +134,6 @@ public class RoomService {
         Map<String, Map<Object, Object>> rawByRoomId = new LinkedHashMap<>();
         Set<Long> userIdsToFetch = new HashSet<>();
         for (int i = 0; i < roomIds.size(); i++) {
-            @SuppressWarnings("unchecked")
             Map<Object, Object> raw = (Map<Object, Object>) pipelinedResults.get(i);
             if (raw == null || raw.isEmpty()) continue;
 
@@ -173,7 +167,6 @@ public class RoomService {
         return result;
     }
 
-    @SuppressWarnings("unchecked")
     public RoomResponse joinRoom(String roomId, String userId, JoinRoomRequest request) {
         String role = request.getRole();
         long now = Instant.now().toEpochMilli();
@@ -229,8 +222,6 @@ public class RoomService {
         }
 
         if ("HOST_LEFT".equals(reason)) {
-            // others = white/black IDs + "spectator:{id}" entries
-            // Players need presence reset; spectators do not (they were never set IN_ROOM)
             for (String entry : others) {
                 if (!entry.startsWith("spectator:")) {
                     setStatusFromInRoomToOnline(entry);
@@ -359,63 +350,5 @@ public class RoomService {
                 List.of(RedisKeys.presenceUser(userId)),
                 "ONLINE", "roomId", "isHost", "role"
         );
-    }
-
-    // ── Disconnect cleanup ──────────────────────────────────────────────────────
-
-    @EventListener
-    public void onUserWentOffline(UserWentOfflineEvent event) {
-        if (!PresenceStatus.IN_ROOM.name().equals(event.presenceData().getOrDefault("status", ""))) return;
-
-        String roomId = event.presenceData().get("roomId");
-        if (roomId == null) return;
-
-        if ("true".equals(event.presenceData().get("is_host"))) {
-            cleanupRoomOnDisconnect(roomId, event.userId());
-        } else {
-            cleanupSeatOnDisconnect(roomId, event.userId());
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private void cleanupRoomOnDisconnect(String roomId, String userId) {
-        // DEL on host presence key is a Redis NOP here — already cleaned by presence_disconnect.lua
-        List<Object> result = redisTemplate.execute(
-                leaveRoomScript,
-                List.of(RedisKeys.roomInfo(roomId), RedisKeys.presenceUser(userId),
-                        RedisKeys.LOBBY_INDEX, RedisKeys.roomSpectators(roomId)),
-                userId, roomId
-        );
-        if (result == null || (Long) result.getFirst() < 0) {
-            log.warn("Room {} already gone when host {} disconnected", roomId, userId);
-            return;
-        }
-        List<String> others = (List<String>) result.get(3);
-        for (String entry : others) {
-            if (!entry.startsWith("spectator:")) setStatusFromInRoomToOnline(entry);
-        }
-        WsEvent<RoomDeletedPayload> ev = new WsEvent<>("ROOM_DELETED", new RoomDeletedPayload(roomId));
-        messagingTemplate.convertAndSend("/topic/lobbies", ev);
-        messagingTemplate.convertAndSend("/topic/room/" + roomId, ev);
-        log.debug("Room {} cleaned up after host {} disconnected", roomId, userId);
-    }
-
-    @SuppressWarnings("unchecked")
-    private void cleanupSeatOnDisconnect(String roomId, String userId) {
-        List<Object> result = redisTemplate.execute(
-                leaveRoomScript,
-                List.of(RedisKeys.roomInfo(roomId), RedisKeys.presenceUser(userId),
-                        RedisKeys.LOBBY_INDEX, RedisKeys.roomSpectators(roomId)),
-                userId, roomId
-        );
-        if (result == null || (Long) result.getFirst() < 0) {
-            log.warn("Could not clean up seat for disconnected player {} in room {}", userId, roomId);
-            return;
-        }
-        String role = (String) result.get(2);
-        messagingTemplate.convertAndSend("/topic/room/" + roomId,
-                new WsEvent<>("PLAYER_LEFT", new PlayerLeftPayload(role, userId)));
-        messagingTemplate.convertAndSend("/topic/lobbies",
-                new WsEvent<>("ROOM_UPDATED", new RoomUpdatedPayload(roomId, role, null)));
     }
 }

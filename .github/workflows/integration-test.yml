@@ -21,44 +21,7 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_DB: chess_online_db
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: 123456
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
-      rabbitmq:
-        image: rabbitmq:3-management
-        env:
-          RABBITMQ_DEFAULT_USER: guest
-          RABBITMQ_DEFAULT_PASS: guest
-        ports:
-          - 5672:5672
-        options: >-
-          --health-cmd "rabbitmq-diagnostics -q ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    # Docker is pre-installed on ubuntu-latest; Testcontainers manages Postgres/Redis/RabbitMQ
 
     steps:
       - name: Checkout code
@@ -71,20 +34,11 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Run Integration Tests
+      - name: Run Tests
         env:
-          POSTGRES_DB: chess_online_db
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: 123456
-          DATABASE_URL: jdbc:postgresql://localhost:5432/chess_online_db
-          REDIS_URL: redis://localhost:6379
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          RABBITMQ_HOST: localhost
-          RABBITMQ_PORT: 5672
-          RABBITMQ_USERNAME: guest
-          RABBITMQ_PASSWORD: guest
           JWT_SECRET_KEY: RGF5TGFNb3RDaHVvaUJpTWF0RGFuaENob01vaVRydW9uZ1Rlc3REdURhaTI1NkJpdA==
           ACCESS_TOKEN_EXP_SEC: 3600
           REFRESH_TOKEN_EXP_DAYS: 7
-        run: mvn clean test -Dspring.profiles.active=test
+          # Testcontainers connects via Docker socket — no external service env vars needed
+          TESTCONTAINERS_RYUK_DISABLED: false
+        run: ./mvnw clean test -Dspring.profiles.active=test --no-transfer-progress

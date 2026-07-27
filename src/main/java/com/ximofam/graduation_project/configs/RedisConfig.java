@@ -5,10 +5,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
@@ -54,13 +52,5 @@ public class RedisConfig {
         container.setConnectionFactory(connectionFactory);
         container.addMessageListener(presenceListener, new PatternTopic("__keyevent@*__:expired"));
         return container;
-    }
-
-    @Bean
-    public DefaultRedisScript<Long> presenceSetStatusScript() {
-        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
-        script.setLocation(new ClassPathResource("scripts/presence_set_status.lua"));
-        script.setResultType(Long.class);
-        return script;
     }
 }

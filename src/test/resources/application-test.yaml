@@ -2,20 +2,27 @@ spring:
   flyway:
     enabled: true
     clean-disabled: false
-  rabbitmq:
-    listener:
-      simple:
-        auto-startup: false
+
   data:
     redis:
+      # URL is overridden at runtime by TestcontainersConfig.redisProperties()
       timeout: 60000ms
       lettuce:
         pool:
           enabled: true
-          max-active: 20
-          max-idle: 10
-          min-idle: 2
+          max-active: 8
+          max-idle: 4
+          min-idle: 1
           max-wait: 2s
+
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false   # don't start consumers in test context
+
+  ai:
+    openai:
+      api-key: dummy_key_for_tests   # prevents real API calls during context load
 
 app:
   security:
@@ -25,17 +32,17 @@ app:
       refresh-token-exp-days: 7
   thread-pool:
     async:
-      core-size: 2
-      max-size: 5
+      core-size: 1
+      max-size: 2
       queue-capacity: 10
-      await-termination-seconds: 60
+      await-termination-seconds: 10
     scheduler:
-      pool-size: 2
-      await-termination-seconds: 60
+      pool-size: 1
+      await-termination-seconds: 10
   superuser:
-    email:
-    username:
-    password:
+    email: admin@test.local
+    username: admin
+    password: admin123
   cloudinary:
     cloud-name: dummy_cloud
     api-key: dummy_key
@@ -43,5 +50,3 @@ app:
   websocket:
     broker-relay:
       enabled: false
-
-

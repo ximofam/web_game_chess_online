@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.convert.DurationUnit;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -36,12 +35,12 @@ public class PresenceService {
     @Value("${app.presence.session-ttl-seconds:30}")
     private Duration sessionTtl = Duration.ofSeconds(30);
 
-    private final RedisScript<Long> connectScript = RedisScript.of(new ClassPathResource("scripts/presence_connect.lua"), Long.class);
-    private final RedisScript<List> disconnectScript = RedisScript.of(new ClassPathResource("scripts/presence_disconnect.lua"), List.class);
+    private final RedisScript<Long> presenceConnectScript;
+    private final RedisScript<List<Object>> presenceDisconnectScript;
 
     public void handleConnect(String userId, String sessionId) {
         Long becameOnline = redisTemplate.execute(
-                connectScript,
+                presenceConnectScript,
                 List.of(RedisKeys.presenceSessions(userId),
                         RedisKeys.presenceUser(userId),
                         RedisKeys.ONLINE_USERS),
@@ -69,7 +68,7 @@ public class PresenceService {
     @SuppressWarnings("unchecked")
     private void applyDisconnect(String userId, String sessionId) {
         List<Object> result = redisTemplate.execute(
-                disconnectScript,
+                presenceDisconnectScript,
                 List.of(RedisKeys.presenceSessions(userId),
                         RedisKeys.presenceUser(userId),
                         RedisKeys.ONLINE_USERS),

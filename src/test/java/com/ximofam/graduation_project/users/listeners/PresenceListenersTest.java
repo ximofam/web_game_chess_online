@@ -1,6 +1,6 @@
 package com.ximofam.graduation_project.users.listeners;
 
-import com.ximofam.graduation_project.users.controllers.WsPresenceController;
+import com.ximofam.graduation_project.users.controllers.PresenceController;
 import com.ximofam.graduation_project.users.services.PresenceService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,7 +26,7 @@ class PresenceListenersTest {
     private PresenceSessionExpiredListener expiredListener;
 
     @InjectMocks
-    private WsPresenceController wsPresenceController;
+    private PresenceController presenceController;
 
     @Test
     void expiredListener_ValidKey_ShouldTriggerExpiredSession() {
@@ -53,7 +53,7 @@ class PresenceListenersTest {
         accessor.setUser(principal);
         accessor.setSessionId("sess456");
 
-        wsPresenceController.heartbeat(accessor);
+        presenceController.heartbeat(accessor);
 
         verify(presenceService).handleHeartbeat("user123", "sess456");
     }
@@ -63,7 +63,7 @@ class PresenceListenersTest {
         SimpMessageHeaderAccessor accessor = SimpMessageHeaderAccessor.create();
         accessor.setSessionId("sess456");
 
-        wsPresenceController.heartbeat(accessor);
+        presenceController.heartbeat(accessor);
 
         verifyNoInteractions(presenceService);
     }
@@ -72,6 +72,6 @@ class PresenceListenersTest {
     void subscribeOnlineCount_ShouldReturnCountFromPresenceService() {
         when(presenceService.getOnlineUserCount()).thenReturn(10L);
 
-        assertThat(wsPresenceController.subscribeOnlineCount()).isEqualTo(10L);
+        assertThat(presenceController.subscribeOnlineCount()).isEqualTo(10L);
     }
 }
