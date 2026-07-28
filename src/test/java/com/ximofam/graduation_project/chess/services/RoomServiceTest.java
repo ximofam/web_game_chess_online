@@ -8,6 +8,9 @@ import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import com.ximofam.graduation_project.users.services.UserService;
+import com.ximofam.graduation_project.common.ws.ChatMessagePayload;
+import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
+import com.ximofam.graduation_project.users.services.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.HashOperations;
+import org.springframework.data.redis.core.ListOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -39,6 +43,7 @@ class RoomServiceTest {
     @SuppressWarnings("rawtypes") @Mock private RedisScript leaveRoomScript;
     @Mock private DefaultRedisScript<Long> presenceSetStatusScript;
     @Mock private HashOperations<String, Object, Object> hashOperations;
+    @Mock private ListOperations<String, String> listOperations;
 
     private RoomService roomService;
 
@@ -192,5 +197,81 @@ class RoomServiceTest {
                 .thenReturn(List.of("1", "2", "3"));
 
         assertThat(roomService.isMember("room1", "99")).isFalse();
+    }
+
+    // ── sendChatMessage ───────────────────────────────────────────────────────────
+
+    @Test
+    void sendChatMessage_RoomNotFound_ShouldThrowNotFoundException() {
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(hashOperations.get("room:room1", "settings")).thenReturn(null);
+
+        assertThatThrownBy(() -> roomService.sendChatMessage("room1", "1", "hi"))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void sendChatMessage_ChatLocked_ShouldThrowForbiddenException() {
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(hashOperations.get("room:room1", "settings")).thenReturn("{\"chatLocked\":true}");
+
+        assertThatThrownBy(() -> roomService.sendChatMessage("room1", "1", "hi"))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void sendChatMessage_HappyPath_ShouldPushTrimAndBroadcast() {
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        when(hashOperations.get("room:room1", "settings")).thenReturn("{}");
+        when(redisTemplate.opsForList()).thenReturn(listOperations);
+
+        UserSimpleResponse sender = new UserSimpleResponse();
+        sender.setId(1L);
+        sender.setUsername("alice");
+        when(userService.getUserSimpleResponseById(1L)).thenReturn(sender);
+
+        roomService.sendChatMessage("room1", "1", "hello");
+
+        verify(listOperations).leftPush(eq("room:room1:chat"), anyString());
+        verify(listOperations).trim("room:room1:chat", 0, 9);
+        verify(messagingTemplate).convertAndSend(eq("/topic/room/room1"), (Object) any());
+    }
+
+    // ── getChatHistory ────────────────────────────────────────────────────────────
+
+    @Test
+    void getChatHistory_Empty_ShouldReturnEmptyList() {
+        when(redisTemplate.opsForList()).thenReturn(listOperations);
+        when(listOperations.range("room:room1:chat", 0, -1)).thenReturn(List.of());
+
+        assertThat(roomService.getChatHistory("room1")).isEmpty();
+    }
+
+    @Test
+    void getChatHistory_ShouldReturnChronologicalOrder() {
+        // Redis list: newest first (leftPush order) → [msg2_json, msg1_json]
+        String msg1 = "{\"sender\":{\"id\":1,\"username\":\"a\",\"avatarUrl\":null},\"message\":\"first\",\"sentAt\":1000}";
+        String msg2 = "{\"sender\":{\"id\":1,\"username\":\"a\",\"avatarUrl\":null},\"message\":\"second\",\"sentAt\":2000}";
+
+        when(redisTemplate.opsForList()).thenReturn(listOperations);
+        when(listOperations.range("room:room1:chat", 0, -1)).thenReturn(List.of(msg2, msg1));
+
+        List<ChatMessagePayload> result = roomService.getChatHistory("room1");
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).message()).isEqualTo("first");  // oldest first
+        assertThat(result.get(1).message()).isEqualTo("second");
+    }
+
+    @Test
+    void getChatHistory_ShouldSkipInvalidJson() {
+        String valid = "{\"sender\":{\"id\":1,\"username\":\"a\",\"avatarUrl\":null},\"message\":\"ok\",\"sentAt\":1000}";
+        when(redisTemplate.opsForList()).thenReturn(listOperations);
+        when(listOperations.range("room:room1:chat", 0, -1)).thenReturn(List.of("not-json", valid));
+
+        List<ChatMessagePayload> result = roomService.getChatHistory("room1");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).message()).isEqualTo("ok");
     }
 }

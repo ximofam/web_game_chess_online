@@ -1,18 +1,27 @@
 package com.ximofam.graduation_project.chess.controllers;
 
+import com.ximofam.graduation_project.chess.dtos.request.ChatSendRequest;
 import com.ximofam.graduation_project.chess.dtos.request.CreateRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.request.JoinRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.response.RoomResponse;
 import com.ximofam.graduation_project.chess.services.RoomService;
 import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
 import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
+import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
+import com.ximofam.graduation_project.common.utils.AuthUtils;
+import com.ximofam.graduation_project.common.ws.ChatMessagePayload;
 import com.ximofam.graduation_project.users.services.PresenceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -86,7 +95,7 @@ public class RoomController {
             @PathVariable String roomId) {
 
         RoomResponse room = roomService.getRoomDetails(roomId);
-        if (room == null) throw new BadRequestException("Room not found.");
+        if (room == null) throw new NotFoundException("Room not found.");
 
         if (room.getSettings() != null && room.getSettings().isPrivate()) {
             if (!roomService.isMember(roomId, userId.toString())) {
@@ -95,5 +104,20 @@ public class RoomController {
         }
 
         return ResponseEntity.ok(room);
+    }
+
+    @MessageMapping("/room.{roomId}.chat")
+    public void sendChatMessage(@DestinationVariable String roomId,
+                                @Valid @Payload ChatSendRequest request,
+                                SimpMessageHeaderAccessor accessor) {
+        String userId = AuthUtils.resolveUserId(accessor.getUser());
+        if (userId == null) return;
+
+        roomService.sendChatMessage(roomId, userId, request.getMessage().strip());
+    }
+
+    @GetMapping("/{roomId}/chat")
+    public ResponseEntity<List<ChatMessagePayload>> getChatHistory(@PathVariable String roomId) {
+        return ResponseEntity.ok(roomService.getChatHistory(roomId));
     }
 }

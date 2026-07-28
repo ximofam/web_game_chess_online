@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -42,6 +43,7 @@ public class RoomService {
     private final RedisScript<Long> presenceSetStatusScript;
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final int CHAT_HISTORY_SIZE = 10;
 
     public RoomResponse createRoom(String hostId, CreateRoomRequest request) {
         String roomId = UUID.randomUUID().toString();
@@ -243,6 +245,48 @@ public class RoomService {
             messagingTemplate.convertAndSend("/topic/lobbies",
                     new WsEvent<>("ROOM_UPDATED", new RoomUpdatedPayload(roomId, role, null)));
         }
+    }
+
+    public void sendChatMessage(String roomId, String userId, String message) {
+        Object settingsRaw = redisTemplate.opsForHash().get(RedisKeys.roomInfo(roomId), "settings");
+        if (settingsRaw == null) throw new NotFoundException("Room not found");
+
+        if (parseSettings(settingsRaw).isChatLocked()) {
+            throw new ForbiddenException("Chat is locked in this room");
+        }
+
+        UserSimpleResponse sender = userService.getUserSimpleResponseById(Long.parseLong(userId));
+        ChatMessagePayload payload = new ChatMessagePayload(sender, message, Instant.now().toEpochMilli());
+
+        String chatKey = RedisKeys.roomChat(roomId);
+        try {
+            redisTemplate.opsForList().leftPush(chatKey, objectMapper.writeValueAsString(payload));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize chat message", e);
+        }
+
+        redisTemplate.opsForList().trim(chatKey, 0, CHAT_HISTORY_SIZE - 1);
+
+        messagingTemplate.convertAndSend("/topic/room/" + roomId, new WsEvent<>("CHAT_MESSAGE", payload));
+    }
+
+    public List<ChatMessagePayload> getChatHistory(String roomId) {
+        List<String> raw = redisTemplate.opsForList().range(RedisKeys.roomChat(roomId), 0, -1);
+        if (raw == null || raw.isEmpty()) return List.of();
+
+        List<ChatMessagePayload> messages = raw.stream()
+                .map(json -> {
+                    try {
+                        return objectMapper.readValue(json, ChatMessagePayload.class);
+                    } catch (JsonProcessingException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        Collections.reverse(messages);
+        return messages;
     }
 
     public boolean isMember(String roomId, String userId) {
