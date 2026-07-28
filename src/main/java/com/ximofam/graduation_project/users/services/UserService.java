@@ -12,12 +12,16 @@ import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import com.ximofam.graduation_project.users.entities.User;
 import com.ximofam.graduation_project.users.entities.UserProfile;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
+import com.ximofam.graduation_project.users.repositories.projections.UserSimpleProjection;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,19 +31,14 @@ public class UserService {
     private final CloudinaryService cloudinaryService;
 
     public UserSimpleResponse getUserSimpleResponseById(Long id) {
-        User user = userRepository.findById(id)
+        UserSimpleProjection p = userRepository.findSimpleById(id)
                 .orElseThrow(() -> new NotFoundException("UserId %d không tồn tại", id));
-
-        return userMapper.toUserSimpleResponse(user);
+        return userMapper.toUserSimpleResponse(p);
     }
 
     public Map<Long, UserSimpleResponse> getUsersSimpleResponseByIds(Collection<Long> ids) {
-        List<User> users = userRepository.findAllById(ids);
-        Map<Long, UserSimpleResponse> map = new HashMap<>();
-        for (User u : users) {
-            map.put(u.getId(), userMapper.toUserSimpleResponse(u));
-        }
-        return map;
+        return userRepository.findSimpleByIdIn(ids).stream()
+                .collect(Collectors.toMap(UserSimpleProjection::getId, userMapper::toUserSimpleResponse));
     }
 
     public UserResponse getUserByUsername(String username) {

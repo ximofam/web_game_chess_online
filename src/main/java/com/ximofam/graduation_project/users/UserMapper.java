@@ -6,6 +6,7 @@ import com.ximofam.graduation_project.users.dtos.response.UserDetailResponse;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;
 import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import com.ximofam.graduation_project.users.entities.User;
+import com.ximofam.graduation_project.users.repositories.projections.UserSimpleProjection;
 import com.ximofam.graduation_project.users.entities.UserProfile;
 import org.mapstruct.*;
 
@@ -25,4 +26,6 @@ public interface UserMapper {
 
     @Mapping(target = "avatarUrl", source = "profile.avatarUrl")
     UserSimpleResponse toUserSimpleResponse(User user);
+
+    UserSimpleResponse toUserSimpleResponse(UserSimpleProjection projection);
 }
