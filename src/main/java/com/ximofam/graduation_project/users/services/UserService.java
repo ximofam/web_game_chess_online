@@ -14,6 +14,8 @@ import com.ximofam.graduation_project.users.entities.UserProfile;
 import com.ximofam.graduation_project.users.repositories.UserRepository;
 import com.ximofam.graduation_project.users.repositories.projections.UserSimpleProjection;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,6 +32,7 @@ public class UserService {
     private final UserMapper userMapper;
     private final CloudinaryService cloudinaryService;
 
+    @Cacheable(value = "userSimple", key = "#id")
     public UserSimpleResponse getUserSimpleResponseById(Long id) {
         UserSimpleProjection p = userRepository.findSimpleById(id)
                 .orElseThrow(() -> new NotFoundException("UserId %d không tồn tại", id));
@@ -55,6 +58,7 @@ public class UserService {
         return userMapper.toUserDetailResponse(user);
     }
 
+    @CacheEvict(value = "userSimple", key = "#userId")
     @Transactional
     public UserDetailResponse updateUserProfile(Long userId, UpdateUserProfileRequest request) {
         User user = userRepository.findById(userId)
@@ -66,6 +70,7 @@ public class UserService {
         return userMapper.toUserDetailResponse(user);
     }
 
+    @CacheEvict(value = "userSimple", key = "#userId")
     @Transactional
     public CloudinaryUploadResult uploadAvatar(Long userId, MultipartFile file) {
         User user = userRepository.findById(userId)

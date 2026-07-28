@@ -5,12 +5,19 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
+import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 @Configuration
 @RequiredArgsConstructor
@@ -43,6 +50,30 @@ public class RedisConfig {
 
         template.afterPropertiesSet();
         return template;
+    }
+
+    @Bean
+    public RedisCacheManager cacheManager(RedisConnectionFactory factory) {
+        GenericJacksonJsonRedisSerializer jsonSerializer = GenericJacksonJsonRedisSerializer.builder()
+                .enableUnsafeDefaultTyping()
+                .build();
+
+        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofSeconds(30))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer));
+
+        Map<String, Duration> ttlPerCache = Map.of(
+                "userSimple", Duration.ofMinutes(15)
+        );
+
+        Map<String, RedisCacheConfiguration> cacheConfigs = new HashMap<>();
+        ttlPerCache.forEach((name, ttl) -> cacheConfigs.put(name, defaultConfig.entryTtl(ttl)));
+
+        return RedisCacheManager.builder(factory)
+                .cacheDefaults(defaultConfig)
+                .withInitialCacheConfigurations(cacheConfigs)
+                .build();
     }
 
     @Bean
