@@ -10,8 +10,6 @@ import java.util.List;
 @Configuration
 public class LuaScriptConfig {
 
-    // ── Presence ────────────────────────────────────────────────────────────────
-
     @Bean
     public RedisScript<Long> presenceConnectScript() {
         return RedisScript.of(new ClassPathResource("scripts/presence_connect.lua"), Long.class);
@@ -27,8 +25,6 @@ public class LuaScriptConfig {
     public RedisScript<Long> presenceSetStatusScript() {
         return RedisScript.of(new ClassPathResource("scripts/presence_set_status.lua"), Long.class);
     }
-
-    // ── Chess / Room ─────────────────────────────────────────────────────────────
 
     @Bean
     public RedisScript<Long> createRoomScript() {
@@ -51,5 +47,11 @@ public class LuaScriptConfig {
     @SuppressWarnings("rawtypes")
     public RedisScript<List> leaveRoomScript() {
         return RedisScript.of(new ClassPathResource("scripts/leave_room.lua"), List.class);
+    }
+
+    @Bean
+    @SuppressWarnings("rawtypes")
+    public RedisScript<List> deleteRoomScript() {
+        return RedisScript.of(new ClassPathResource("scripts/delete_room.lua"), List.class);
     }
 }

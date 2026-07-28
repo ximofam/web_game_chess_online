@@ -4,6 +4,7 @@ import com.ximofam.graduation_project.chess.dtos.request.ChatSendRequest;
 import com.ximofam.graduation_project.chess.dtos.request.CreateRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.request.JoinRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.response.RoomResponse;
+import com.ximofam.graduation_project.chess.enums.LeaveReason;
 import com.ximofam.graduation_project.chess.services.RoomService;
 import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
 import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
@@ -76,7 +77,7 @@ public class RoomController {
             throw new ForbiddenException("You must be online to leave a room.");
         }
 
-        roomService.leaveRoom(roomId, userIdStr);
+        roomService.leaveRoom(roomId, userIdStr, LeaveReason.USER_LEAVE);
         return ResponseEntity.ok().build();
     }
 

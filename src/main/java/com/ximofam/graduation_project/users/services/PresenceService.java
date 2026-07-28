@@ -37,6 +37,7 @@ public class PresenceService {
 
     private final RedisScript<Long> presenceConnectScript;
     private final RedisScript<List<Object>> presenceDisconnectScript;
+    private final RedisScript<Long> presenceSetStatusScript;
 
     public void handleConnect(String userId, String sessionId) {
         Long becameOnline = redisTemplate.execute(
@@ -75,7 +76,7 @@ public class PresenceService {
                 sessionId, userId
         );
 
-        if (result == null || result.isEmpty() || !Long.valueOf(1L).equals(result.get(0))) return;
+        if (result == null || result.isEmpty() || !Long.valueOf(1L).equals(result.getFirst())) return;
 
         log.debug("User {} went offline, saving lastSeen to DB", userId);
         try {
@@ -100,12 +101,6 @@ public class PresenceService {
         broadcastOnlineUserCount();
     }
 
-    private static Map<String, String> parseHgetall(List<String> flat) {
-        Map<String, String> map = new HashMap<>(flat.size());
-        for (int i = 0; i + 1 < flat.size(); i += 2) map.put(flat.get(i), flat.get(i + 1));
-        return map;
-    }
-
     public void broadcastOnlineUserCount() {
         messagingTemplate.convertAndSend("/topic/presence.online-count", getOnlineUserCount());
     }
@@ -113,6 +108,20 @@ public class PresenceService {
 
     public void handleHeartbeat(String userId, String sessionId) {
         redisTemplate.expire(RedisKeys.presenceSessionDetail(userId, sessionId), sessionTtl);
+    }
+
+    public void setPresenceStatus(String userId, PresenceStatus status, String... delFields) {
+        Object[] args = new Object[1 + (delFields != null ? delFields.length : 0)];
+        args[0] = status.name();
+        if (delFields != null && delFields.length > 0) {
+            System.arraycopy(delFields, 0, args, 1, delFields.length);
+        }
+
+        redisTemplate.execute(
+                presenceSetStatusScript,
+                List.of(RedisKeys.presenceUser(userId), RedisKeys.presenceSessions(userId)),
+                args
+        );
     }
 
     public boolean isOnline(String userId) {
@@ -131,5 +140,11 @@ public class PresenceService {
 
     public Map<String, Object> getUserPresence(String userId) {
         return redisTemplate.<String, Object>opsForHash().entries(RedisKeys.presenceUser(userId));
+    }
+
+    private static Map<String, String> parseHgetall(List<String> flat) {
+        Map<String, String> map = new HashMap<>(flat.size());
+        for (int i = 0; i + 1 < flat.size(); i += 2) map.put(flat.get(i), flat.get(i + 1));
+        return map;
     }
 }

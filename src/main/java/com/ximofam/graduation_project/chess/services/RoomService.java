@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ximofam.graduation_project.chess.dtos.request.CreateRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.request.JoinRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.response.RoomResponse;
+import com.ximofam.graduation_project.chess.enums.LeaveReason;
 import com.ximofam.graduation_project.chess.enums.RoomStatus;
 import com.ximofam.graduation_project.chess.models.RoomSettings;
 import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
@@ -14,6 +15,8 @@ import com.ximofam.graduation_project.common.utils.RedisKeys;
 import com.ximofam.graduation_project.common.utils.Utils;
 import com.ximofam.graduation_project.common.ws.*;
 import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
+import com.ximofam.graduation_project.users.enums.PresenceStatus;
+import com.ximofam.graduation_project.users.services.PresenceService;
 import com.ximofam.graduation_project.users.services.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +43,8 @@ public class RoomService {
     private final RedisScript<List<Object>> searchLobbyScript;
     private final RedisScript<List<Object>> joinRoomScript;
     private final RedisScript<List<Object>> leaveRoomScript;
-    private final RedisScript<Long> presenceSetStatusScript;
+    private final RedisScript<List<Object>> deleteRoomScript;
+    private final PresenceService presenceService;
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final int CHAT_HISTORY_SIZE = 10;
@@ -203,20 +207,15 @@ public class RoomService {
         return getRoomDetails(roomId);
     }
 
-    @SuppressWarnings("unchecked")
-    public void leaveRoom(String roomId, String userId) {
-        List<Object> result = redisTemplate.execute(
-                leaveRoomScript,
-                List.of(RedisKeys.roomInfo(roomId), RedisKeys.presenceUser(userId),
-                        RedisKeys.LOBBY_INDEX, RedisKeys.roomSpectators(roomId)),
-                userId, roomId);
+    public void leaveRoom(String roomId, String userId, LeaveReason leaveReason) {
+        List<Object> result = redisTemplate.execute(leaveRoomScript,
+                List.of(RedisKeys.roomInfo(roomId), RedisKeys.roomSpectators(roomId)), userId);
 
         if (result == null) throw new RuntimeException("Lua script returned null");
 
         long code = (Long) result.getFirst();
         String reason = (String) result.get(1);
         String role = (String) result.get(2);
-        List<String> others = (List<String>) result.get(3);
 
         switch ((int) code) {
             case -1 -> throw new NotFoundException("Room not found");
@@ -224,13 +223,25 @@ public class RoomService {
             case -3 -> throw new ForbiddenException("You are not in this room");
         }
 
+        if (leaveReason.equals(LeaveReason.USER_LEAVE)) {
+            presenceService.setPresenceStatus(userId, PresenceStatus.ONLINE, "is_host", "roomId", "role");
+        }
+
         if ("HOST_LEFT".equals(reason)) {
-            for (String entry : others) {
-                if (!entry.startsWith("spectator:")) {
-                    setStatusFromInRoomToOnline(entry);
+            List<Object> delRoomRes = redisTemplate.execute(
+                    deleteRoomScript,
+                    List.of(RedisKeys.roomInfo(roomId), RedisKeys.LOBBY_INDEX,
+                            RedisKeys.roomSpectators(roomId), RedisKeys.roomChat(roomId)),
+                    roomId);
+
+            if (delRoomRes != null) {
+                for (Object obj : delRoomRes) {
+                    String entry = String.valueOf(obj);
+                    if (!entry.startsWith("spectator:")) {
+                        presenceService.setPresenceStatus(entry, PresenceStatus.ONLINE, "is_host", "roomId", "role");
+                    }
                 }
             }
-            setStatusFromInRoomToOnline(userId);
 
             RoomDeletedPayload payload = new RoomDeletedPayload(roomId);
             WsEvent<RoomDeletedPayload> event = new WsEvent<>("ROOM_DELETED", payload);
@@ -240,7 +251,6 @@ public class RoomService {
             messagingTemplate.convertAndSend("/topic/room/" + roomId,
                     new WsEvent<>("PLAYER_LEFT", new PlayerLeftPayload(role, userId)));
         } else {
-            setStatusFromInRoomToOnline(userId);
             messagingTemplate.convertAndSend("/topic/room/" + roomId,
                     new WsEvent<>("PLAYER_LEFT", new PlayerLeftPayload(role, userId)));
             messagingTemplate.convertAndSend("/topic/lobbies",
@@ -384,16 +394,5 @@ public class RoomService {
                 }
             }
         }
-    }
-
-    // ponytail: Lua DELs the presence key then this re-creates it with only {status:ONLINE}.
-    // Intentional reset — loses any TTL on the old key. Upgrade: pass field values back from
-    // Lua and do an atomic HSET+EXPIRE in one script if TTL becomes relevant.
-    private void setStatusFromInRoomToOnline(String userId) {
-        redisTemplate.execute(
-                presenceSetStatusScript,
-                List.of(RedisKeys.presenceUser(userId)),
-                "ONLINE", "roomId", "isHost", "role"
-        );
     }
 }

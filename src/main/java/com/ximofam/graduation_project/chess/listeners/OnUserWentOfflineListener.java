@@ -1,5 +1,6 @@
 package com.ximofam.graduation_project.chess.listeners;
 
+import com.ximofam.graduation_project.chess.enums.LeaveReason;
 import com.ximofam.graduation_project.chess.services.RoomService;
 import com.ximofam.graduation_project.common.events.UserWentOfflineEvent;
 import com.ximofam.graduation_project.common.exceptions.http.BaseHttpException;
@@ -24,7 +25,7 @@ public class OnUserWentOfflineListener {
         if (roomId == null) return;
 
         try {
-            roomService.leaveRoom(roomId, event.userId());
+            roomService.leaveRoom(roomId, event.userId(), LeaveReason.DISCONNECT);
         } catch (BaseHttpException e) {
             log.warn("Could not clean up room {} for disconnected user {}: {}", roomId, event.userId(), e.getMessage());
         }
