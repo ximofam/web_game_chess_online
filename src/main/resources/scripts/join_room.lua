@@ -65,6 +65,7 @@ elseif role == 'spectator' then
         return {-5, 'SPECTATORS_LOCKED'}
     end
     redis.call('ZADD', KEYS[3], timestamp, userId)
+    redis.call('HSET', KEYS[2], 'status', 'IN_ROOM', 'roomId', roomId, 'is_host', 'false', 'role', 'spectator')
     return {1, 'OK'}
 
 else

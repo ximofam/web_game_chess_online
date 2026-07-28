@@ -34,6 +34,7 @@ class PresenceServiceTest {
     @Mock private SetOperations<String, String> setOperations;
     @Mock private RedisScript<Long> presenceConnectScript;
     @SuppressWarnings("rawtypes") @Mock private RedisScript presenceDisconnectScript;
+    @Mock private RedisScript<Long> presenceSetStatusScript;
 
     private PresenceService presenceService;
 
@@ -42,7 +43,7 @@ class PresenceServiceTest {
     void setUp() {
         // Manual construction: avoids @InjectMocks generic confusion with two RedisScript fields
         presenceService = new PresenceService(redisTemplate, userRepository, messagingTemplate,
-                eventPublisher, presenceConnectScript, presenceDisconnectScript);
+                eventPublisher, presenceConnectScript, presenceDisconnectScript, presenceSetStatusScript);
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         lenient().when(redisTemplate.opsForHash()).thenReturn(hashOperations);
         lenient().when(redisTemplate.opsForSet()).thenReturn(setOperations);

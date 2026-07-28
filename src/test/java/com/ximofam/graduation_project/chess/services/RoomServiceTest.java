@@ -9,8 +9,7 @@ import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import com.ximofam.graduation_project.users.services.UserService;
 import com.ximofam.graduation_project.common.ws.ChatMessagePayload;
-import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
-import com.ximofam.graduation_project.users.services.UserService;
+import com.ximofam.graduation_project.users.services.PresenceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,7 +40,8 @@ class RoomServiceTest {
     @SuppressWarnings("rawtypes") @Mock private RedisScript searchLobbyScript;
     @SuppressWarnings("rawtypes") @Mock private RedisScript joinRoomScript;
     @SuppressWarnings("rawtypes") @Mock private RedisScript leaveRoomScript;
-    @Mock private DefaultRedisScript<Long> presenceSetStatusScript;
+    @SuppressWarnings("rawtypes") @Mock private RedisScript deleteRoomScript;
+    @Mock private PresenceService presenceService;
     @Mock private HashOperations<String, Object, Object> hashOperations;
     @Mock private ListOperations<String, String> listOperations;
 
@@ -52,8 +52,8 @@ class RoomServiceTest {
     void setUp() {
         // Manual construction avoids Mockito generic-type confusion with multiple RedisScript fields
         roomService = new RoomService(redisTemplate, userService, messagingTemplate,
-                createRoomScript, searchLobbyScript, joinRoomScript, leaveRoomScript,
-                presenceSetStatusScript);
+                createRoomScript, searchLobbyScript, joinRoomScript, leaveRoomScript, deleteRoomScript,
+                presenceService);
     }
 
     // ── createRoom ───────────────────────────────────────────────────────────────
@@ -104,14 +104,15 @@ class RoomServiceTest {
     @Test
     @SuppressWarnings("unchecked")
     void leaveRoom_HostLeft_ShouldResetOthersPresenceAndBroadcastRoomDeleted() {
-        when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any(), any()))
-                .thenReturn(List.of(0L, "HOST_LEFT", "white", List.of("42")));
+        when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
+                .thenReturn(List.of(0L, "HOST_LEFT", "white"));
+        when(redisTemplate.execute(eq(deleteRoomScript), anyList(), any()))
+                .thenReturn(List.of("1", "42")); // 1 is host, 42 is another player
 
-        roomService.leaveRoom("room1", "1");
+        roomService.leaveRoom("room1", "1", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE);
 
-        // presence reset for "42" (other player) and "1" (host)
-        verify(redisTemplate, times(2)).execute(eq(presenceSetStatusScript), anyList(),
-                eq("ONLINE"), eq("roomId"), eq("isHost"), eq("role"));
+        // presence reset for "1" (from USER_LEAVE) and then "1" and "42" (from delRoomRes loop)
+        verify(presenceService, times(3)).setPresenceStatus(anyString(), eq(com.ximofam.graduation_project.users.enums.PresenceStatus.ONLINE), eq("is_host"), eq("roomId"), eq("role"));
         verify(messagingTemplate).convertAndSend(eq("/topic/lobbies"), (Object) any());
         verify(messagingTemplate).convertAndSend(eq("/topic/room/room1"), (Object) any());
     }
@@ -119,13 +120,12 @@ class RoomServiceTest {
     @Test
     @SuppressWarnings("unchecked")
     void leaveRoom_PlayerLeft_ShouldResetPresenceAndBroadcastPlayerLeftAndRoomUpdated() {
-        when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any(), any()))
-                .thenReturn(List.of(0L, "PLAYER_LEFT", "black", List.of()));
+        when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
+                .thenReturn(List.of(0L, "PLAYER_LEFT", "black"));
 
-        roomService.leaveRoom("room1", "99");
+        roomService.leaveRoom("room1", "99", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE);
 
-        verify(redisTemplate).execute(eq(presenceSetStatusScript), anyList(),
-                eq("ONLINE"), eq("roomId"), eq("isHost"), eq("role"));
+        verify(presenceService).setPresenceStatus(eq("99"), eq(com.ximofam.graduation_project.users.enums.PresenceStatus.ONLINE), eq("is_host"), eq("roomId"), eq("role"));
         verify(messagingTemplate).convertAndSend(eq("/topic/room/room1"), (Object) any());
         verify(messagingTemplate).convertAndSend(eq("/topic/lobbies"), (Object) any());
     }
@@ -133,12 +133,12 @@ class RoomServiceTest {
     @Test
     @SuppressWarnings("unchecked")
     void leaveRoom_SpectatorLeft_ShouldOnlyBroadcastPlayerLeft() {
-        when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any(), any()))
-                .thenReturn(List.of(0L, "SPECTATOR_LEFT", "spectator", List.of()));
+        when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
+                .thenReturn(List.of(0L, "SPECTATOR_LEFT", "spectator"));
 
-        roomService.leaveRoom("room1", "5");
+        roomService.leaveRoom("room1", "5", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE);
 
-        verify(redisTemplate, never()).execute(eq(presenceSetStatusScript), anyList(), any(), any(), any(), any());
+        verify(presenceService).setPresenceStatus(eq("5"), eq(com.ximofam.graduation_project.users.enums.PresenceStatus.ONLINE), eq("is_host"), eq("roomId"), eq("role"));
         verify(messagingTemplate).convertAndSend(eq("/topic/room/room1"), (Object) any());
         verify(messagingTemplate, never()).convertAndSend(eq("/topic/lobbies"), (Object) any());
     }
@@ -146,20 +146,20 @@ class RoomServiceTest {
     @Test
     @SuppressWarnings("unchecked")
     void leaveRoom_RoomNotFound_ShouldThrowNotFoundException() {
-        when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any(), any()))
-                .thenReturn(java.util.Arrays.asList(-1L, null, null, List.of()));
+        when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
+                .thenReturn(java.util.Arrays.asList(-1L, null, null));
 
-        assertThatThrownBy(() -> roomService.leaveRoom("room1", "1"))
+        assertThatThrownBy(() -> roomService.leaveRoom("room1", "1", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE))
                 .isInstanceOf(NotFoundException.class);
     }
 
     @Test
     @SuppressWarnings("unchecked")
     void leaveRoom_UserNotInRoom_ShouldThrowForbiddenException() {
-        when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any(), any()))
-                .thenReturn(java.util.Arrays.asList(-3L, null, null, List.of()));
+        when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
+                .thenReturn(java.util.Arrays.asList(-3L, null, null));
 
-        assertThatThrownBy(() -> roomService.leaveRoom("room1", "1"))
+        assertThatThrownBy(() -> roomService.leaveRoom("room1", "1", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE))
                 .isInstanceOf(ForbiddenException.class);
     }
 

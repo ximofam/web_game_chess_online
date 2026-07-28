@@ -236,10 +236,7 @@ public class RoomService {
 
             if (delRoomRes != null) {
                 for (Object obj : delRoomRes) {
-                    String entry = String.valueOf(obj);
-                    if (!entry.startsWith("spectator:")) {
-                        presenceService.setPresenceStatus(entry, PresenceStatus.ONLINE, "is_host", "roomId", "role");
-                    }
+                    presenceService.setPresenceStatus(String.valueOf(obj), PresenceStatus.ONLINE, "is_host", "roomId", "role");
                 }
             }
 

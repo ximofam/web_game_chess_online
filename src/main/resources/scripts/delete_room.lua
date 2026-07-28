@@ -3,9 +3,6 @@
 -- KEYS[3] = room:{roomId}:spectators
 -- KEYS[4] = room:{roomId}:chat
 -- ARGV[1] = roomId
---
--- Xoá toàn bộ room (dùng khi host rời) và trả về danh sách userId từng ở trong room
--- (players trước, spectators sau với tiền tố 'spectator:') để Java reset presence.
 
 local white = redis.call('HGET', KEYS[1], 'white') or ''
 local black = redis.call('HGET', KEYS[1], 'black') or ''
@@ -18,7 +15,7 @@ if host ~= '' and host ~= white and host ~= black then table.insert(userIds, hos
 
 local spectators = redis.call('ZRANGE', KEYS[3], 0, -1)
 for _, sid in ipairs(spectators) do
-    table.insert(userIds, 'spectator:' .. sid)
+    table.insert(userIds, sid)
 end
 
 redis.call('DEL', KEYS[1], KEYS[3], KEYS[4])

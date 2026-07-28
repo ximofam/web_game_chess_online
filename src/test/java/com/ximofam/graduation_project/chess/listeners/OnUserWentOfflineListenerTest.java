@@ -27,7 +27,7 @@ class OnUserWentOfflineListenerTest {
 
         listener.onUserWentOffline(event);
 
-        verify(roomService).leaveRoom("room1", "42");
+        verify(roomService).leaveRoom("room1", "42", com.ximofam.graduation_project.chess.enums.LeaveReason.DISCONNECT);
     }
 
     @Test
@@ -51,11 +51,11 @@ class OnUserWentOfflineListenerTest {
     @Test
     void onUserWentOffline_WhenLeaveRoomThrows_ShouldSwallowAndLog() {
         var event = new UserWentOfflineEvent("42", Map.of("status", "IN_ROOM", "roomId", "room1"));
-        doThrow(new NotFoundException("Room not found")).when(roomService).leaveRoom("room1", "42");
+        doThrow(new NotFoundException("Room not found")).when(roomService).leaveRoom("room1", "42", com.ximofam.graduation_project.chess.enums.LeaveReason.DISCONNECT);
 
         // should not propagate
         listener.onUserWentOffline(event);
 
-        verify(roomService).leaveRoom("room1", "42");
+        verify(roomService).leaveRoom("room1", "42", com.ximofam.graduation_project.chess.enums.LeaveReason.DISCONNECT);
     }
 }
