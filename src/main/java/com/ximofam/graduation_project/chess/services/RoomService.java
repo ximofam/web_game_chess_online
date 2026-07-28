@@ -182,12 +182,13 @@ public class RoomService {
         if (result == null) throw new RuntimeException("Lua script returned null");
 
         switch (((Number) result.getFirst()).intValue()) {
-            case -1 -> throw new BadRequestException("Room not found.");
+            case -1 -> throw new NotFoundException("Room not found.");
             case -2 -> throw new BadRequestException("Room is not accepting players.");
             case -3 -> throw new BadRequestException("You are already seated in this room.");
             case -4 -> throw new BadRequestException("The " + role + " seat is already taken.");
-            case -5 -> throw new BadRequestException("Spectators are not allowed in this room.");
+            case -5 -> throw new ForbiddenException("Spectators are not allowed in this room.");
             case -6 -> throw new BadRequestException("Invalid role.");
+            case -7 -> throw new ForbiddenException("This room is private.");
         }
 
         UserSimpleResponse userInfo = userService.getUserSimpleResponseById(Long.parseLong(userId));
