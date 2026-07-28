@@ -27,6 +27,7 @@ người chơi ngắt kết nối. Các API được thiết kế theo dạng **
 | `room:{roomId}`            | Hash              | Metadata chi tiết của một phòng.                                                      |
 | `room:idx:lobby`           | ZSet (Sorted Set) | Danh sách phòng hiển thị ở sảnh chờ. `score` là `createdAt` (epoch ms) để phân trang. |
 | `room:{roomId}:spectators` | ZSet              | Danh sách khán giả. `score` là timestamp lúc join (mới nhất lên đầu).                 |
+| `room:{roomId}:chat`       | List              | Lịch sử chat trong phòng (tối đa 10 tin nhắn mới nhất).                               |
 
 ### Cấu trúc Hash `room:{roomId}`
 
@@ -151,6 +152,13 @@ Rời phòng.
 | **Player** (non-host) | `HSET room:{roomId} {role} ""` + `DEL presence:user:{userId}`                    | Reset presence → `ONLINE`, broadcast `PLAYER_LEFT` + `ROOM_UPDATED`                          |
 | **Host**       | `DEL room:{roomId}` + `ZREM room:idx:lobby` + `DEL presence host` + `DEL spectators ZSet`; trả về danh sách `white`/`black` + `spectator:{id}` | Reset presence white/black → `ONLINE` (spectators không cần — chưa từng set `IN_ROOM`), broadcast `ROOM_DELETED` tới cả 2 topic |
 
+### `GET /api/rooms/{roomId}/chat`
+
+Lấy lịch sử chat của phòng (tối đa 10 tin nhắn).
+
+- **Auth:** Bắt buộc.
+- **Response:** `ChatMessagePayload[]` (chứa `sender`, `message`, `timestamp`).
+
 ---
 
 ## 4. WebSocket Events
@@ -170,6 +178,12 @@ Rời phòng.
 | `PLAYER_JOINED` | Có người join ghế hoặc spectate               | `{ role: "white"\|"black"\|"spectator", user: UserSimpleResponse }` |
 | `PLAYER_LEFT`   | Player/spectator rời ghế hoặc disconnect      | `{ role: "white"\|"black"\|"spectator", userId: string }`           |
 | `ROOM_DELETED`  | Host leave/disconnect khi phòng `WAITING`     | `{ roomId }` — client phải redirect ra lobby                        |
+| `CHAT_MESSAGE`  | Có người gửi tin nhắn chat                    | `ChatMessagePayload`                                                |
+
+### Send `/app/room.{roomId}.chat` — Gửi tin nhắn chat
+
+- **Payload:** `{ "message": "Nội dung chat" }` (`ChatSendRequest`)
+- **Guard:** Nếu `settings.chatLocked == true`, server sẽ từ chối tin nhắn. Tin nhắn hợp lệ sẽ được lưu vào Redis (tối đa 10 tin) và broadcast `CHAT_MESSAGE` tới `/topic/room/{roomId}`.
 
 ---
 
