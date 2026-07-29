@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
@@ -32,11 +31,6 @@ public class ApiAuthController {
     private static final String GUEST_COOKIE_NAME = "guestToken";
     private static final String REFRESH_COOKIE_NAME = "refreshToken";
     private static final String REFRESH_COOKIE_PATH = "/api/auth";
-
-    @GetMapping("/csrf-token")
-    public CsrfToken csrfToken(CsrfToken token) {
-        return token;
-    }
 
     @PostMapping("/register")
     public ResponseEntity<UserResponse> register(@RequestBody @Valid RegisterUserRequest request) {

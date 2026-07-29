@@ -12,7 +12,7 @@ local roomIds = redis.call('ZREVRANGE', KEYS[1], 0, -1)
 local result = {}
 local matched = 0
 
-for i, id in ipairs(roomIds) do
+for _, id in ipairs(roomIds) do
     local name = redis.call('HGET', 'room:' .. id, 'name')
     if name then
         local lower_name = string.lower(name)
