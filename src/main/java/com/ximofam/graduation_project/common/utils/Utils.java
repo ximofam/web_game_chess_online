@@ -5,6 +5,10 @@ import java.util.Map;
 import java.util.Objects;
 
 public class Utils {
+    private Utils() {
+        /* This utility class should not be instantiated */
+    }
+
     public static boolean hasText(String text) {
         return text != null && !text.isBlank();
     }

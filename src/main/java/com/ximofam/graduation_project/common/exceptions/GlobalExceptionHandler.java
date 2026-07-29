@@ -38,9 +38,7 @@ public class GlobalExceptionHandler {
 
         Map<String, Object> errors = new HashMap<>();
 
-        ex.getBindingResult().getFieldErrors().forEach(error -> {
-            errors.put(error.getField(), error.getDefaultMessage());
-        });
+        ex.getBindingResult().getFieldErrors().forEach(error -> errors.put(error.getField(), error.getDefaultMessage()));
 
         HttpErrorResponse res = new HttpErrorResponse("INVALID_DATA", "Invalid request data", errors);
         return ResponseEntity.badRequest().body(res);
