@@ -8,4 +8,6 @@ public class TopicUtils {
     public static String room(String roomId) {
         return "/topic/room." + roomId;
     }
+
+    public static String LOBBIES = "/topic/lobbies";
 }

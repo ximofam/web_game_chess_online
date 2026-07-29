@@ -87,7 +87,7 @@ public class RoomService {
         roomData.setHostId(hostId);
         roomData.setSpectators(List.of());
 
-        messagingTemplate.convertAndSend("/topic/lobbies", new WsEvent<>("ROOM_CREATED", roomData));
+        messagingTemplate.convertAndSend(TopicUtils.LOBBIES, new WsEvent<>("ROOM_CREATED", roomData));
 
         return roomData;
     }
@@ -201,7 +201,7 @@ public class RoomService {
                 new WsEvent<>("PLAYER_JOINED", new PlayerJoinedPayload(role, userInfo)));
 
         if (!"spectator".equals(role)) {
-            messagingTemplate.convertAndSend("/topic/lobbies",
+            messagingTemplate.convertAndSend(TopicUtils.LOBBIES,
                     new WsEvent<>("ROOM_UPDATED", new RoomUpdatedPayload(roomId, role, userInfo)));
         }
 
@@ -243,7 +243,7 @@ public class RoomService {
 
             RoomDeletedPayload payload = new RoomDeletedPayload(roomId);
             WsEvent<RoomDeletedPayload> event = new WsEvent<>("ROOM_DELETED", payload);
-            messagingTemplate.convertAndSend("/topic/lobbies", event);
+            messagingTemplate.convertAndSend(TopicUtils.LOBBIES, event);
             messagingTemplate.convertAndSend(TopicUtils.room(roomId), event);
         } else if ("SPECTATOR_LEFT".equals(reason)) {
             messagingTemplate.convertAndSend(TopicUtils.room(roomId),
@@ -251,7 +251,7 @@ public class RoomService {
         } else {
             messagingTemplate.convertAndSend(TopicUtils.room(roomId),
                     new WsEvent<>("PLAYER_LEFT", new PlayerLeftPayload(role, userId)));
-            messagingTemplate.convertAndSend("/topic/lobbies",
+            messagingTemplate.convertAndSend(TopicUtils.LOBBIES,
                     new WsEvent<>("ROOM_UPDATED", new RoomUpdatedPayload(roomId, role, null)));
         }
     }

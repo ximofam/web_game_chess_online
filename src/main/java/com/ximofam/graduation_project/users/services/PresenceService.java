@@ -143,7 +143,7 @@ public class PresenceService {
     }
 
     private static Map<String, String> parseHgetall(List<String> flat) {
-        Map<String, String> map = new HashMap<>(flat.size());
+        Map<String, String> map = HashMap.newHashMap(flat.size());
         for (int i = 0; i + 1 < flat.size(); i += 2) map.put(flat.get(i), flat.get(i + 1));
         return map;
     }

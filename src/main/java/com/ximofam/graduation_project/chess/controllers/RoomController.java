@@ -69,8 +69,8 @@ public class RoomController {
     }
 
     @PostMapping("/{roomId}/leave")
-    public ResponseEntity<?> leaveRoom(@AuthenticationPrincipal Long userId,
-                                       @PathVariable String roomId) {
+    public ResponseEntity<Void> leaveRoom(@AuthenticationPrincipal Long userId,
+                                          @PathVariable String roomId) {
 
         String userIdStr = userId.toString();
         if (!presenceService.isOnline(userIdStr)) {
@@ -98,10 +98,8 @@ public class RoomController {
         RoomResponse room = roomService.getRoomDetails(roomId);
         if (room == null) throw new NotFoundException("Room not found.");
 
-        if (room.getSettings() != null && room.getSettings().isPrivate()) {
-            if (!roomService.isMember(roomId, userId.toString())) {
-                throw new ForbiddenException("This is a private room. You are not allowed to view it.");
-            }
+        if (room.getSettings() != null && room.getSettings().isPrivate() && !roomService.isMember(roomId, userId.toString())) {
+            throw new ForbiddenException("This is a private room. You are not allowed to view it.");
         }
 
         return ResponseEntity.ok(room);
