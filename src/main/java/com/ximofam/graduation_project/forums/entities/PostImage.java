@@ -1,7 +1,7 @@
 package com.ximofam.graduation_project.forums.entities;
 
 import com.ximofam.graduation_project.common.helpers.models.BaseModel;
-import com.ximofam.graduation_project.forums.entities.enums.ImageStatus;
+import com.ximofam.graduation_project.forums.enums.ImageStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;

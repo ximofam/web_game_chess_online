@@ -2,6 +2,7 @@ package com.ximofam.graduation_project.auth.services;
 
 import com.ximofam.graduation_project.auth.RefreshSession;
 import com.ximofam.graduation_project.auth.dtos.response.TokenResponse;
+import com.ximofam.graduation_project.auth.enums.TokenType;
 import com.ximofam.graduation_project.common.exceptions.http.UnauthorizedException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -22,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 public class TokenService {
+
     @Value("${app.security.jwt.access-token-exp-sec}")
     private long accessTokenExpSec;
     @Getter
@@ -43,7 +45,7 @@ public class TokenService {
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("role", role)
-                .claim("type", "access")
+                .claim("type", TokenType.ACCESS.toValue())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + accessTokenExpSec * 1000L))
                 .signWith(signingKey)
@@ -63,7 +65,7 @@ public class TokenService {
 
         return Jwts.builder()
                 .id(jti)
-                .claim("type", "refresh")
+                .claim("type", TokenType.REFRESH.toValue())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + refreshTokenExpDays * 24 * 60 * 60 * 1000L))
                 .signWith(signingKey)
@@ -75,7 +77,7 @@ public class TokenService {
 
         return Jwts.builder()
                 .subject(String.valueOf(guestId))
-                .claim("type", "guest")
+                .claim("type", TokenType.GUEST.toValue())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + daysInMillis))
                 .signWith(signingKey)
@@ -90,9 +92,9 @@ public class TokenService {
                 .getPayload();
     }
 
-    public Claims verifyAndParseToken(String token, String type) {
+    public Claims verifyAndParseToken(String token, TokenType type) {
         Claims claims = verifyAndParseToken(token);
-        if (!type.equals(claims.get("type", String.class))) {
+        if (!type.toValue().equals(claims.get("type", String.class))) {
             throw new UnauthorizedException("Token type không hợp lệ.");
         }
 
@@ -100,7 +102,7 @@ public class TokenService {
     }
 
     public TokenResponse refresh(String refreshToken) {
-        Claims claims = verifyAndParseToken(refreshToken, "refresh");
+        Claims claims = verifyAndParseToken(refreshToken, TokenType.REFRESH);
 
         String jti = extractJti(claims);
         RefreshSession session = (RefreshSession) redisTemplate.opsForValue().get(buildRefreshTokenKey(jti));
@@ -113,11 +115,11 @@ public class TokenService {
         return generateTokens(session.getUserId(), session.getUserRole());
     }
 
-    public boolean deleteRefreshSession(String refreshToken) {
-        Claims claims = verifyAndParseToken(refreshToken, "refresh");
+    public void deleteRefreshSession(String refreshToken) {
+        Claims claims = verifyAndParseToken(refreshToken, TokenType.REFRESH);
 
         String jti = extractJti(claims);
-        return redisTemplate.delete(buildRefreshTokenKey(jti));
+        redisTemplate.delete(buildRefreshTokenKey(jti));
     }
 
     public TokenResponse generateTokens(Long userId, String userRole) {

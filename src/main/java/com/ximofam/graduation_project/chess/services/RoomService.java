@@ -6,6 +6,7 @@ import com.ximofam.graduation_project.chess.dtos.request.CreateRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.request.JoinRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.response.RoomResponse;
 import com.ximofam.graduation_project.chess.enums.LeaveReason;
+import com.ximofam.graduation_project.chess.enums.PlayerRole;
 import com.ximofam.graduation_project.chess.enums.RoomStatus;
 import com.ximofam.graduation_project.chess.models.RoomSettings;
 import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
@@ -184,9 +185,9 @@ public class RoomService {
                 userId, roomId, role, String.valueOf(now)
         );
 
-        if (result == null) throw new RuntimeException("Lua script returned null");
+        if (result == null) throw new NotFoundException("Lua script returned null");
 
-        switch (((Number) result.getFirst()).intValue()) {
+        switch (((Number) result.getFirst()).intValue()) { // NOSONAR java:S131
             case -1 -> throw new NotFoundException("Room not found.");
             case -2 -> throw new BadRequestException("Room is not accepting players.");
             case -3 -> throw new BadRequestException("You are already seated in this room.");
@@ -212,13 +213,13 @@ public class RoomService {
         List<Object> result = redisTemplate.execute(leaveRoomScript,
                 List.of(RedisKeys.roomInfo(roomId), RedisKeys.roomSpectators(roomId)), userId);
 
-        if (result == null) throw new RuntimeException("Lua script returned null");
+        if (result == null) throw new NotFoundException("Lua script returned null");
 
         long code = (Long) result.getFirst();
         String reason = (String) result.get(1);
         String role = (String) result.get(2);
 
-        switch ((int) code) {
+        switch ((int) code) { // NOSONAR java:S131
             case -1 -> throw new NotFoundException("Room not found");
             case -2 -> throw new BadRequestException("Room is not accepting leave requests (not WAITING)");
             case -3 -> throw new ForbiddenException("You are not in this room");
@@ -274,7 +275,7 @@ public class RoomService {
             throw new RuntimeException("Failed to serialize chat message", e);
         }
 
-        redisTemplate.opsForList().trim(chatKey, 0, CHAT_HISTORY_SIZE - 1);
+        redisTemplate.opsForList().trim(chatKey, 0, CHAT_HISTORY_SIZE - 1L);
 
         messagingTemplate.convertAndSend(TopicUtils.room(roomId), new WsEvent<>("CHAT_MESSAGE", payload));
     }
@@ -300,7 +301,8 @@ public class RoomService {
 
     public boolean isMember(String roomId, String userId) {
         String roomKey = RedisKeys.roomInfo(roomId);
-        List<Object> userIds = redisTemplate.opsForHash().multiGet(roomKey, Arrays.asList("host", "white", "black"));
+        List<Object> userIds = redisTemplate.opsForHash().multiGet(roomKey,
+                Arrays.asList(PlayerRole.HOST.toValue(), PlayerRole.WHITE.toValue(), PlayerRole.BLACK.toValue()));
         if (userIds == null) return false;
 
         for (Object id : userIds) {
@@ -323,7 +325,7 @@ public class RoomService {
         for (String spId : spectatorIds) {
             try {
                 userIdsToFetch.add(Long.parseLong(spId));
-            } catch (NumberFormatException ignored) {
+            } catch (NumberFormatException ignored) { // NOSONAR java:S108
             }
         }
 
@@ -348,7 +350,7 @@ public class RoomService {
     private RoomResponse buildRoomResponse(String roomId, Map<Object, Object> raw,
                                            List<UserSimpleResponse> spectators,
                                            Map<Long, UserSimpleResponse> users) {
-        String hostId = Utils.str(raw, "host");
+        String hostId = Utils.str(raw, PlayerRole.HOST.toValue());
 
         RoomResponse response = new RoomResponse();
         response.setRoomId(roomId);
@@ -356,8 +358,8 @@ public class RoomService {
         response.setStatus(Utils.str(raw, "status"));
         response.setHostId(hostId);
         response.setHost(resolveUser(hostId, users));
-        response.setWhite(resolveUser(Utils.str(raw, "white"), users));
-        response.setBlack(resolveUser(Utils.str(raw, "black"), users));
+        response.setWhite(resolveUser(Utils.str(raw, PlayerRole.WHITE.toValue()), users));
+        response.setBlack(resolveUser(Utils.str(raw, PlayerRole.BLACK.toValue()), users));
         response.setSpectators(spectators);
         response.setCreatedAt(Utils.parseLong(raw, "createdAt"));
         response.setSettings(parseSettings(raw.get("settings")));
@@ -388,7 +390,7 @@ public class RoomService {
             if (id != null) {
                 try {
                     target.add(Long.parseLong(id));
-                } catch (NumberFormatException ignored) {
+                } catch (NumberFormatException ignored) { // NOSONAR java:S108
                 }
             }
         }

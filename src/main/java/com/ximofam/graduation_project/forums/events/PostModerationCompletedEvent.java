@@ -1,6 +1,6 @@
 package com.ximofam.graduation_project.forums.events;
 
-import com.ximofam.graduation_project.forums.entities.enums.PostStatus;
+import com.ximofam.graduation_project.forums.enums.PostStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 

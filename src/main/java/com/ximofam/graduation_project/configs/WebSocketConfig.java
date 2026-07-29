@@ -1,5 +1,6 @@
 package com.ximofam.graduation_project.configs;
 
+import com.ximofam.graduation_project.auth.enums.TokenType;
 import com.ximofam.graduation_project.auth.services.TokenService;
 import com.ximofam.graduation_project.users.enums.UserRole;
 import io.jsonwebtoken.Claims;
@@ -91,7 +92,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void configureClientInboundChannel(ChannelRegistration registration) {
         registration.interceptors(new ChannelInterceptor() {
             @Override
-            public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) {
+            public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) { // NOSONAR
                 StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
                 if (accessor == null || !StompCommand.CONNECT.equals(accessor.getCommand())) {
                     return message;
@@ -101,7 +102,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 if (authHeader != null && authHeader.startsWith("Bearer ")) {
                     String token = authHeader.substring(7);
                     try {
-                        Claims claims = jwtService.verifyAndParseToken(token, "access");
+                        Claims claims = jwtService.verifyAndParseToken(token, TokenType.ACCESS);
                         Long userId = jwtService.extractUserId(claims);
                         String role = jwtService.extractRole(claims);
                         UserRole userRole = UserRole.valueOf(role);

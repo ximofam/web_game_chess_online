@@ -1,7 +1,7 @@
 package com.ximofam.graduation_project.forums.repositories;
 
 import com.ximofam.graduation_project.forums.entities.PostImage;
-import com.ximofam.graduation_project.forums.entities.enums.ImageStatus;
+import com.ximofam.graduation_project.forums.enums.ImageStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

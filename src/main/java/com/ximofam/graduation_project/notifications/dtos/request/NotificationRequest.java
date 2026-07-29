@@ -1,6 +1,6 @@
 package com.ximofam.graduation_project.notifications.dtos.request;
 
-import com.ximofam.graduation_project.notifications.entities.enums.NotificationType;
+import com.ximofam.graduation_project.notifications.enums.NotificationType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

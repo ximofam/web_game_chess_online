@@ -1,6 +1,6 @@
 package com.ximofam.graduation_project.forums.repositories.projection;
 
-import com.ximofam.graduation_project.forums.entities.enums.PostStatus;
+import com.ximofam.graduation_project.forums.enums.PostStatus;
 
 public interface PostModerationProjection {
     Long getId();

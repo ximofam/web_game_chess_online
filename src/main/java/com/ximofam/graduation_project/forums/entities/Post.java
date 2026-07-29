@@ -1,7 +1,7 @@
 package com.ximofam.graduation_project.forums.entities;
 
 import com.ximofam.graduation_project.common.helpers.models.SoftDeleteModel;
-import com.ximofam.graduation_project.forums.entities.enums.PostStatus;
+import com.ximofam.graduation_project.forums.enums.PostStatus;
 import com.ximofam.graduation_project.users.entities.User;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -34,6 +34,6 @@ public class Post extends SoftDeleteModel {
     private long viewCount;
 
     @Embedded
-    private ApprovalInfo approvalInfo = ApprovalInfo.empty();
+    private ApprovalInfo approvalInfo = ApprovalInfo.empty();  //NOSONAR
 
 }

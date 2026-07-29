@@ -15,8 +15,4 @@ import java.time.Instant;
 public class SoftDeleteModel extends BaseModel {
     @Column(name = "deleted_at")
     protected Instant deletedAt;
-
-    public boolean isDeleted() {
-        return this.deletedAt != null;
-    }
 }

@@ -1,7 +1,7 @@
 package com.ximofam.graduation_project.forums.repositories;
 
 import com.ximofam.graduation_project.forums.entities.Post;
-import com.ximofam.graduation_project.forums.entities.enums.PostStatus;
+import com.ximofam.graduation_project.forums.enums.PostStatus;
 import com.ximofam.graduation_project.forums.repositories.projection.PostContentProjection;
 import com.ximofam.graduation_project.forums.repositories.projection.PostModerationProjection;
 import com.ximofam.graduation_project.forums.repositories.projection.PostSimpleProjection;

@@ -7,13 +7,14 @@ import com.ximofam.graduation_project.auth.services.UserCurrentService;
 import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
 import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
+import com.ximofam.graduation_project.common.utils.Utils;
 import com.ximofam.graduation_project.forums.dtos.request.CreatePostRequest;
 import com.ximofam.graduation_project.forums.dtos.response.PostDetailResponse;
 import com.ximofam.graduation_project.forums.dtos.response.PostResponse;
 import com.ximofam.graduation_project.forums.dtos.response.PostSimpleResponse;
 import com.ximofam.graduation_project.forums.entities.Post;
 import com.ximofam.graduation_project.forums.entities.PostLike;
-import com.ximofam.graduation_project.forums.entities.enums.PostStatus;
+import com.ximofam.graduation_project.forums.enums.PostStatus;
 import com.ximofam.graduation_project.forums.events.PostModerationCompletedEvent;
 import com.ximofam.graduation_project.forums.events.PostModerationEvent;
 import com.ximofam.graduation_project.forums.mappers.PostMapper;
@@ -122,9 +123,7 @@ public class PostService {
         }
 
         postLikeRepository.findByUserIdAndPostId(currentUser.getId(), postId)
-                .ifPresentOrElse(like -> {
-                    like.setActive(isLike);
-                }, () -> {
+                .ifPresentOrElse(like -> like.setActive(isLike), () -> {
                     if (isLike) {
                         postLikeRepository.save(PostLike.of(currentUser, postRepository.getReferenceById(postId)));
                     }
@@ -190,11 +189,11 @@ public class PostService {
     private Sort buildSort(String sortBy) {
         return switch (sortBy) {
             case "mostViewed" -> Sort.by(Sort.Direction.DESC, "viewCount")
-                    .and(Sort.by(Sort.Direction.DESC, "createdAt"));
+                    .and(Sort.by(Sort.Direction.DESC, Utils.CREATED_AT_FIELD));
             case "mostLiked" -> Sort.by(Sort.Direction.DESC, "likeCount")
                     .and(Sort.by(Sort.Direction.DESC, "viewCount"))
-                    .and(Sort.by(Sort.Direction.DESC, "createdAt"));
-            default -> Sort.by(Sort.Direction.DESC, "createdAt");
+                    .and(Sort.by(Sort.Direction.DESC, Utils.CREATED_AT_FIELD));
+            default -> Sort.by(Sort.Direction.DESC, Utils.CREATED_AT_FIELD);
         };
     }
 

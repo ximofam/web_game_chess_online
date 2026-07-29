@@ -3,12 +3,13 @@ package com.ximofam.graduation_project.forums.services;
 import com.ximofam.graduation_project.auth.services.UserCurrentService;
 import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
+import com.ximofam.graduation_project.common.utils.Utils;
 import com.ximofam.graduation_project.forums.dtos.request.CreateCommentRequest;
 import com.ximofam.graduation_project.forums.dtos.response.CommentResponse;
 import com.ximofam.graduation_project.forums.entities.Comment;
 import com.ximofam.graduation_project.forums.entities.CommentLike;
 import com.ximofam.graduation_project.forums.entities.Post;
-import com.ximofam.graduation_project.forums.entities.enums.PostStatus;
+import com.ximofam.graduation_project.forums.enums.PostStatus;
 import com.ximofam.graduation_project.forums.mappers.CommentMapper;
 import com.ximofam.graduation_project.forums.repositories.CommentLikeRepository;
 import com.ximofam.graduation_project.forums.repositories.CommentRepository;
@@ -102,10 +103,10 @@ public class CommentService {
 
     private String normalizeSortBy(String sortBy) {
         if (sortBy == null || sortBy.isBlank()) {
-            return "createdAt";
+            return Utils.CREATED_AT_FIELD;
         }
 
-        if (sortBy.equals("createdAt") || sortBy.equals("likeCount")) {
+        if (sortBy.equals(Utils.CREATED_AT_FIELD) || sortBy.equals("likeCount")) {
             return sortBy;
         }
 
@@ -163,9 +164,7 @@ public class CommentService {
         }
 
         commentLikeRepository.findByUserIdAndCommentId(currentUser.getId(), commentId)
-                .ifPresentOrElse(like -> {
-                    like.setActive(isLike);
-                }, () -> {
+                .ifPresentOrElse(like -> like.setActive(isLike), () -> {
                     if (isLike) {
                         commentLikeRepository.save(
                                 CommentLike.of(currentUser, commentRepository.getReferenceById(commentId))

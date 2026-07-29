@@ -1,6 +1,7 @@
 package com.ximofam.graduation_project.auth.securities;
 
 import com.ximofam.graduation_project.auth.services.TokenService;
+import com.ximofam.graduation_project.auth.enums.TokenType;
 import com.ximofam.graduation_project.users.enums.UserRole;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -31,7 +32,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
         try {
             String token = authHeader.substring(7);
-            Claims claims = jwtService.verifyAndParseToken(token, "access");
+            Claims claims = jwtService.verifyAndParseToken(token, TokenType.ACCESS);
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
                 Long userId = jwtService.extractUserId(claims);
                 String role = jwtService.extractRole(claims);

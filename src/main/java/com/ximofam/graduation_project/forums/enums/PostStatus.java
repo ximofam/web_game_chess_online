@@ -1,4 +1,4 @@
-package com.ximofam.graduation_project.forums.entities.enums;
+package com.ximofam.graduation_project.forums.enums;
 
 public enum PostStatus {
     PENDING,

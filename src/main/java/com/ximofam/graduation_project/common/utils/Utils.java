@@ -9,10 +9,11 @@ public class Utils {
         /* This utility class should not be instantiated */
     }
 
+    public static String CREATED_AT_FIELD = "createdAt";
+
     public static boolean hasText(String text) {
         return text != null && !text.isBlank();
     }
-
 
     private static final String CHARACTERS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     private static final SecureRandom RANDOM = new SecureRandom();

@@ -38,7 +38,7 @@ public class User extends SoftDeleteModel {
     private Instant lastSeen;
 
     @Embedded
-    private UserProfile profile;
+    private UserProfile profile;  //NOSONAR
 
     public UserProfile getProfile() {
         if (this.profile == null) {

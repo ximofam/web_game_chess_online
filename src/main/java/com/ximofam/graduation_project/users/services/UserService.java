@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class UserService {
+    private static final String USER_NOT_FOUND_MSG = "UserId %d không tồn tại";
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final CloudinaryService cloudinaryService;
@@ -35,7 +36,7 @@ public class UserService {
     @Cacheable(value = "userSimple", key = "#id")
     public UserSimpleResponse getUserSimpleResponseById(Long id) {
         UserSimpleProjection p = userRepository.findSimpleById(id)
-                .orElseThrow(() -> new NotFoundException("UserId %d không tồn tại", id));
+                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MSG, id));
         return userMapper.toUserSimpleResponse(p);
     }
 
@@ -53,7 +54,7 @@ public class UserService {
 
     public UserDetailResponse getUserById(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("UserId %d không tồn tại", id));
+                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MSG, id));
 
         return userMapper.toUserDetailResponse(user);
     }
@@ -62,7 +63,7 @@ public class UserService {
     @Transactional
     public UserDetailResponse updateUserProfile(Long userId, UpdateUserProfileRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("UserId %d không tồn tại", userId));
+                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MSG, userId));
 
         UserProfile profile = user.getProfile();
         userMapper.updateUserProfile(request, profile);
@@ -74,8 +75,7 @@ public class UserService {
     @Transactional
     public CloudinaryUploadResult uploadAvatar(Long userId, MultipartFile file) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new NotFoundException("UserId %d không tồn tại", userId));
+                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MSG, userId));
         UserProfile profile = user.getProfile();
         String oldPublicId = profile.getAvatarPublicId();
         String publicId = String.format("%s_%s", user.getUsername(), UUID.randomUUID());

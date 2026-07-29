@@ -8,12 +8,13 @@ import jakarta.persistence.Enumerated;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 
 @Embeddable
 @Getter
 @Setter
-public class UserProfile {
+public class UserProfile implements Serializable {
     @Column(name = "avatar_public_id")
     private String avatarPublicId;
 

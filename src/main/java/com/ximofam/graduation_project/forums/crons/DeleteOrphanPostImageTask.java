@@ -2,7 +2,7 @@ package com.ximofam.graduation_project.forums.crons;
 
 import com.ximofam.graduation_project.common.helpers.services.CloudinaryService;
 import com.ximofam.graduation_project.forums.entities.PostImage;
-import com.ximofam.graduation_project.forums.entities.enums.ImageStatus;
+import com.ximofam.graduation_project.forums.enums.ImageStatus;
 import com.ximofam.graduation_project.forums.repositories.PostImageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;

@@ -3,8 +3,10 @@ package com.ximofam.graduation_project.auth.services;
 import com.ximofam.graduation_project.auth.dtos.request.LoginRequest;
 import com.ximofam.graduation_project.auth.dtos.request.RegisterUserRequest;
 import com.ximofam.graduation_project.auth.dtos.response.TokenResponse;
+import com.ximofam.graduation_project.auth.enums.TokenType;
 import com.ximofam.graduation_project.auth.securities.CustomUserDetails;
 import com.ximofam.graduation_project.common.exceptions.http.ConflictException;
+import com.ximofam.graduation_project.common.exceptions.http.InternalException;
 import com.ximofam.graduation_project.common.exceptions.http.UnauthorizedException;
 import com.ximofam.graduation_project.common.utils.Utils;
 import com.ximofam.graduation_project.users.UserMapper;
@@ -66,7 +68,7 @@ public class AuthService {
     }
 
     public TokenResponse loginGuest(String guestToken) {
-        Claims claims = tokenService.verifyAndParseToken(guestToken, "guest");
+        Claims claims = tokenService.verifyAndParseToken(guestToken, TokenType.GUEST);
 
         Long guestId = tokenService.extractUserId(claims);
         User guest = userRepository.findById(guestId)
@@ -92,6 +94,6 @@ public class AuthService {
                 return userRepository.save(guest);
             }
         }
-        throw new RuntimeException("Không thể tạo tài khoản khách vào lúc này, vui lòng thử lại sau.");
+        throw new InternalException("Không thể tạo tài khoản khách vào lúc này, vui lòng thử lại sau.");
     }
 }

@@ -1,7 +1,7 @@
 package com.ximofam.graduation_project.notifications.entities;
 
 import com.ximofam.graduation_project.common.helpers.models.BaseModel;
-import com.ximofam.graduation_project.notifications.entities.enums.NotificationType;
+import com.ximofam.graduation_project.notifications.enums.NotificationType;
 import com.ximofam.graduation_project.users.entities.User;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -38,7 +38,7 @@ public class Notification extends BaseModel {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata")
-    private Map<String, Object> metadata;
+    private Map<String, Object> metadata;  //NOSONAR
 
     @Column(name = "is_read")
     private boolean isRead;

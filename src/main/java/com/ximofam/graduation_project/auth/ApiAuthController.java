@@ -5,6 +5,7 @@ import com.ximofam.graduation_project.auth.dtos.request.RegisterUserRequest;
 import com.ximofam.graduation_project.auth.dtos.response.TokenResponse;
 import com.ximofam.graduation_project.auth.services.AuthService;
 import com.ximofam.graduation_project.auth.services.TokenService;
+import com.ximofam.graduation_project.auth.enums.TokenType;
 import com.ximofam.graduation_project.common.utils.CookieUtils;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;
 import io.jsonwebtoken.Claims;
@@ -67,7 +68,7 @@ public class ApiAuthController {
             @CookieValue(name = GUEST_COOKIE_NAME) String guestToken,
             HttpServletResponse response) {
 
-        Claims claims = tokenService.verifyAndParseToken(guestToken, "guest");
+        Claims claims = tokenService.verifyAndParseToken(guestToken, TokenType.GUEST);
 
         Long guestId = tokenService.extractUserId(claims);
         String newGuestToken = tokenService.generateGuestToken(guestId);

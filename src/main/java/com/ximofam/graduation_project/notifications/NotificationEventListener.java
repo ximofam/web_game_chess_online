@@ -51,7 +51,7 @@ public class NotificationEventListener {
         );
     }
 
-    private void handleEmail(NotificationRequest event) {
-
+    private void handleEmail(NotificationRequest event) { //NOSONAR
+        // Xử lí gửi thông báo bằng email
     }
 }

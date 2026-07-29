@@ -6,31 +6,33 @@ public final class RedisKeys {
 
     // Presence
     public static final String ONLINE_USERS = "sys:online_users";
+    private static final String USER_PREFIX = "user:";
 
     public static String presenceUser(String userId) {
-        return "user:" + userId + ":presence";
+        return USER_PREFIX + userId + ":presence";
     }
 
     public static String presenceSessions(String userId) {
-        return "user:" + userId + ":sessions";
+        return USER_PREFIX + userId + ":sessions";
     }
 
     public static String presenceSessionDetail(String userId, String sessionId) {
-        return "user:" + userId + ":session:" + sessionId;
+        return USER_PREFIX + userId + ":session:" + sessionId;
     }
 
     // Room
+    private static final String ROOM_PREFIX = "room:";
     public static final String LOBBY_INDEX = "room:idx:lobby";
 
     public static String roomInfo(String roomId) {
-        return "room:" + roomId;
+        return ROOM_PREFIX + roomId;
     }
 
     public static String roomSpectators(String roomId) {
-        return "room:" + roomId + ":spectators";
+        return ROOM_PREFIX + roomId + ":spectators";
     }
 
     public static String roomChat(String roomId) {
-        return "room:" + roomId + ":chat";
+        return ROOM_PREFIX + roomId + ":chat";
     }
 }
