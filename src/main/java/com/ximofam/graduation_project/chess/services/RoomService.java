@@ -12,6 +12,7 @@ import com.ximofam.graduation_project.common.exceptions.http.BadRequestException
 import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.common.utils.RedisKeys;
+import com.ximofam.graduation_project.common.utils.TopicUtils;
 import com.ximofam.graduation_project.common.utils.Utils;
 import com.ximofam.graduation_project.common.ws.*;
 import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
@@ -196,7 +197,7 @@ public class RoomService {
         }
 
         UserSimpleResponse userInfo = userService.getUserSimpleResponseById(Long.parseLong(userId));
-        messagingTemplate.convertAndSend("/topic/room/" + roomId,
+        messagingTemplate.convertAndSend(TopicUtils.room(roomId),
                 new WsEvent<>("PLAYER_JOINED", new PlayerJoinedPayload(role, userInfo)));
 
         if (!"spectator".equals(role)) {
@@ -243,12 +244,12 @@ public class RoomService {
             RoomDeletedPayload payload = new RoomDeletedPayload(roomId);
             WsEvent<RoomDeletedPayload> event = new WsEvent<>("ROOM_DELETED", payload);
             messagingTemplate.convertAndSend("/topic/lobbies", event);
-            messagingTemplate.convertAndSend("/topic/room/" + roomId, event);
+            messagingTemplate.convertAndSend(TopicUtils.room(roomId), event);
         } else if ("SPECTATOR_LEFT".equals(reason)) {
-            messagingTemplate.convertAndSend("/topic/room/" + roomId,
+            messagingTemplate.convertAndSend(TopicUtils.room(roomId),
                     new WsEvent<>("PLAYER_LEFT", new PlayerLeftPayload(role, userId)));
         } else {
-            messagingTemplate.convertAndSend("/topic/room/" + roomId,
+            messagingTemplate.convertAndSend(TopicUtils.room(roomId),
                     new WsEvent<>("PLAYER_LEFT", new PlayerLeftPayload(role, userId)));
             messagingTemplate.convertAndSend("/topic/lobbies",
                     new WsEvent<>("ROOM_UPDATED", new RoomUpdatedPayload(roomId, role, null)));
@@ -275,7 +276,7 @@ public class RoomService {
 
         redisTemplate.opsForList().trim(chatKey, 0, CHAT_HISTORY_SIZE - 1);
 
-        messagingTemplate.convertAndSend("/topic/room/" + roomId, new WsEvent<>("CHAT_MESSAGE", payload));
+        messagingTemplate.convertAndSend(TopicUtils.room(roomId), new WsEvent<>("CHAT_MESSAGE", payload));
     }
 
     public List<ChatMessagePayload> getChatHistory(String roomId) {

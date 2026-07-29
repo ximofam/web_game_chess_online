@@ -10,6 +10,7 @@ import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import com.ximofam.graduation_project.users.services.UserService;
 import com.ximofam.graduation_project.common.ws.ChatMessagePayload;
 import com.ximofam.graduation_project.users.services.PresenceService;
+import com.ximofam.graduation_project.common.utils.TopicUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -114,7 +115,7 @@ class RoomServiceTest {
         // presence reset for "1" (from USER_LEAVE) and then "1" and "42" (from delRoomRes loop)
         verify(presenceService, times(3)).setPresenceStatus(anyString(), eq(com.ximofam.graduation_project.users.enums.PresenceStatus.ONLINE), eq("is_host"), eq("roomId"), eq("role"));
         verify(messagingTemplate).convertAndSend(eq("/topic/lobbies"), (Object) any());
-        verify(messagingTemplate).convertAndSend(eq("/topic/room/room1"), (Object) any());
+        verify(messagingTemplate).convertAndSend(eq(TopicUtils.room("room1")), (Object) any());
     }
 
     @Test
@@ -126,7 +127,7 @@ class RoomServiceTest {
         roomService.leaveRoom("room1", "99", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE);
 
         verify(presenceService).setPresenceStatus(eq("99"), eq(com.ximofam.graduation_project.users.enums.PresenceStatus.ONLINE), eq("is_host"), eq("roomId"), eq("role"));
-        verify(messagingTemplate).convertAndSend(eq("/topic/room/room1"), (Object) any());
+        verify(messagingTemplate).convertAndSend(eq(TopicUtils.room("room1")), (Object) any());
         verify(messagingTemplate).convertAndSend(eq("/topic/lobbies"), (Object) any());
     }
 
@@ -139,7 +140,7 @@ class RoomServiceTest {
         roomService.leaveRoom("room1", "5", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE);
 
         verify(presenceService).setPresenceStatus(eq("5"), eq(com.ximofam.graduation_project.users.enums.PresenceStatus.ONLINE), eq("is_host"), eq("roomId"), eq("role"));
-        verify(messagingTemplate).convertAndSend(eq("/topic/room/room1"), (Object) any());
+        verify(messagingTemplate).convertAndSend(eq(TopicUtils.room("room1")), (Object) any());
         verify(messagingTemplate, never()).convertAndSend(eq("/topic/lobbies"), (Object) any());
     }
 
@@ -234,7 +235,7 @@ class RoomServiceTest {
 
         verify(listOperations).leftPush(eq("room:room1:chat"), anyString());
         verify(listOperations).trim("room:room1:chat", 0, 9);
-        verify(messagingTemplate).convertAndSend(eq("/topic/room/room1"), (Object) any());
+        verify(messagingTemplate).convertAndSend(eq(TopicUtils.room("room1")), (Object) any());
     }
 
     // ── getChatHistory ────────────────────────────────────────────────────────────

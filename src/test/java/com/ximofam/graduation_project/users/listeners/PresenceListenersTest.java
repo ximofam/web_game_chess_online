@@ -72,6 +72,6 @@ class PresenceListenersTest {
     void subscribeOnlineCount_ShouldReturnCountFromPresenceService() {
         when(presenceService.getOnlineUserCount()).thenReturn(10L);
 
-        assertThat(presenceController.subscribeOnlineCount()).isEqualTo(10L);
+        assertThat(presenceController.getOnlineCount().getBody()).isEqualTo(10L);
     }
 }

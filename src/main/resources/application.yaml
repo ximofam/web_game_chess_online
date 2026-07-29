@@ -51,23 +51,6 @@ spring:
       chat:
         model: ${GROQ_MODEL:llama3-8b-8192}
 
-#    model:
-#      embedding: transformers
-#
-#    embedding:
-#      transformer:
-#        onnx:
-#          model-uri: ${EMBEDDING_TRANSFORMER_ONNX_MODEL_URI}
-#        tokenizer:
-#          uri: ${EMBEDDING_TRANSFORMER_TOKENIZER_URI}
-#
-#    vectorstore:
-#      pgvector:
-#        initialize-schema: false
-#        dimensions: 384
-#        distance-type: cosine_distance
-#        index-type: hnsw
-
 logging:
   level:
     p6spy: DEBUG

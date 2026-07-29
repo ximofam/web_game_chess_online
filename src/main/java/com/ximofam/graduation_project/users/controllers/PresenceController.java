@@ -6,12 +6,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
-import org.springframework.messaging.simp.annotation.SubscribeMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
-import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -31,9 +29,9 @@ public class PresenceController {
         }
     }
 
-    @SubscribeMapping("/presence.online-count")
-    public long subscribeOnlineCount() {
-        return presenceService.getOnlineUserCount();
+    @GetMapping("/api/presence/online-count")
+    public ResponseEntity<Long> getOnlineCount() {
+        return ResponseEntity.ok(presenceService.getOnlineUserCount());
     }
 
     @GetMapping("/api/presence/me")
@@ -47,7 +45,7 @@ public class PresenceController {
         if (presenceData == null || presenceData.isEmpty()) {
             return ResponseEntity.ok(Map.of("status", "OFFLINE"));
         }
-        
+
         return ResponseEntity.ok(presenceData);
     }
 }
