@@ -1,5 +1,8 @@
 package com.ximofam.graduation_project.common.utils;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.security.SecureRandom;
 import java.util.Map;
 import java.util.Objects;
@@ -37,6 +40,26 @@ public class Utils {
             return Long.parseLong(Objects.requireNonNull(str(raw, key)));
         } catch (Exception e) {
             return 0L;
+        }
+    }
+
+    public static <T> T parseJson(ObjectMapper mapper, String json, Class<T> type) {
+        try {
+            return mapper.readValue(json, type);
+        } catch (JsonProcessingException e) {
+            return null;
+        }
+    }
+
+    public static <T> T parseJson(ObjectMapper mapper, Object json, Class<T> type) {
+        return parseJson(mapper, json.toString(), type);
+    }
+
+    public static String writeJson(ObjectMapper mapper, Object value) {
+        try {
+            return mapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize to JSON", e);
         }
     }
 }

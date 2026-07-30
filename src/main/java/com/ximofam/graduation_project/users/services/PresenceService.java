@@ -1,6 +1,6 @@
 package com.ximofam.graduation_project.users.services;
 
-import com.ximofam.graduation_project.common.events.UserWentOfflineEvent;
+import com.ximofam.graduation_project.common.helpers.dtos.events.UserWentOfflineEvent;
 import com.ximofam.graduation_project.common.utils.RedisKeys;
 import com.ximofam.graduation_project.users.enums.PresenceStatus;
 import com.ximofam.graduation_project.users.repositories.UserRepository;

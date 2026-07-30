@@ -2,8 +2,8 @@ package com.ximofam.graduation_project.chess.listeners;
 
 import com.ximofam.graduation_project.chess.enums.LeaveReason;
 import com.ximofam.graduation_project.chess.services.RoomService;
-import com.ximofam.graduation_project.common.events.UserWentOfflineEvent;
 import com.ximofam.graduation_project.common.exceptions.http.BaseHttpException;
+import com.ximofam.graduation_project.common.helpers.dtos.events.UserWentOfflineEvent;
 import com.ximofam.graduation_project.users.enums.PresenceStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

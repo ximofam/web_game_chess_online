@@ -2,9 +2,9 @@ package com.ximofam.graduation_project.forums.listeners;
 
 import com.ximofam.graduation_project.common.helpers.services.EventPublisher;
 import com.ximofam.graduation_project.common.utils.RoutingKeys;
+import com.ximofam.graduation_project.forums.dtos.events.PostModerationCompletedEvent;
+import com.ximofam.graduation_project.forums.dtos.events.PostModerationEvent;
 import com.ximofam.graduation_project.forums.enums.PostStatus;
-import com.ximofam.graduation_project.forums.events.PostModerationCompletedEvent;
-import com.ximofam.graduation_project.forums.events.PostModerationEvent;
 import com.ximofam.graduation_project.notifications.dtos.request.NotificationRequest;
 import com.ximofam.graduation_project.notifications.enums.NotificationType;
 import lombok.RequiredArgsConstructor;

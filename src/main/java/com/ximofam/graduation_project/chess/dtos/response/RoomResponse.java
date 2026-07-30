@@ -1,6 +1,6 @@
 package com.ximofam.graduation_project.chess.dtos.response;
 
-import com.ximofam.graduation_project.chess.models.RoomSettings;
+import com.ximofam.graduation_project.chess.dtos.models.RoomSettings;
 import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

@@ -1,16 +1,16 @@
 package com.ximofam.graduation_project.chess.services;
 
+import com.ximofam.graduation_project.chess.dtos.models.RoomSettings;
 import com.ximofam.graduation_project.chess.dtos.request.CreateRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.request.JoinRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.response.RoomResponse;
-import com.ximofam.graduation_project.chess.models.RoomSettings;
 import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
-import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
-import com.ximofam.graduation_project.users.services.UserService;
-import com.ximofam.graduation_project.common.ws.ChatMessagePayload;
-import com.ximofam.graduation_project.users.services.PresenceService;
+import com.ximofam.graduation_project.common.helpers.dtos.ws.ChatMessagePayload;
 import com.ximofam.graduation_project.common.utils.TopicUtils;
+import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
+import com.ximofam.graduation_project.users.services.PresenceService;
+import com.ximofam.graduation_project.users.services.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,7 +20,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.ListOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
@@ -34,27 +33,46 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class RoomServiceTest {
 
-    @Mock private StringRedisTemplate redisTemplate;
-    @Mock private UserService userService;
-    @Mock private SimpMessagingTemplate messagingTemplate;
-    @Mock private RedisScript<Long> createRoomScript;
-    @SuppressWarnings("rawtypes") @Mock private RedisScript searchLobbyScript;
-    @SuppressWarnings("rawtypes") @Mock private RedisScript joinRoomScript;
-    @SuppressWarnings("rawtypes") @Mock private RedisScript leaveRoomScript;
-    @SuppressWarnings("rawtypes") @Mock private RedisScript deleteRoomScript;
-    @Mock private PresenceService presenceService;
-    @Mock private HashOperations<String, Object, Object> hashOperations;
-    @Mock private ListOperations<String, String> listOperations;
+    @Mock
+    private StringRedisTemplate redisTemplate;
+    @Mock
+    private UserService userService;
+    @Mock
+    private SimpMessagingTemplate messagingTemplate;
+    @Mock
+    private RedisScript<Long> createRoomScript;
+    @SuppressWarnings("rawtypes")
+    @Mock
+    private RedisScript searchLobbyScript;
+    @SuppressWarnings("rawtypes")
+    @Mock
+    private RedisScript joinRoomScript;
+    @SuppressWarnings("rawtypes")
+    @Mock
+    private RedisScript leaveRoomScript;
+    @SuppressWarnings("rawtypes")
+    @Mock
+    private RedisScript deleteRoomScript;
+    @Mock
+    private PresenceService presenceService;
+    @Mock
+    private HashOperations<String, Object, Object> hashOperations;
+    @Mock
+    private ListOperations<String, String> listOperations;
+    @org.mockito.Spy
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+    private com.ximofam.graduation_project.chess.mappers.RoomMapper roomMapper;
 
     private RoomService roomService;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
+        roomMapper = spy(new com.ximofam.graduation_project.chess.mappers.RoomMapper(objectMapper));
         // Manual construction avoids Mockito generic-type confusion with multiple RedisScript fields
         roomService = new RoomService(redisTemplate, userService, messagingTemplate,
                 createRoomScript, searchLobbyScript, joinRoomScript, leaveRoomScript, deleteRoomScript,
-                presenceService);
+                presenceService, objectMapper, roomMapper);
     }
 
     // ── createRoom ───────────────────────────────────────────────────────────────

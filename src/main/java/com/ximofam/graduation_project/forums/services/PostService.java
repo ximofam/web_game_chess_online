@@ -8,6 +8,8 @@ import com.ximofam.graduation_project.common.exceptions.http.BadRequestException
 import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.common.utils.Utils;
+import com.ximofam.graduation_project.forums.dtos.events.PostModerationCompletedEvent;
+import com.ximofam.graduation_project.forums.dtos.events.PostModerationEvent;
 import com.ximofam.graduation_project.forums.dtos.request.CreatePostRequest;
 import com.ximofam.graduation_project.forums.dtos.response.PostDetailResponse;
 import com.ximofam.graduation_project.forums.dtos.response.PostResponse;
@@ -15,8 +17,6 @@ import com.ximofam.graduation_project.forums.dtos.response.PostSimpleResponse;
 import com.ximofam.graduation_project.forums.entities.Post;
 import com.ximofam.graduation_project.forums.entities.PostLike;
 import com.ximofam.graduation_project.forums.enums.PostStatus;
-import com.ximofam.graduation_project.forums.events.PostModerationCompletedEvent;
-import com.ximofam.graduation_project.forums.events.PostModerationEvent;
 import com.ximofam.graduation_project.forums.mappers.PostMapper;
 import com.ximofam.graduation_project.forums.repositories.PostImageRepository;
 import com.ximofam.graduation_project.forums.repositories.PostLikeRepository;

@@ -1,6 +1,5 @@
 package com.ximofam.graduation_project.chess.services;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ximofam.graduation_project.chess.dtos.request.CreateRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.request.JoinRoomRequest;
@@ -8,14 +7,14 @@ import com.ximofam.graduation_project.chess.dtos.response.RoomResponse;
 import com.ximofam.graduation_project.chess.enums.LeaveReason;
 import com.ximofam.graduation_project.chess.enums.PlayerRole;
 import com.ximofam.graduation_project.chess.enums.RoomStatus;
-import com.ximofam.graduation_project.chess.models.RoomSettings;
+import com.ximofam.graduation_project.chess.mappers.RoomMapper;
 import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
 import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
+import com.ximofam.graduation_project.common.helpers.dtos.ws.*;
 import com.ximofam.graduation_project.common.utils.RedisKeys;
 import com.ximofam.graduation_project.common.utils.TopicUtils;
 import com.ximofam.graduation_project.common.utils.Utils;
-import com.ximofam.graduation_project.common.ws.*;
 import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import com.ximofam.graduation_project.users.enums.PresenceStatus;
 import com.ximofam.graduation_project.users.services.PresenceService;
@@ -47,8 +46,9 @@ public class RoomService {
     private final RedisScript<List<Object>> leaveRoomScript;
     private final RedisScript<List<Object>> deleteRoomScript;
     private final PresenceService presenceService;
+    private final ObjectMapper objectMapper;
+    private final RoomMapper roomMapper;
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final int CHAT_HISTORY_SIZE = 10;
 
     public RoomResponse createRoom(String hostId, CreateRoomRequest request) {
@@ -56,15 +56,8 @@ public class RoomService {
         String roomKey = RedisKeys.roomInfo(roomId);
         String userPresenceKey = RedisKeys.presenceUser(hostId);
         long createdAt = Instant.now().toEpochMilli();
-
         UserSimpleResponse hostInfo = userService.getUserSimpleResponseById(Long.parseLong(hostId));
-
-        String settingsJson;
-        try {
-            settingsJson = objectMapper.writeValueAsString(request.getSettings());
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize room data", e);
-        }
+        String settingsJson = roomMapper.writeSettings(request.getSettings());
 
         redisTemplate.execute(
                 createRoomScript,
@@ -78,18 +71,17 @@ public class RoomService {
 
         RoomResponse roomData = new RoomResponse();
         roomData.setRoomId(roomId);
-        roomData.setHost(hostInfo);
         roomData.setName(request.getName());
-        roomData.setCreatedAt(createdAt);
-        roomData.setSettings(request.getSettings());
-        roomData.setWhite(hostInfo);
-        roomData.setBlack(null);
         roomData.setStatus(RoomStatus.WAITING.name());
         roomData.setHostId(hostId);
+        roomData.setHost(hostInfo);
+        roomData.setWhite(hostInfo);
+        roomData.setBlack(null);
         roomData.setSpectators(List.of());
+        roomData.setCreatedAt(createdAt);
+        roomData.setSettings(request.getSettings());
 
         messagingTemplate.convertAndSend(TopicUtils.LOBBIES, new WsEvent<>("ROOM_CREATED", roomData));
-
         return roomData;
     }
 
@@ -155,7 +147,7 @@ public class RoomService {
 
         List<RoomResponse> content = new ArrayList<>(rawByRoomId.size());
         for (Map.Entry<String, Map<Object, Object>> entry : rawByRoomId.entrySet()) {
-            content.add(buildRoomResponse(entry.getKey(), entry.getValue(), List.of(), hydratedUsers));
+            content.add(roomMapper.buildRoomResponse(entry.getKey(), entry.getValue(), List.of(), hydratedUsers));
         }
         return content;
     }
@@ -261,7 +253,7 @@ public class RoomService {
         Object settingsRaw = redisTemplate.opsForHash().get(RedisKeys.roomInfo(roomId), "settings");
         if (settingsRaw == null) throw new NotFoundException("Room not found");
 
-        if (parseSettings(settingsRaw).isChatLocked()) {
+        if (roomMapper.parseSettings(settingsRaw).isChatLocked()) {
             throw new ForbiddenException("Chat is locked in this room");
         }
 
@@ -269,12 +261,7 @@ public class RoomService {
         ChatMessagePayload payload = new ChatMessagePayload(sender, message, Instant.now().toEpochMilli());
 
         String chatKey = RedisKeys.roomChat(roomId);
-        try {
-            redisTemplate.opsForList().leftPush(chatKey, objectMapper.writeValueAsString(payload));
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize chat message", e);
-        }
-
+        redisTemplate.opsForList().leftPush(chatKey, Utils.writeJson(objectMapper, payload));
         redisTemplate.opsForList().trim(chatKey, 0, CHAT_HISTORY_SIZE - 1L);
 
         messagingTemplate.convertAndSend(TopicUtils.room(roomId), new WsEvent<>("CHAT_MESSAGE", payload));
@@ -285,13 +272,7 @@ public class RoomService {
         if (raw == null || raw.isEmpty()) return List.of();
 
         List<ChatMessagePayload> messages = raw.stream()
-                .map(json -> {
-                    try {
-                        return objectMapper.readValue(json, ChatMessagePayload.class);
-                    } catch (JsonProcessingException e) {
-                        return null;
-                    }
-                })
+                .map(json -> Utils.parseJson(objectMapper, json, ChatMessagePayload.class))
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
@@ -334,54 +315,11 @@ public class RoomService {
                 : userService.getUsersSimpleResponseByIds(userIdsToFetch);
 
         List<UserSimpleResponse> spectators = spectatorIds.stream()
-                .map(id -> {
-                    try {
-                        return users.get(Long.parseLong(id));
-                    } catch (Exception e) {
-                        return null;
-                    }
-                })
+                .map(id -> roomMapper.resolveUser(id, users))
                 .filter(Objects::nonNull)
                 .toList();
 
-        return buildRoomResponse(roomId, raw, spectators, users);
-    }
-
-    private RoomResponse buildRoomResponse(String roomId, Map<Object, Object> raw,
-                                           List<UserSimpleResponse> spectators,
-                                           Map<Long, UserSimpleResponse> users) {
-        String hostId = Utils.str(raw, PlayerRole.HOST.toValue());
-
-        RoomResponse response = new RoomResponse();
-        response.setRoomId(roomId);
-        response.setName(Utils.str(raw, "name"));
-        response.setStatus(Utils.str(raw, "status"));
-        response.setHostId(hostId);
-        response.setHost(resolveUser(hostId, users));
-        response.setWhite(resolveUser(Utils.str(raw, PlayerRole.WHITE.toValue()), users));
-        response.setBlack(resolveUser(Utils.str(raw, PlayerRole.BLACK.toValue()), users));
-        response.setSpectators(spectators);
-        response.setCreatedAt(Utils.parseLong(raw, "createdAt"));
-        response.setSettings(parseSettings(raw.get("settings")));
-        return response;
-    }
-
-    private static RoomSettings parseSettings(Object value) {
-        if (value == null) return new RoomSettings();
-        try {
-            return objectMapper.readValue(value.toString(), RoomSettings.class);
-        } catch (Exception e) {
-            return new RoomSettings();
-        }
-    }
-
-    private static UserSimpleResponse resolveUser(String id, Map<Long, UserSimpleResponse> users) {
-        if (id == null) return null;
-        try {
-            return users.get(Long.parseLong(id));
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        return roomMapper.buildRoomResponse(roomId, raw, spectators, users);
     }
 
     private static void collectParticipantIds(Map<Object, Object> raw, Set<Long> target) {

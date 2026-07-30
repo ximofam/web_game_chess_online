@@ -1,8 +1,8 @@
 package com.ximofam.graduation_project.forums.listeners;
 
+import com.ximofam.graduation_project.forums.dtos.events.PostModerationEvent;
 import com.ximofam.graduation_project.forums.dtos.response.ModerationResponse;
 import com.ximofam.graduation_project.forums.enums.PostStatus;
-import com.ximofam.graduation_project.forums.events.PostModerationEvent;
 import com.ximofam.graduation_project.forums.repositories.PostRepository;
 import com.ximofam.graduation_project.forums.repositories.projection.PostContentProjection;
 import com.ximofam.graduation_project.forums.services.PostService;

@@ -1,6 +1,6 @@
 package com.ximofam.graduation_project.auth.services;
 
-import com.ximofam.graduation_project.auth.RefreshSession;
+import com.ximofam.graduation_project.auth.dtos.models.RefreshSession;
 import com.ximofam.graduation_project.auth.dtos.response.TokenResponse;
 import com.ximofam.graduation_project.auth.enums.TokenType;
 import com.ximofam.graduation_project.common.exceptions.http.UnauthorizedException;

@@ -1,6 +1,6 @@
 package com.ximofam.graduation_project.chess.dtos.request;
 
-import com.ximofam.graduation_project.chess.models.RoomSettings;
+import com.ximofam.graduation_project.chess.dtos.models.RoomSettings;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
