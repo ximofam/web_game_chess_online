@@ -38,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -73,7 +74,7 @@ public class PostService {
     }
 
     @Transactional
-    public void updateModerationPost(Long postId, PostStatus status, String reason) {
+    public void updateModerationPost(UUID postId, PostStatus status, String reason) {
         PostModerationProjection post = postRepository.findModerationInfoById(postId)
                 .orElseThrow(() -> new NotFoundException("PostId %d không tồn tại", postId));
 
@@ -93,7 +94,7 @@ public class PostService {
     }
 
     @Transactional
-    public PostResponse viewPost(Long postId) {
+    public PostResponse viewPost(UUID postId) {
         PostViewProjection projection = postRepository.findPostViewProjectionById(postId)
                 .orElseThrow(() -> new NotFoundException("PostId %d không tồn tại hoặc chưa được duyệt", postId));
 
@@ -103,7 +104,7 @@ public class PostService {
         res.setLikeCount(projection.getLikeCount());
         res.setCommentCount(projection.getCommentCount());
 
-        Long currentUserId = userCurrentService.getCurrentUserIdOrNull();
+        UUID currentUserId = userCurrentService.getCurrentUserIdOrNull();
         if (currentUserId != null) {
             boolean liked = postLikeRepository.findByUserIdAndPostId(currentUserId, postId)
                     .map(PostLike::isActive)
@@ -115,7 +116,7 @@ public class PostService {
     }
 
     @Transactional
-    public void likePost(Long postId, boolean isLike) {
+    public void likePost(UUID postId, boolean isLike) {
         User currentUser = userCurrentService.getReferenceUser();
 
         if (!postRepository.existsByIdAndStatus(postId, PostStatus.APPROVED)) {
@@ -130,8 +131,8 @@ public class PostService {
                 });
     }
 
-    public PostDetailResponse getMyPost(Long postId) {
-        Long userId = userCurrentService.getCurrentUserIdOrNull();
+    public PostDetailResponse getMyPost(UUID postId) {
+        UUID userId = userCurrentService.getCurrentUserIdOrNull();
         if (userId == null) throw new BadRequestException("Bạn cần đăng nhập để xem bài viết của mình");
 
         PostViewProjection projection = postRepository.findMyPostById(postId, userId)
@@ -144,8 +145,8 @@ public class PostService {
     }
 
     @Transactional
-    public void deleteMyPost(Long postId) {
-        Long userId = userCurrentService.getCurrentUserId();
+    public void deleteMyPost(UUID postId) {
+        UUID userId = userCurrentService.getCurrentUserId();
 
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException("Bài viết không tồn tại"));
@@ -163,7 +164,7 @@ public class PostService {
         Pageable sorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), buildSort(sortBy));
 
         if (mine) {
-            Long userId = userCurrentService.getCurrentUserId();
+            UUID userId = userCurrentService.getCurrentUserId();
             projections = postRepository.findMyPosts(userId, status, sorted);
         } else if (search == null || search.isBlank()) {
             Pageable unsorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
@@ -174,10 +175,10 @@ public class PostService {
             projections = postRepository.searchApprovedPosts(search.strip(), sortBy, unsorted);
         }
 
-        Long currentUserId = userCurrentService.getCurrentUserIdOrNull();
-        Set<Long> likedPostIds;
+        UUID currentUserId = userCurrentService.getCurrentUserIdOrNull();
+        Set<UUID> likedPostIds;
         if (currentUserId != null) {
-            List<Long> postIds = projections.stream().map(PostSimpleProjection::getId).toList();
+            List<UUID> postIds = projections.stream().map(PostSimpleProjection::getId).toList();
             likedPostIds = postLikeRepository.findLikedPostIds(currentUserId, postIds);
         } else {
             likedPostIds = Set.of();

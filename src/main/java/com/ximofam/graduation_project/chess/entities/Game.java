@@ -18,10 +18,10 @@
 //public class Game extends BaseModel {
 //
 //    @Column(name = "white_id")
-//    private Long whiteId;
+//    private UUID whiteId;
 //
 //    @Column(name = "black_id")
-//    private Long blackId;
+//    private UUID blackId;
 //
 //    @Column(name = "pgn")
 //    private String pgn;

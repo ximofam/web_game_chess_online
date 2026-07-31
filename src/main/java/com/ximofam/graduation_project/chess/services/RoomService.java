@@ -8,10 +8,10 @@ import com.ximofam.graduation_project.chess.enums.LeaveReason;
 import com.ximofam.graduation_project.chess.enums.PlayerRole;
 import com.ximofam.graduation_project.chess.enums.RoomStatus;
 import com.ximofam.graduation_project.chess.mappers.RoomMapper;
-import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
 import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.common.helpers.dtos.ws.*;
+import com.ximofam.graduation_project.common.utils.LuaErrorHandler;
 import com.ximofam.graduation_project.common.utils.RedisKeys;
 import com.ximofam.graduation_project.common.utils.TopicUtils;
 import com.ximofam.graduation_project.common.utils.Utils;
@@ -42,7 +42,7 @@ public class RoomService {
     private final SimpMessagingTemplate messagingTemplate;
     private final RedisScript<Long> createRoomScript;
     private final RedisScript<List<Object>> searchLobbyScript;
-    private final RedisScript<List<Object>> joinRoomScript;
+    private final RedisScript<Long> joinRoomScript;
     private final RedisScript<List<Object>> leaveRoomScript;
     private final RedisScript<List<Object>> deleteRoomScript;
     private final PresenceService presenceService;
@@ -56,10 +56,10 @@ public class RoomService {
         String roomKey = RedisKeys.roomInfo(roomId);
         String userPresenceKey = RedisKeys.presenceUser(hostId);
         long createdAt = Instant.now().toEpochMilli();
-        UserSimpleResponse hostInfo = userService.getUserSimpleResponseById(Long.parseLong(hostId));
+        UserSimpleResponse hostInfo = userService.getUserSimpleResponseById(UUID.fromString(hostId));
         String settingsJson = roomMapper.writeSettings(request.getSettings());
 
-        redisTemplate.execute(
+        Long result = redisTemplate.execute(
                 createRoomScript,
                 List.of(roomKey, RedisKeys.LOBBY_INDEX, userPresenceKey),
                 hostId,
@@ -68,6 +68,11 @@ public class RoomService {
                 roomId,
                 request.getName()
         );
+
+        if (result == null) throw new NotFoundException("Lua script returned null");
+
+        int luaCode = result.intValue();
+        LuaErrorHandler.handle(luaCode);
 
         RoomResponse roomData = new RoomResponse();
         roomData.setRoomId(roomId);
@@ -132,7 +137,7 @@ public class RoomService {
         });
 
         Map<String, Map<Object, Object>> rawByRoomId = new LinkedHashMap<>();
-        Set<Long> userIdsToFetch = new HashSet<>();
+        Set<UUID> userIdsToFetch = new HashSet<>();
         for (int i = 0; i < roomIds.size(); i++) {
             Map<Object, Object> raw = (Map<Object, Object>) pipelinedResults.get(i);
             if (raw == null || raw.isEmpty()) continue;
@@ -141,7 +146,7 @@ public class RoomService {
             collectParticipantIds(raw, userIdsToFetch);
         }
 
-        Map<Long, UserSimpleResponse> hydratedUsers = userIdsToFetch.isEmpty()
+        Map<UUID, UserSimpleResponse> hydratedUsers = userIdsToFetch.isEmpty()
                 ? Collections.emptyMap()
                 : userService.getUsersSimpleResponseByIds(userIdsToFetch);
 
@@ -171,7 +176,7 @@ public class RoomService {
         String role = request.getRole();
         long now = Instant.now().toEpochMilli();
 
-        List<Object> result = redisTemplate.execute(
+        Long result = redisTemplate.execute(
                 joinRoomScript,
                 List.of(RedisKeys.roomInfo(roomId), RedisKeys.presenceUser(userId), RedisKeys.roomSpectators(roomId)),
                 userId, roomId, role, String.valueOf(now)
@@ -179,17 +184,10 @@ public class RoomService {
 
         if (result == null) throw new NotFoundException("Lua script returned null");
 
-        switch (((Number) result.getFirst()).intValue()) { // NOSONAR java:S131
-            case -1 -> throw new NotFoundException("Room not found.");
-            case -2 -> throw new BadRequestException("Room is not accepting players.");
-            case -3 -> throw new BadRequestException("You are already seated in this room.");
-            case -4 -> throw new BadRequestException("The " + role + " seat is already taken.");
-            case -5 -> throw new ForbiddenException("Spectators are not allowed in this room.");
-            case -6 -> throw new BadRequestException("Invalid role.");
-            case -7 -> throw new ForbiddenException("This room is private.");
-        }
+        int luaCode = result.intValue();
+        LuaErrorHandler.handle(luaCode, role);
 
-        UserSimpleResponse userInfo = userService.getUserSimpleResponseById(Long.parseLong(userId));
+        UserSimpleResponse userInfo = userService.getUserSimpleResponseById(UUID.fromString(userId));
         messagingTemplate.convertAndSend(TopicUtils.room(roomId),
                 new WsEvent<>("PLAYER_JOINED", new PlayerJoinedPayload(role, userInfo)));
 
@@ -207,15 +205,11 @@ public class RoomService {
 
         if (result == null) throw new NotFoundException("Lua script returned null");
 
-        long code = (Long) result.getFirst();
-        String reason = (String) result.get(1);
-        String role = (String) result.get(2);
+        long code = ((Number) result.get(0)).longValue();
+        LuaErrorHandler.handle((int) code);
 
-        switch ((int) code) { // NOSONAR java:S131
-            case -1 -> throw new NotFoundException("Room not found");
-            case -2 -> throw new BadRequestException("Room is not accepting leave requests (not WAITING)");
-            case -3 -> throw new ForbiddenException("You are not in this room");
-        }
+        String reason = (String) result.get(1);
+        String role = result.size() > 2 ? (String) result.get(2) : null;
 
         if (leaveReason.equals(LeaveReason.USER_LEAVE)) {
             presenceService.setPresenceStatus(userId, PresenceStatus.ONLINE, "is_host", "roomId", "role");
@@ -257,7 +251,7 @@ public class RoomService {
             throw new ForbiddenException("Chat is locked in this room");
         }
 
-        UserSimpleResponse sender = userService.getUserSimpleResponseById(Long.parseLong(userId));
+        UserSimpleResponse sender = userService.getUserSimpleResponseById(UUID.fromString(userId));
         ChatMessagePayload payload = new ChatMessagePayload(sender, message, Instant.now().toEpochMilli());
 
         String chatKey = RedisKeys.roomChat(roomId);
@@ -301,16 +295,16 @@ public class RoomService {
         Set<String> spectatorIdsStr = redisTemplate.opsForZSet().reverseRange(RedisKeys.roomSpectators(roomId), 0, -1);
         List<String> spectatorIds = spectatorIdsStr != null ? new ArrayList<>(spectatorIdsStr) : List.of();
 
-        Set<Long> userIdsToFetch = new HashSet<>();
+        Set<UUID> userIdsToFetch = new HashSet<>();
         collectParticipantIds(raw, userIdsToFetch);
         for (String spId : spectatorIds) {
             try {
-                userIdsToFetch.add(Long.parseLong(spId));
-            } catch (NumberFormatException ignored) { // NOSONAR java:S108
+                userIdsToFetch.add(UUID.fromString(spId));
+            } catch (IllegalArgumentException ignored) { // NOSONAR java:S108
             }
         }
 
-        Map<Long, UserSimpleResponse> users = userIdsToFetch.isEmpty()
+        Map<UUID, UserSimpleResponse> users = userIdsToFetch.isEmpty()
                 ? Collections.emptyMap()
                 : userService.getUsersSimpleResponseByIds(userIdsToFetch);
 
@@ -322,13 +316,13 @@ public class RoomService {
         return roomMapper.buildRoomResponse(roomId, raw, spectators, users);
     }
 
-    private static void collectParticipantIds(Map<Object, Object> raw, Set<Long> target) {
+    private static void collectParticipantIds(Map<Object, Object> raw, Set<UUID> target) {
         for (String role : new String[]{"host", "white", "black"}) {
             String id = Utils.str(raw, role);
             if (id != null) {
                 try {
-                    target.add(Long.parseLong(id));
-                } catch (NumberFormatException ignored) { // NOSONAR java:S108
+                    target.add(UUID.fromString(id));
+                } catch (IllegalArgumentException ignored) { // NOSONAR java:S108
                 }
             }
         }

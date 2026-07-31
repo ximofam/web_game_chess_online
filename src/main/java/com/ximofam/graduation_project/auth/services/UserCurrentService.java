@@ -11,6 +11,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.annotation.RequestScope;
 
+import java.util.UUID;
+
 @Service
 @RequestScope
 @RequiredArgsConstructor
@@ -19,22 +21,22 @@ public class UserCurrentService {
     private final UserRepository userRepository;
     private User cachedUser;
 
-    public Long getCurrentUserId() {
+    public UUID getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken) {
             throw new UnauthorizedException("User not authenticated");
         }
 
-        return (Long) auth.getPrincipal();
+        return (UUID) auth.getPrincipal();
     }
 
-    public Long getCurrentUserIdOrNull() {
+    public UUID getCurrentUserIdOrNull() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken) {
             return null;
         }
 
-        return (Long) auth.getPrincipal();
+        return (UUID) auth.getPrincipal();
     }
 
     public User getCurrentUser() {

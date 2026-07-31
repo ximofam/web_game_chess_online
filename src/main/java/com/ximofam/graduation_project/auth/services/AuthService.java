@@ -23,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Objects;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -41,7 +42,7 @@ public class AuthService {
         CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
 
         return tokenService.generateTokens(
-                Objects.requireNonNull(customUserDetails).getUserId(),
+                Objects.requireNonNull(customUserDetails).getUserId().toString(),
                 customUserDetails.getUserRole().name());
     }
 
@@ -64,14 +65,14 @@ public class AuthService {
 
     public String registerGuest() {
         User guest = createGuestUser();
-        return tokenService.generateGuestToken(guest.getId());
+        return tokenService.generateGuestToken(guest.getId().toString());
     }
 
     public TokenResponse loginGuest(String guestToken) {
         Claims claims = tokenService.verifyAndParseToken(guestToken, TokenType.GUEST);
 
-        Long guestId = tokenService.extractUserId(claims);
-        User guest = userRepository.findById(guestId)
+        String guestId = tokenService.extractUserId(claims);
+        User guest = userRepository.findById(UUID.fromString(guestId))
                 .orElseThrow(() -> new UnauthorizedException(
                         "Không thể xác thực tài khoản khách vào lúc này, vui lòng thử lại sau."));
 
@@ -80,7 +81,7 @@ public class AuthService {
                     "Tài khoản này đã được nâng cấp lên tài khoản người dùng, vui lòng đăng nhập bằng tài khoản của bạn.");
         }
 
-        return tokenService.generateTokens(guest.getId(), guest.getRole().name());
+        return tokenService.generateTokens(guest.getId().toString(), guest.getRole().name());
     }
 
     private User createGuestUser() {

@@ -1,5 +1,7 @@
 package com.ximofam.graduation_project.notifications.dtos.request;
 
+import java.util.UUID;
+
 import com.ximofam.graduation_project.notifications.enums.NotificationType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,8 +15,8 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NotificationRequest {
-    private Long recipientId;
-    private Long senderId;
+    private UUID recipientId;
+    private UUID senderId;
     private NotificationType type;
     private String title;
     private String message;

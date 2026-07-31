@@ -1,5 +1,7 @@
 package com.ximofam.graduation_project.forums.dtos.response;
 
+import java.util.UUID;
+
 import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import lombok.Getter;
 import lombok.Setter;
@@ -9,9 +11,9 @@ import java.time.Instant;
 @Getter
 @Setter
 public class CommentResponse {
-    private Long id;
+    private UUID id;
     private String content;
-    private Long parentId;
+    private UUID parentId;
     private int replyCount;
     private int likeCount;
     private Instant createdAt;

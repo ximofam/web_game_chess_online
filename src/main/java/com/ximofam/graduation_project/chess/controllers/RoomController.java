@@ -6,7 +6,6 @@ import com.ximofam.graduation_project.chess.dtos.request.JoinRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.response.RoomResponse;
 import com.ximofam.graduation_project.chess.enums.LeaveReason;
 import com.ximofam.graduation_project.chess.services.RoomService;
-import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
 import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.common.helpers.dtos.ws.ChatMessagePayload;
@@ -24,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/rooms")
@@ -35,41 +35,26 @@ public class RoomController {
 
     @PostMapping
     public ResponseEntity<RoomResponse> createRoom(
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal UUID userId,
             @RequestBody @Valid CreateRoomRequest request) {
 
         String userIdStr = userId.toString();
-        if (!presenceService.isOnline(userIdStr)) {
-            throw new ForbiddenException("You must be online to create a room.");
-        }
-
-        if (presenceService.isInRoom(userIdStr)) {
-            throw new BadRequestException("You are already in a room.");
-        }
-
         return ResponseEntity.ok(roomService.createRoom(userIdStr, request));
     }
 
     @PostMapping("/{roomId}/join")
     public ResponseEntity<RoomResponse> joinRoom(
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal UUID userId,
             @PathVariable String roomId,
             @RequestBody(required = false) @Valid JoinRoomRequest request) {
 
         String userIdStr = userId.toString();
-        if (!presenceService.isOnline(userIdStr)) {
-            throw new ForbiddenException("You must be online to join a room.");
-        }
-        if (presenceService.isInRoom(userIdStr)) {
-            throw new BadRequestException("You are already in a room.");
-        }
-
-        if (request == null) request = new JoinRoomRequest(); // default role = black
+        if (request == null) request = new JoinRoomRequest();
         return ResponseEntity.ok(roomService.joinRoom(roomId, userIdStr, request));
     }
 
     @PostMapping("/{roomId}/leave")
-    public ResponseEntity<Void> leaveRoom(@AuthenticationPrincipal Long userId,
+    public ResponseEntity<Void> leaveRoom(@AuthenticationPrincipal UUID userId,
                                           @PathVariable String roomId) {
 
         String userIdStr = userId.toString();
@@ -92,7 +77,7 @@ public class RoomController {
 
     @GetMapping("/{roomId}")
     public ResponseEntity<RoomResponse> getRoomDetails(
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal UUID userId,
             @PathVariable String roomId) {
 
         RoomResponse room = roomService.getRoomDetails(roomId);

@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -74,7 +75,7 @@ public class CommentService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CommentResponse> getComments(Long postId, String sortBy, Pageable pageable) {
+    public Page<CommentResponse> getComments(UUID postId, String sortBy, Pageable pageable) {
         if (!postRepository.existsByIdAndStatus(postId, PostStatus.APPROVED)) {
             throw new NotFoundException("PostId %d không tồn tại hoặc chưa được duyệt", postId);
         }
@@ -88,7 +89,7 @@ public class CommentService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CommentResponse> getReplyComments(Long commentId, String sortBy, Pageable pageable) {
+    public Page<CommentResponse> getReplyComments(UUID commentId, String sortBy, Pageable pageable) {
         if (!commentRepository.existsById(commentId)) {
             throw new NotFoundException("CommentId %d không tồn tại", commentId);
         }
@@ -117,10 +118,10 @@ public class CommentService {
         List<Comment> commentEntities = comments.stream()
                 .map(CommentWithLikeCountProjection::getComment)
                 .toList();
-        Map<Long, Integer> replyCounts = getReplyCounts(commentEntities);
+        Map<UUID, Integer> replyCounts = getReplyCounts(commentEntities);
 
-        Long currentUserId = userCurrentService.getCurrentUserIdOrNull();
-        Set<Long> likedCommentIds;
+        UUID currentUserId = userCurrentService.getCurrentUserIdOrNull();
+        Set<UUID> likedCommentIds;
         if (currentUserId != null) {
             likedCommentIds = commentLikeRepository.findLikedCommentIdsByUserId(
                     currentUserId,
@@ -140,7 +141,7 @@ public class CommentService {
         });
     }
 
-    private Map<Long, Integer> getReplyCounts(List<Comment> comments) {
+    private Map<UUID, Integer> getReplyCounts(List<Comment> comments) {
         if (comments.isEmpty()) {
             return Map.of();
         }
@@ -156,7 +157,7 @@ public class CommentService {
     }
 
     @Transactional
-    public void likeComment(Long commentId, boolean isLike) {
+    public void likeComment(UUID commentId, boolean isLike) {
         User currentUser = userCurrentService.getReferenceUser();
 
         if (!commentRepository.existsById(commentId)) {

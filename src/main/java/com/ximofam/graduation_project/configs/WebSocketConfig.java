@@ -27,6 +27,8 @@ import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 
+import java.util.UUID;
+
 @Configuration
 @EnableWebSocketMessageBroker
 @RequiredArgsConstructor
@@ -103,11 +105,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     String token = authHeader.substring(7);
                     try {
                         Claims claims = jwtService.verifyAndParseToken(token, TokenType.ACCESS);
-                        Long userId = jwtService.extractUserId(claims);
+                        String userId = jwtService.extractUserId(claims);
                         String role = jwtService.extractRole(claims);
                         UserRole userRole = UserRole.valueOf(role);
 
-                        accessor.setUser(new UsernamePasswordAuthenticationToken(userId, null, userRole.getAuthorities()));
+                        accessor.setUser(new UsernamePasswordAuthenticationToken(UUID.fromString(userId), null, userRole.getAuthorities()));
                     } catch (JwtException e) {
                         throw new MessageDeliveryException("Invalid JWT token");
                     }

@@ -1,5 +1,7 @@
 package com.ximofam.graduation_project.forums.controllers;
 
+import java.util.UUID;
+
 import com.ximofam.graduation_project.common.helpers.dtos.ApiResponse;
 import com.ximofam.graduation_project.forums.dtos.request.CreateCommentRequest;
 import com.ximofam.graduation_project.forums.dtos.response.CommentResponse;
@@ -21,7 +23,7 @@ public class ApiCommentController {
 
     @GetMapping("/{id}/replies")
     public ResponseEntity<Page<CommentResponse>> getReplies(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @PageableDefault(size = 10) Pageable pageable) {
 
@@ -37,7 +39,7 @@ public class ApiCommentController {
     @PreAuthorize("!hasRole('GUEST')")
     @PostMapping("/{commentId}/likes")
     public ResponseEntity<ApiResponse> likeComment(
-            @PathVariable Long commentId,
+            @PathVariable UUID commentId,
             @RequestParam(defaultValue = "true") boolean isLike) {
 
         commentService.likeComment(commentId, isLike);

@@ -1,5 +1,7 @@
 package com.ximofam.graduation_project.forums.dtos.events;
 
+import java.util.UUID;
+
 import com.ximofam.graduation_project.forums.enums.PostStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -7,7 +9,7 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class PostModerationCompletedEvent {
-    private Long recipientId;
+    private UUID recipientId;
     private String postTitle;
     private PostStatus status;
     private String reason;

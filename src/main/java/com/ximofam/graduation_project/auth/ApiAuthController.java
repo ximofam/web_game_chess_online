@@ -70,7 +70,7 @@ public class ApiAuthController {
 
         Claims claims = tokenService.verifyAndParseToken(guestToken, TokenType.GUEST);
 
-        Long guestId = tokenService.extractUserId(claims);
+        String guestId = tokenService.extractUserId(claims);
         String newGuestToken = tokenService.generateGuestToken(guestId);
         cookieUtils.addCookie(response, GUEST_COOKIE_NAME, newGuestToken, Duration.ofDays(guestMaxAgeDays));
 

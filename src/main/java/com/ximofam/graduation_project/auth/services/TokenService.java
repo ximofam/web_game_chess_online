@@ -41,9 +41,9 @@ public class TokenService {
         this.signingKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey));
     }
 
-    public String generateAccessToken(Long userId, String role) {
+    public String generateAccessToken(String userId, String role) {
         return Jwts.builder()
-                .subject(String.valueOf(userId))
+                .subject(userId)
                 .claim("role", role)
                 .claim("type", TokenType.ACCESS.toValue())
                 .issuedAt(new Date())
@@ -53,7 +53,7 @@ public class TokenService {
     }
 
 
-    public String generateRefreshToken(Long userId, String role) {
+    public String generateRefreshToken(String userId, String role) {
         String jti = UUID.randomUUID().toString();
         RefreshSession session = new RefreshSession();
         session.setUserId(userId);
@@ -72,11 +72,11 @@ public class TokenService {
                 .compact();
     }
 
-    public String generateGuestToken(Long guestId) {
+    public String generateGuestToken(String guestId) {
         long daysInMillis = guestMaxAgeDays * 24L * 60L * 60L * 1000L;
 
         return Jwts.builder()
-                .subject(String.valueOf(guestId))
+                .subject(guestId)
                 .claim("type", TokenType.GUEST.toValue())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + daysInMillis))
@@ -122,15 +122,15 @@ public class TokenService {
         redisTemplate.delete(buildRefreshTokenKey(jti));
     }
 
-    public TokenResponse generateTokens(Long userId, String userRole) {
+    public TokenResponse generateTokens(String userId, String userRole) {
         String accessToken = generateAccessToken(userId, userRole);
         String refreshToken = generateRefreshToken(userId, userRole);
 
         return new TokenResponse(accessToken, refreshToken);
     }
 
-    public Long extractUserId(Claims claims) {
-        return Long.parseLong(claims.getSubject());
+    public String extractUserId(Claims claims) {
+        return claims.getSubject();
     }
 
     public String extractRole(Claims claims) {

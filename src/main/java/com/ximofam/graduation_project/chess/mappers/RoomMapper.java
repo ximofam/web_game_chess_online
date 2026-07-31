@@ -9,6 +9,7 @@ import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
 import java.util.List;
 import java.util.Map;
 
@@ -27,7 +28,7 @@ public class RoomMapper {
 
     public RoomResponse buildRoomResponse(String roomId, Map<Object, Object> raw,
                                           List<UserSimpleResponse> spectators,
-                                          Map<Long, UserSimpleResponse> users) {
+                                          Map<UUID, UserSimpleResponse> users) {
         String hostId = Utils.str(raw, PlayerRole.HOST.toValue());
 
         RoomResponse response = new RoomResponse();
@@ -44,11 +45,11 @@ public class RoomMapper {
         return response;
     }
 
-    public UserSimpleResponse resolveUser(String id, Map<Long, UserSimpleResponse> users) {
+    public UserSimpleResponse resolveUser(String id, Map<UUID, UserSimpleResponse> users) {
         if (id == null) return null;
         try {
-            return users.get(Long.parseLong(id));
-        } catch (NumberFormatException e) {
+            return users.get(UUID.fromString(id));
+        } catch (IllegalArgumentException e) { // NOSONAR java:S108
             return null;
         }
     }

@@ -7,11 +7,12 @@ import org.springframework.security.core.userdetails.User;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 
 
 @Getter
 public class CustomUserDetails extends User {
-    private final Long userId;
+    private final UUID userId;
     private final UserRole userRole;
 
     private CustomUserDetails(Builder builder) {
@@ -38,7 +39,7 @@ public class CustomUserDetails extends User {
         private final String password;
 
         // optional — default an toàn
-        private Long userId;
+        private UUID userId;
         private UserRole userRole;
         private boolean enabled = true;
         private boolean accountNonExpired = true;
@@ -51,7 +52,7 @@ public class CustomUserDetails extends User {
             this.password = password;
         }
 
-        public Builder userId(Long userId) {
+        public Builder userId(UUID userId) {
             this.userId = userId;
             return this;
         }

@@ -1,13 +1,15 @@
 package com.ximofam.graduation_project.forums.repositories.projection;
 
+import java.util.UUID;
+
 import com.ximofam.graduation_project.forums.enums.PostStatus;
 
 public interface PostModerationProjection {
-    Long getId();
+    UUID getId();
 
     String getTitle();
 
-    Long getAuthorId();
+    UUID getAuthorId();
 
     PostStatus getStatus();
 }

@@ -14,9 +14,10 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface UserRepository extends JpaRepository<User, UUID> {
     boolean existsByUsername(String username);
 
     boolean existsByEmail(String email);
@@ -26,15 +27,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
 
     @Query("SELECT u.id AS id, u.username AS username, u.profile.avatarUrl AS avatarUrl FROM User u WHERE u.id = :id")
-    Optional<UserSimpleProjection> findSimpleById(@Param("id") Long id);
+    Optional<UserSimpleProjection> findSimpleById(@Param("id") UUID id);
 
     @Query("SELECT u.id AS id, u.username AS username, u.profile.avatarUrl AS avatarUrl FROM User u WHERE u.id IN :ids")
-    List<UserSimpleProjection> findSimpleByIdIn(@Param("ids") Collection<Long> ids);
+    List<UserSimpleProjection> findSimpleByIdIn(@Param("ids") Collection<UUID> ids);
 
     @Modifying
     @Transactional
     @Query("UPDATE User u SET u.lastSeen = :lastSeen WHERE u.id = :userId")
-    int updateLastSeen(@Param("userId") Long userId, @Param("lastSeen") Instant lastSeen);
+    int updateLastSeen(@Param("userId") UUID userId, @Param("lastSeen") Instant lastSeen);
 
     @Modifying
     @Transactional

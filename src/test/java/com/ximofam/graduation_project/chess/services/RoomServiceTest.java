@@ -36,23 +36,20 @@ class RoomServiceTest {
     @Mock
     private StringRedisTemplate redisTemplate;
     @Mock
-    private UserService userService;
-    @Mock
-    private SimpMessagingTemplate messagingTemplate;
-    @Mock
     private RedisScript<Long> createRoomScript;
-    @SuppressWarnings("rawtypes")
     @Mock
-    private RedisScript searchLobbyScript;
-    @SuppressWarnings("rawtypes")
+    private RedisScript<List<Object>> searchLobbyScript;
     @Mock
-    private RedisScript joinRoomScript;
-    @SuppressWarnings("rawtypes")
+    private RedisScript<Long> joinRoomScript;
     @Mock
-    private RedisScript leaveRoomScript;
+    private RedisScript<Object> leaveRoomScript;
     @SuppressWarnings("rawtypes")
     @Mock
     private RedisScript deleteRoomScript;
+    @Mock
+    private UserService userService;
+    @Mock
+    private SimpMessagingTemplate messagingTemplate;
     @Mock
     private PresenceService presenceService;
     @Mock
@@ -73,6 +70,9 @@ class RoomServiceTest {
         roomService = new RoomService(redisTemplate, userService, messagingTemplate,
                 createRoomScript, searchLobbyScript, joinRoomScript, leaveRoomScript, deleteRoomScript,
                 presenceService, objectMapper, roomMapper);
+
+        lenient().when(redisTemplate.execute(eq(createRoomScript), anyList(), any(), any(), any(), any(), any()))
+                .thenReturn(1L);
     }
 
     // ── createRoom ───────────────────────────────────────────────────────────────
@@ -80,13 +80,13 @@ class RoomServiceTest {
     @Test
     void createRoom_ShouldReturnRoomResponseAndBroadcastToLobby() {
         UserSimpleResponse host = new UserSimpleResponse();
-        when(userService.getUserSimpleResponseById(1L)).thenReturn(host);
+        when(userService.getUserSimpleResponseById(java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"))).thenReturn(host);
 
         CreateRoomRequest req = new CreateRoomRequest();
         req.setName("Test Room");
         req.setSettings(new RoomSettings());
 
-        RoomResponse result = roomService.createRoom("1", req);
+        RoomResponse result = roomService.createRoom("00000000-0000-0000-0000-000000000001", req);
 
         assertThat(result).isNotNull();
         assertThat(result.getName()).isEqualTo("Test Room");
@@ -100,13 +100,13 @@ class RoomServiceTest {
     @Test
     @SuppressWarnings("unchecked")
     void createRoom_ShouldPassCorrectRedisKeys() {
-        when(userService.getUserSimpleResponseById(2L)).thenReturn(new UserSimpleResponse());
+        when(userService.getUserSimpleResponseById(java.util.UUID.fromString("00000000-0000-0000-0000-000000000002"))).thenReturn(new UserSimpleResponse());
 
         CreateRoomRequest req = new CreateRoomRequest();
         req.setName("Key Check");
         req.setSettings(new RoomSettings());
 
-        RoomResponse result = roomService.createRoom("2", req);
+        RoomResponse result = roomService.createRoom("00000000-0000-0000-0000-000000000002", req);
 
         ArgumentCaptor<List<String>> keysCaptor = ArgumentCaptor.forClass(List.class);
         verify(redisTemplate).execute(eq(createRoomScript), keysCaptor.capture(), any(), any(), any(), any(), any());
@@ -115,7 +115,7 @@ class RoomServiceTest {
         assertThat(keys).hasSize(3);
         assertThat(keys.get(0)).isEqualTo("room:" + result.getRoomId());
         assertThat(keys.get(1)).isEqualTo("room:idx:lobby");
-        assertThat(keys.get(2)).isEqualTo("user:2:presence");
+        assertThat(keys.get(2)).isEqualTo("user:00000000-0000-0000-0000-000000000002:presence");
     }
 
     // ── leaveRoom ────────────────────────────────────────────────────────────────
@@ -124,13 +124,13 @@ class RoomServiceTest {
     @SuppressWarnings("unchecked")
     void leaveRoom_HostLeft_ShouldResetOthersPresenceAndBroadcastRoomDeleted() {
         when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
-                .thenReturn(List.of(0L, "HOST_LEFT", "white"));
+                .thenReturn(List.of(1L, "HOST_LEFT", "host"));
         when(redisTemplate.execute(eq(deleteRoomScript), anyList(), any()))
-                .thenReturn(List.of("1", "42")); // 1 is host, 42 is another player
+                .thenReturn(List.of("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000042")); // 1 is host, 42 is another player
 
-        roomService.leaveRoom("room1", "1", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE);
+        roomService.leaveRoom("room1", "00000000-0000-0000-0000-000000000001", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE);
 
-        // presence reset for "1" (from USER_LEAVE) and then "1" and "42" (from delRoomRes loop)
+        // presence reset for "00000000-0000-0000-0000-000000000001" (from USER_LEAVE) and then "00000000-0000-0000-0000-000000000001" and "00000000-0000-0000-0000-000000000042" (from delRoomRes loop)
         verify(presenceService, times(3)).setPresenceStatus(anyString(), eq(com.ximofam.graduation_project.users.enums.PresenceStatus.ONLINE), eq("is_host"), eq("roomId"), eq("role"));
         verify(messagingTemplate).convertAndSend(eq("/topic/lobbies"), (Object) any());
         verify(messagingTemplate).convertAndSend(eq(TopicUtils.room("room1")), (Object) any());
@@ -140,7 +140,7 @@ class RoomServiceTest {
     @SuppressWarnings("unchecked")
     void leaveRoom_PlayerLeft_ShouldResetPresenceAndBroadcastPlayerLeftAndRoomUpdated() {
         when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
-                .thenReturn(List.of(0L, "PLAYER_LEFT", "black"));
+                .thenReturn(List.of(1L, "PLAYER_LEFT", "black"));
 
         roomService.leaveRoom("room1", "99", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE);
 
@@ -153,7 +153,7 @@ class RoomServiceTest {
     @SuppressWarnings("unchecked")
     void leaveRoom_SpectatorLeft_ShouldOnlyBroadcastPlayerLeft() {
         when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
-                .thenReturn(List.of(0L, "SPECTATOR_LEFT", "spectator"));
+                .thenReturn(List.of(1L, "SPECTATOR_LEFT", "spectator"));
 
         roomService.leaveRoom("room1", "5", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE);
 
@@ -166,9 +166,9 @@ class RoomServiceTest {
     @SuppressWarnings("unchecked")
     void leaveRoom_RoomNotFound_ShouldThrowNotFoundException() {
         when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
-                .thenReturn(java.util.Arrays.asList(-1L, null, null));
+                .thenReturn(-1L);
 
-        assertThatThrownBy(() -> roomService.leaveRoom("room1", "1", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE))
+        assertThatThrownBy(() -> roomService.leaveRoom("room1", "00000000-0000-0000-0000-000000000001", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -176,9 +176,9 @@ class RoomServiceTest {
     @SuppressWarnings("unchecked")
     void leaveRoom_UserNotInRoom_ShouldThrowForbiddenException() {
         when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
-                .thenReturn(java.util.Arrays.asList(-3L, null, null));
+                .thenReturn(-10L);
 
-        assertThatThrownBy(() -> roomService.leaveRoom("room1", "1", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE))
+        assertThatThrownBy(() -> roomService.leaveRoom("room1", "00000000-0000-0000-0000-000000000001", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE))
                 .isInstanceOf(ForbiddenException.class);
     }
 
@@ -188,12 +188,12 @@ class RoomServiceTest {
     @SuppressWarnings("unchecked")
     void joinRoom_InvalidRole_ShouldThrowBadRequest() {
         when(redisTemplate.execute(eq(joinRoomScript), anyList(), any(), any(), any(), any()))
-                .thenReturn(List.of(-6L));
+                .thenReturn(-6L);
 
         JoinRoomRequest req = new JoinRoomRequest();
         req.setRole("invalid");
 
-        assertThatThrownBy(() -> roomService.joinRoom("room1", "1", req))
+        assertThatThrownBy(() -> roomService.joinRoom("room1", "00000000-0000-0000-0000-000000000001", req))
                 .isInstanceOf(com.ximofam.graduation_project.common.exceptions.http.BadRequestException.class)
                 .hasMessageContaining("Invalid role");
     }
@@ -213,7 +213,7 @@ class RoomServiceTest {
     void isMember_WhenUserNotPresent_ShouldReturnFalse() {
         when(redisTemplate.opsForHash()).thenReturn(hashOperations);
         when(hashOperations.multiGet(eq("room:room1"), anyList()))
-                .thenReturn(List.of("1", "2", "3"));
+                .thenReturn(List.of("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002", "00000000-0000-0000-0000-000000000003"));
 
         assertThat(roomService.isMember("room1", "99")).isFalse();
     }
@@ -225,7 +225,7 @@ class RoomServiceTest {
         when(redisTemplate.opsForHash()).thenReturn(hashOperations);
         when(hashOperations.get("room:room1", "settings")).thenReturn(null);
 
-        assertThatThrownBy(() -> roomService.sendChatMessage("room1", "1", "hi"))
+        assertThatThrownBy(() -> roomService.sendChatMessage("room1", "00000000-0000-0000-0000-000000000001", "hi"))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -234,7 +234,7 @@ class RoomServiceTest {
         when(redisTemplate.opsForHash()).thenReturn(hashOperations);
         when(hashOperations.get("room:room1", "settings")).thenReturn("{\"chatLocked\":true}");
 
-        assertThatThrownBy(() -> roomService.sendChatMessage("room1", "1", "hi"))
+        assertThatThrownBy(() -> roomService.sendChatMessage("room1", "00000000-0000-0000-0000-000000000001", "hi"))
                 .isInstanceOf(ForbiddenException.class);
     }
 
@@ -245,11 +245,11 @@ class RoomServiceTest {
         when(redisTemplate.opsForList()).thenReturn(listOperations);
 
         UserSimpleResponse sender = new UserSimpleResponse();
-        sender.setId(1L);
+        sender.setId(java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"));
         sender.setUsername("alice");
-        when(userService.getUserSimpleResponseById(1L)).thenReturn(sender);
+        when(userService.getUserSimpleResponseById(java.util.UUID.fromString("00000000-0000-0000-0000-000000000001"))).thenReturn(sender);
 
-        roomService.sendChatMessage("room1", "1", "hello");
+        roomService.sendChatMessage("room1", "00000000-0000-0000-0000-000000000001", "hello");
 
         verify(listOperations).leftPush(eq("room:room1:chat"), anyString());
         verify(listOperations).trim("room:room1:chat", 0, 9);
@@ -269,8 +269,8 @@ class RoomServiceTest {
     @Test
     void getChatHistory_ShouldReturnChronologicalOrder() {
         // Redis list: newest first (leftPush order) → [msg2_json, msg1_json]
-        String msg1 = "{\"sender\":{\"id\":1,\"username\":\"a\",\"avatarUrl\":null},\"message\":\"first\",\"sentAt\":1000}";
-        String msg2 = "{\"sender\":{\"id\":1,\"username\":\"a\",\"avatarUrl\":null},\"message\":\"second\",\"sentAt\":2000}";
+        String msg1 = "{\"sender\":{\"id\":\"00000000-0000-0000-0000-000000000001\",\"username\":\"a\",\"avatarUrl\":null},\"message\":\"first\",\"sentAt\":1000}";
+        String msg2 = "{\"sender\":{\"id\":\"00000000-0000-0000-0000-000000000001\",\"username\":\"a\",\"avatarUrl\":null},\"message\":\"second\",\"sentAt\":2000}";
 
         when(redisTemplate.opsForList()).thenReturn(listOperations);
         when(listOperations.range("room:room1:chat", 0, -1)).thenReturn(List.of(msg2, msg1));
@@ -284,7 +284,7 @@ class RoomServiceTest {
 
     @Test
     void getChatHistory_ShouldSkipInvalidJson() {
-        String valid = "{\"sender\":{\"id\":1,\"username\":\"a\",\"avatarUrl\":null},\"message\":\"ok\",\"sentAt\":1000}";
+        String valid = "{\"sender\":{\"id\":\"00000000-0000-0000-0000-000000000001\",\"username\":\"a\",\"avatarUrl\":null},\"message\":\"ok\",\"sentAt\":1000}";
         when(redisTemplate.opsForList()).thenReturn(listOperations);
         when(listOperations.range("room:room1:chat", 0, -1)).thenReturn(List.of("not-json", valid));
 

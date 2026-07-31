@@ -11,6 +11,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
@@ -18,18 +20,18 @@ public class NotificationService {
     private final NotificationMapper notificationMapper;
 
 
-    public Page<NotificationResponse> getNotifications(Long userId, Pageable pageable) {
+    public Page<NotificationResponse> getNotifications(UUID userId, Pageable pageable) {
         return notificationRepository
                 .findByRecipientId(userId, pageable)
                 .map(notificationMapper::toNotificationResponse);
     }
 
-    public long getUnreadCount(Long userId) {
+    public long getUnreadCount(UUID userId) {
         return notificationRepository.countByRecipientIdAndIsReadFalse(userId);
     }
 
     @Transactional
-    public void markAsRead(Long notificationId, Long userId) {
+    public void markAsRead(UUID notificationId, UUID userId) {
         Notification notification = notificationRepository
                 .findByIdAndRecipientId(notificationId, userId)
                 .orElseThrow(() -> new NotFoundException("Notification not found"));
@@ -40,11 +42,11 @@ public class NotificationService {
     }
 
     @Transactional
-    public void markAllAsRead(Long userId) {
+    public void markAllAsRead(UUID userId) {
         notificationRepository.markAllAsRead(userId);
     }
 
-    public void delete(Long notificationId, Long userId) {
+    public void delete(UUID notificationId, UUID userId) {
         Notification notification = notificationRepository
                 .findByIdAndRecipientId(notificationId, userId)
                 .orElseThrow(() -> new NotFoundException("Notification not found"));
@@ -53,7 +55,7 @@ public class NotificationService {
     }
 
     @Transactional
-    public void deleteAll(Long userId) {
+    public void deleteAll(UUID userId) {
         notificationRepository.deleteAllByRecipientId(userId);
     }
 

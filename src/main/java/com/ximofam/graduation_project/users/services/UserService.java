@@ -34,13 +34,13 @@ public class UserService {
     private final CloudinaryService cloudinaryService;
 
     @Cacheable(value = "userSimple", key = "#id")
-    public UserSimpleResponse getUserSimpleResponseById(Long id) {
+    public UserSimpleResponse getUserSimpleResponseById(UUID id) {
         UserSimpleProjection p = userRepository.findSimpleById(id)
                 .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MSG, id));
         return userMapper.toUserSimpleResponse(p);
     }
 
-    public Map<Long, UserSimpleResponse> getUsersSimpleResponseByIds(Collection<Long> ids) {
+    public Map<UUID, UserSimpleResponse> getUsersSimpleResponseByIds(Collection<UUID> ids) {
         return userRepository.findSimpleByIdIn(ids).stream()
                 .collect(Collectors.toMap(UserSimpleProjection::getId, userMapper::toUserSimpleResponse));
     }
@@ -52,7 +52,7 @@ public class UserService {
         return userMapper.toUserResponse(user);
     }
 
-    public UserDetailResponse getUserById(Long id) {
+    public UserDetailResponse getUserById(UUID id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MSG, id));
 
@@ -61,7 +61,7 @@ public class UserService {
 
     @CacheEvict(value = "userSimple", key = "#userId")
     @Transactional
-    public UserDetailResponse updateUserProfile(Long userId, UpdateUserProfileRequest request) {
+    public UserDetailResponse updateUserProfile(UUID userId, UpdateUserProfileRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MSG, userId));
 
@@ -73,7 +73,7 @@ public class UserService {
 
     @CacheEvict(value = "userSimple", key = "#userId")
     @Transactional
-    public CloudinaryUploadResult uploadAvatar(Long userId, MultipartFile file) {
+    public CloudinaryUploadResult uploadAvatar(UUID userId, MultipartFile file) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND_MSG, userId));
         UserProfile profile = user.getProfile();

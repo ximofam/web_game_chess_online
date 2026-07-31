@@ -20,6 +20,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 
 @Service
@@ -80,8 +81,8 @@ public class PresenceService {
 
         log.debug("User {} went offline, saving lastSeen to DB", userId);
         try {
-            userRepository.updateLastSeen(Long.parseLong(userId), Instant.now());
-        } catch (NumberFormatException e) {
+            userRepository.updateLastSeen(UUID.fromString(userId), Instant.now());
+        } catch (IllegalArgumentException e) {
             log.warn("Invalid userId format for lastSeen update: {}", userId);
         }
 

@@ -15,11 +15,12 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface PostRepository extends JpaRepository<Post, Long> {
+public interface PostRepository extends JpaRepository<Post, UUID> {
     @Query("SELECT p.title AS title, p.content AS content FROM Post p WHERE p.id = :postId AND p.status = 'PENDING'")
-    Optional<PostContentProjection> findTitleAndContentById(@Param("postId") Long postId);
+    Optional<PostContentProjection> findTitleAndContentById(@Param("postId") UUID postId);
 
     @Query("""
                 SELECT p.id AS id,
@@ -29,7 +30,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                 FROM Post p
                 WHERE p.id = :postId
             """)
-    Optional<PostModerationProjection> findModerationInfoById(@Param("postId") Long postId);
+    Optional<PostModerationProjection> findModerationInfoById(@Param("postId") UUID postId);
 
     @Modifying
     @Query("""
@@ -40,19 +41,19 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                 WHERE p.id = :postId
             """)
     int updateModerationStatus(
-            @Param("postId") Long postId,
+            @Param("postId") UUID postId,
             @Param("status") PostStatus status,
             @Param("reason") String reason
     );
 
 
-    Optional<Post> findByIdAndStatus(Long postId, PostStatus status);
+    Optional<Post> findByIdAndStatus(UUID postId, PostStatus status);
 
-    boolean existsByIdAndStatus(Long id, PostStatus status);
+    boolean existsByIdAndStatus(UUID id, PostStatus status);
 
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Post p SET p.viewCount = p.viewCount + :delta WHERE p.id = :postId")
-    int incrementViewCount(@Param("postId") Long postId, @Param("delta") long delta);
+    int incrementViewCount(@Param("postId") UUID postId, @Param("delta") long delta);
 
 
     @Query("""
@@ -63,7 +64,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                 JOIN FETCH p.author
                 WHERE p.id = :postId AND p.status = 'APPROVED'
             """)
-    Optional<PostViewProjection> findPostViewProjectionById(@Param("postId") Long postId);
+    Optional<PostViewProjection> findPostViewProjectionById(@Param("postId") UUID postId);
 
     @Query("""
                 SELECT p AS post,
@@ -73,7 +74,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                 JOIN FETCH p.author
                 WHERE p.id = :postId AND p.author.id = :authorId
             """)
-    Optional<PostViewProjection> findMyPostById(@Param("postId") Long postId, @Param("authorId") Long authorId);
+    Optional<PostViewProjection> findMyPostById(@Param("postId") UUID postId, @Param("authorId") UUID authorId);
 
     @Query(value = """
             SELECT * FROM (
@@ -133,7 +134,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                       AND (CAST(:status AS VARCHAR) IS NULL OR p.status = :status)
                     """,
             nativeQuery = true)
-    Page<PostSimpleProjection> findMyPosts(@Param("authorId") Long authorId, @Param("status") String status, Pageable pageable);
+    Page<PostSimpleProjection> findMyPosts(@Param("authorId") UUID authorId, @Param("status") String status, Pageable pageable);
 
     // ponytail: FTS first, ILIKE fallback via UNION ALL + dedup; both hit GIN indexes.
     // Upgrade path: switch to websearch_to_tsquery for quoted-phrase support.

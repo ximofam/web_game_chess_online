@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class PostImageService {
@@ -21,7 +23,7 @@ public class PostImageService {
 
     @Transactional
     public CloudinaryUploadResult uploadPostImage(MultipartFile file) {
-        Long userId = userCurrentService.getCurrentUserId();
+        UUID userId = userCurrentService.getCurrentUserId();
 
         CloudinaryUploadResult res = cloudinaryService.upload(file, ObjectUtils.asMap(
                 "folder", "posts/images",

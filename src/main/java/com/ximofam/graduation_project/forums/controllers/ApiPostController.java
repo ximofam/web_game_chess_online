@@ -1,5 +1,7 @@
 package com.ximofam.graduation_project.forums.controllers;
 
+import java.util.UUID;
+
 import com.ximofam.graduation_project.common.helpers.dtos.ApiResponse;
 import com.ximofam.graduation_project.forums.dtos.request.CreatePostRequest;
 import com.ximofam.graduation_project.forums.dtos.response.CommentResponse;
@@ -27,13 +29,13 @@ public class ApiPostController {
     private final CommentService commentService;
 
     @GetMapping("/{postId}")
-    public ResponseEntity<PostResponse> getPost(@PathVariable Long postId) {
+    public ResponseEntity<PostResponse> getPost(@PathVariable UUID postId) {
         return ResponseEntity.ok(postService.viewPost(postId));
     }
 
     @PreAuthorize("!hasRole('GUEST')")
     @GetMapping("/{postId}/my")
-    public ResponseEntity<PostDetailResponse> getMyPost(@PathVariable Long postId) {
+    public ResponseEntity<PostDetailResponse> getMyPost(@PathVariable UUID postId) {
         return ResponseEntity.ok(postService.getMyPost(postId));
     }
 
@@ -45,7 +47,7 @@ public class ApiPostController {
 
     @GetMapping("/{postId}/comments")
     public ResponseEntity<Page<CommentResponse>> getComments(
-            @PathVariable Long postId,
+            @PathVariable UUID postId,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @PageableDefault(size = 10) Pageable pageable) {
 
@@ -55,7 +57,7 @@ public class ApiPostController {
     @PreAuthorize("!hasRole('GUEST')")
     @PostMapping("/{postId}/likes")
     public ResponseEntity<ApiResponse> likePost(
-            @PathVariable Long postId,
+            @PathVariable UUID postId,
             @RequestParam(defaultValue = "true") boolean isLike) {
 
         postService.likePost(postId, isLike);
@@ -79,7 +81,7 @@ public class ApiPostController {
 
     @PreAuthorize("!hasRole('GUEST')")
     @DeleteMapping("/{postId}")
-    public ResponseEntity<ApiResponse> deletePost(@PathVariable Long postId) {
+    public ResponseEntity<ApiResponse> deletePost(@PathVariable UUID postId) {
         postService.deleteMyPost(postId);
         return ResponseEntity.ok(ApiResponse.builder().message("Xóa bài viết thành công").build());
     }

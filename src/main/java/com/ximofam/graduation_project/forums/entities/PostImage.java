@@ -1,5 +1,7 @@
 package com.ximofam.graduation_project.forums.entities;
 
+import java.util.UUID;
+
 import com.ximofam.graduation_project.common.helpers.models.BaseModel;
 import com.ximofam.graduation_project.forums.enums.ImageStatus;
 import jakarta.persistence.*;
@@ -12,10 +14,10 @@ import lombok.Setter;
 @Setter
 public class PostImage extends BaseModel {
     @Column(name = "post_id")
-    private Long postId;
+    private UUID postId;
 
     @Column(name = "uploader_id", nullable = false)
-    private Long uploaderId;
+    private UUID uploaderId;
 
     @Column(name = "url")
     private String url;

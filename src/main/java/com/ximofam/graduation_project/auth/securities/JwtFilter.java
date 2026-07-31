@@ -1,7 +1,7 @@
 package com.ximofam.graduation_project.auth.securities;
 
-import com.ximofam.graduation_project.auth.services.TokenService;
 import com.ximofam.graduation_project.auth.enums.TokenType;
+import com.ximofam.graduation_project.auth.services.TokenService;
 import com.ximofam.graduation_project.users.enums.UserRole;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -34,12 +35,12 @@ public class JwtFilter extends OncePerRequestFilter {
             String token = authHeader.substring(7);
             Claims claims = jwtService.verifyAndParseToken(token, TokenType.ACCESS);
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
-                Long userId = jwtService.extractUserId(claims);
+                String userId = jwtService.extractUserId(claims);
                 String role = jwtService.extractRole(claims);
                 UserRole userRole = UserRole.valueOf(role);
 
                 SecurityContextHolder.getContext().setAuthentication(
-                        new UsernamePasswordAuthenticationToken(userId, null, userRole.getAuthorities())
+                        new UsernamePasswordAuthenticationToken(UUID.fromString(userId), null, userRole.getAuthorities())
                 );
             }
         } catch (Exception ignore) {

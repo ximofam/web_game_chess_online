@@ -8,5 +8,5 @@ import lombok.Setter;
 @Setter
 public class JoinRoomRequest {
     @Pattern(regexp = "white|black|spectator", message = "Role must be white, black, or spectator")
-    private String role = "black"; // default: ngồi ghế đen
+    private String role = "black";
 }

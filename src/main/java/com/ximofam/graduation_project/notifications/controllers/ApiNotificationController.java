@@ -1,5 +1,7 @@
 package com.ximofam.graduation_project.notifications.controllers;
 
+import java.util.UUID;
+
 import com.ximofam.graduation_project.notifications.dtos.response.NotificationResponse;
 import com.ximofam.graduation_project.notifications.services.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +25,7 @@ public class ApiNotificationController {
 
     @GetMapping
     public ResponseEntity<Page<NotificationResponse>> getNotifications(
-            @AuthenticationPrincipal Long userId,
+            @AuthenticationPrincipal UUID userId,
             @PageableDefault(size = 20, sort = "id",
                     direction = Sort.Direction.DESC) Pageable pageable) {
 
@@ -32,15 +34,15 @@ public class ApiNotificationController {
 
     @GetMapping("/unread-count")
     public ResponseEntity<Map<String, Long>> getUnreadCount(
-            @AuthenticationPrincipal Long userId) {
+            @AuthenticationPrincipal UUID userId) {
 
         return ResponseEntity.ok(Map.of("count", notificationService.getUnreadCount(userId)));
     }
 
     @PatchMapping("/{id}/read")
     public ResponseEntity<Void> markAsRead(
-            @PathVariable Long id,
-            @AuthenticationPrincipal Long userId) {
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UUID userId) {
 
         notificationService.markAsRead(id, userId);
         return ResponseEntity.noContent().build();
@@ -48,7 +50,7 @@ public class ApiNotificationController {
 
     @PatchMapping("/read-all")
     public ResponseEntity<Void> markAllAsRead(
-            @AuthenticationPrincipal Long userId) {
+            @AuthenticationPrincipal UUID userId) {
 
         notificationService.markAllAsRead(userId);
         return ResponseEntity.noContent().build();
@@ -56,8 +58,8 @@ public class ApiNotificationController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
-            @PathVariable Long id,
-            @AuthenticationPrincipal Long userId) {
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UUID userId) {
 
         notificationService.delete(id, userId);
         return ResponseEntity.noContent().build();
@@ -65,7 +67,7 @@ public class ApiNotificationController {
 
     @DeleteMapping
     public ResponseEntity<Void> deleteAll(
-            @AuthenticationPrincipal Long userId) {
+            @AuthenticationPrincipal UUID userId) {
         notificationService.deleteAll(userId);
         
         return ResponseEntity.noContent().build();

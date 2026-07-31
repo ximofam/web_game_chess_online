@@ -1,5 +1,7 @@
 package com.ximofam.graduation_project.common.utils;
 
+import java.util.UUID;
+
 import com.ximofam.graduation_project.auth.securities.CustomUserDetails;
 import org.springframework.security.core.Authentication;
 
@@ -17,7 +19,7 @@ public class AuthUtils {
         }
         if (principal instanceof Authentication auth) {
             Object p = auth.getPrincipal();
-            if (p instanceof Long id) {
+            if (p instanceof UUID id) {
                 return id.toString();
             }
             if (p instanceof CustomUserDetails userDetails && userDetails.getUserId() != null) {

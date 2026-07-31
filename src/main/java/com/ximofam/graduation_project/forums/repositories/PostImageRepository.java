@@ -9,9 +9,10 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Repository
-public interface PostImageRepository extends JpaRepository<PostImage, Long> {
+public interface PostImageRepository extends JpaRepository<PostImage, UUID> {
     void deleteByPublicId(String publicId);
 
     List<PostImage> findByStatusAndCreatedAtBefore(ImageStatus status, Instant threshold);
@@ -19,5 +20,5 @@ public interface PostImageRepository extends JpaRepository<PostImage, Long> {
     @Modifying
     @Query("UPDATE PostImage pi SET pi.status = 'ATTACHED', pi.postId = :postId " +
             "WHERE pi.publicId IN :publicIds AND pi.uploaderId = :uploaderId AND pi.status = 'ORPHAN'")
-    int attachToPost(Long postId, Long uploaderId, List<String> publicIds);
+    int attachToPost(UUID postId, UUID uploaderId, List<String> publicIds);
 }

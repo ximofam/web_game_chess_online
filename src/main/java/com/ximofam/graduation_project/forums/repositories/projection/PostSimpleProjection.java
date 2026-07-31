@@ -1,11 +1,13 @@
 package com.ximofam.graduation_project.forums.repositories.projection;
 
+import java.util.UUID;
+
 import java.time.Instant;
 
 public interface PostSimpleProjection {
-    Long getId();
+    UUID getId();
 
-    Long getAuthorId();
+    UUID getAuthorId();
 
     String getAuthorUsername();
 

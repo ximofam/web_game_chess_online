@@ -12,9 +12,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 
 @Repository
-public interface CommentRepository extends JpaRepository<Comment, Long> {
+public interface CommentRepository extends JpaRepository<Comment, UUID> {
     @Query(value = """
                 SELECT c AS comment, COUNT(cl.id) AS likeCount
                 FROM Comment c
@@ -30,7 +31,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
                         WHERE c.post.id = :postId AND c.parent IS NULL
                     """)
     Page<CommentWithLikeCountProjection> findRootCommentsWithLikeCount(
-            @Param("postId") Long postId,
+            @Param("postId") UUID postId,
             @Param("sortBy") String sortBy,
             Pageable pageable
     );
@@ -50,7 +51,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
                         WHERE c.parent.id = :parentId
                     """)
     Page<CommentWithLikeCountProjection> findRepliesWithLikeCount(
-            @Param("parentId") Long parentId,
+            @Param("parentId") UUID parentId,
             @Param("sortBy") String sortBy,
             Pageable pageable
     );
@@ -61,5 +62,5 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
                 WHERE c.parent.id IN :commentIds
                 GROUP BY c.parent.id
             """)
-    List<CommentReplyCountProjection> countRepliesByCommentIdIn(@Param("commentIds") Collection<Long> commentIds);
+    List<CommentReplyCountProjection> countRepliesByCommentIdIn(@Param("commentIds") Collection<UUID> commentIds);
 }
