@@ -61,7 +61,7 @@ public class PostService {
 
         Post post = postMapper.toPost(request);
         post.setAuthor(currentUser);
-        post = postRepository.save(post);
+        post = postRepository.saveAndFlush(post);
 
         List<String> publicIds = extractImagePublicIds(doc);
         if (!publicIds.isEmpty()) {
