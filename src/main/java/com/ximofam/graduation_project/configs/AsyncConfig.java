@@ -5,7 +5,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -38,15 +40,20 @@ public class AsyncConfig implements AsyncConfigurer, SchedulingConfigurer {
         return executor;
     }
 
+    @Bean
+    public TaskScheduler taskScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(properties.getScheduler().getPoolSize());
+        scheduler.setThreadNamePrefix("scheduler-");
+        scheduler.setWaitForTasksToCompleteOnShutdown(true);
+        scheduler.setAwaitTerminationSeconds(properties.getScheduler().getAwaitTerminationSeconds());
+        scheduler.initialize();
+        return scheduler;
+    }
+
     @Override
     public void configureTasks(ScheduledTaskRegistrar registrar) {
-        ThreadPoolTaskScheduler taskScheduler = new ThreadPoolTaskScheduler();
-        taskScheduler.setPoolSize(properties.getScheduler().getPoolSize());
-        taskScheduler.setThreadNamePrefix("scheduler-");
-        taskScheduler.setWaitForTasksToCompleteOnShutdown(true);
-        taskScheduler.setAwaitTerminationSeconds(properties.getScheduler().getAwaitTerminationSeconds());
-        taskScheduler.initialize();
-        registrar.setTaskScheduler(taskScheduler);
+        registrar.setTaskScheduler(taskScheduler());
     }
 
     @Override

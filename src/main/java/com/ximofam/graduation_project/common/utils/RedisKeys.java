@@ -35,4 +35,10 @@ public final class RedisKeys {
     public static String roomChat(String roomId) {
         return ROOM_PREFIX + roomId + ":chat";
     }
+
+    // Game
+
+    public static String gameInfo(String gameId) {
+        return "game:" + gameId;
+    }
 }
