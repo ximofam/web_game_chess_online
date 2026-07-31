@@ -42,7 +42,7 @@ class RoomServiceTest {
     @Mock
     private RedisScript<Long> joinRoomScript;
     @Mock
-    private RedisScript<Object> leaveRoomScript;
+    private RedisScript<List<Object>> leaveRoomScript;
     @SuppressWarnings("rawtypes")
     @Mock
     private RedisScript deleteRoomScript;
@@ -166,7 +166,7 @@ class RoomServiceTest {
     @SuppressWarnings("unchecked")
     void leaveRoom_RoomNotFound_ShouldThrowNotFoundException() {
         when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
-                .thenReturn(-1L);
+                .thenReturn(List.of(-1L));
 
         assertThatThrownBy(() -> roomService.leaveRoom("room1", "00000000-0000-0000-0000-000000000001", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE))
                 .isInstanceOf(NotFoundException.class);
@@ -176,7 +176,7 @@ class RoomServiceTest {
     @SuppressWarnings("unchecked")
     void leaveRoom_UserNotInRoom_ShouldThrowForbiddenException() {
         when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
-                .thenReturn(-10L);
+                .thenReturn(List.of(-10L));
 
         assertThatThrownBy(() -> roomService.leaveRoom("room1", "00000000-0000-0000-0000-000000000001", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE))
                 .isInstanceOf(ForbiddenException.class);

@@ -1,9 +1,6 @@
 local OK = 1
-local HOST_LEFT = 2
-local WHITE_LEFT = 3
-local BLACK_LEFT = 4
-local SPECTATOR_LEFT = 5
 local FAIL = 0
+
 local Errors = {
     ROOM_NOT_FOUND = -1,
     ROOM_NOT_WAITING = -2,
