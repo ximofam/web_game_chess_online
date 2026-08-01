@@ -1,4 +1,4 @@
-package com.ximofam.graduation_project.common.helpers.dtos.ws;
+package com.ximofam.graduation_project.chess.dtos.ws;
 
 public record GameStartPayload(
         String gameId,

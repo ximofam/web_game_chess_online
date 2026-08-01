@@ -21,7 +21,7 @@ if not status then
 end
 
 -- 2. Phòng phải đang WAITING
-if status ~= 'WAITING' and role ~= 'spectator' then
+if status ~= RoomStatus.WAITING and role ~= 'spectator' then
     return Errors.ROOM_NOT_WAITING
 end
 

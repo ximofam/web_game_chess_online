@@ -4,13 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ximofam.graduation_project.chess.dtos.request.CreateRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.request.JoinRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.response.RoomResponse;
+import com.ximofam.graduation_project.chess.dtos.ws.*;
 import com.ximofam.graduation_project.chess.enums.LeaveReason;
 import com.ximofam.graduation_project.chess.enums.PlayerRole;
 import com.ximofam.graduation_project.chess.enums.RoomStatus;
 import com.ximofam.graduation_project.chess.mappers.RoomMapper;
 import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
-import com.ximofam.graduation_project.common.helpers.dtos.ws.*;
+import com.ximofam.graduation_project.common.helpers.dtos.WsEvent;
 import com.ximofam.graduation_project.common.utils.LuaErrorHandler;
 import com.ximofam.graduation_project.common.utils.RedisKeys;
 import com.ximofam.graduation_project.common.utils.TopicUtils;
@@ -277,7 +278,7 @@ public class RoomService {
     public boolean isMember(String roomId, String userId) {
         String roomKey = RedisKeys.roomInfo(roomId);
         List<Object> userIds = redisTemplate.opsForHash().multiGet(roomKey,
-                Arrays.asList(PlayerRole.HOST.toValue(), PlayerRole.WHITE.toValue(), PlayerRole.BLACK.toValue()));
+                Arrays.asList("hostId", "whiteId", "blackId"));
         if (userIds == null) return false;
 
         for (Object id : userIds) {
@@ -317,9 +318,9 @@ public class RoomService {
     }
 
     private static void collectParticipantIds(Map<Object, Object> raw, Set<UUID> target) {
-        for (String role : new String[]{"host", "white", "black"}) {
+        for (String role : new String[]{"hostId", "whiteId", "blackId"}) {
             String id = Utils.str(raw, role);
-            if (id != null) {
+            if (id != null && !id.isEmpty()) {
                 try {
                     target.add(UUID.fromString(id));
                 } catch (IllegalArgumentException ignored) { // NOSONAR java:S108

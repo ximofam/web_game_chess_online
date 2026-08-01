@@ -11,5 +11,8 @@ local Errors = {
     ROOM_IS_PRIVATE = -7,
     USER_OFFLINE = -8,
     ALREADY_IN_ROOM = -9,
-    NOT_IN_ROOM = -10
+    NOT_IN_ROOM = -10,
+    NOT_A_PLAYER = -12,
+    ROOM_NOT_COUNTDOWN = -13,
+    START_TIME_NOT_REACHED = -14
 }

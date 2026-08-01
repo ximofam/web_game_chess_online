@@ -26,6 +26,9 @@ public class LuaErrorHandler {
             case -8 -> throw new BadRequestException("You must be online to perform this action.");
             case -9 -> throw new BadRequestException("You are already in a room.");
             case -10 -> throw new ForbiddenException("You are not in this room.");
+            case -12 -> throw new ForbiddenException("You are not a player in this room.");
+            case -13 -> throw new BadRequestException("Room is not in countdown state.");
+            case -14 -> throw new BadRequestException("Game start time has not been reached yet.");
         }
     }
 }

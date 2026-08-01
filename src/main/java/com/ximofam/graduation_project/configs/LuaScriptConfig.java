@@ -21,10 +21,13 @@ public class LuaScriptConfig {
         }
     }
 
-    private String getScriptWithCommon(String mainScriptPath) {
-        return loadScript("lua/utils/status.lua") + "\n"
-                + loadScript("lua/utils/user_presence.lua") + "\n"
-                + loadScript(mainScriptPath);
+    private String getScriptWithUtils(String mainScriptPath, String... utils) {
+        StringBuilder script = new StringBuilder();
+        for (String util : utils) {
+            script.append(loadScript(util)).append("\n");
+        }
+        script.append(loadScript(mainScriptPath));
+        return script.toString();
     }
 
     @Bean
@@ -45,7 +48,7 @@ public class LuaScriptConfig {
 
     @Bean
     public RedisScript<Long> createRoomScript() {
-        return RedisScript.of(getScriptWithCommon("lua/scripts/create_room.lua"), Long.class);
+        return RedisScript.of(getScriptWithUtils("lua/scripts/create_room.lua", "lua/utils/status.lua", "lua/utils/rooms.lua", "lua/utils/user_presence.lua"), Long.class);
     }
 
     @Bean
@@ -56,18 +59,30 @@ public class LuaScriptConfig {
 
     @Bean
     public RedisScript<Long> joinRoomScript() {
-        return RedisScript.of(getScriptWithCommon("lua/scripts/join_room.lua"), Long.class);
+        return RedisScript.of(getScriptWithUtils("lua/scripts/join_room.lua", "lua/utils/status.lua", "lua/utils/rooms.lua", "lua/utils/user_presence.lua"), Long.class);
     }
 
     @Bean
     @SuppressWarnings("rawtypes")
     public RedisScript<List> leaveRoomScript() {
-        return RedisScript.of(getScriptWithCommon("lua/scripts/leave_room.lua"), List.class);
+        return RedisScript.of(getScriptWithUtils("lua/scripts/leave_room.lua", "lua/utils/status.lua", "lua/utils/rooms.lua"), List.class);
     }
 
     @Bean
     @SuppressWarnings("rawtypes")
     public RedisScript<List> deleteRoomScript() {
         return RedisScript.of(new ClassPathResource("lua/scripts/delete_room.lua"), List.class);
+    }
+
+    @Bean
+    @SuppressWarnings("rawtypes")
+    public RedisScript<List> playerReadyScript() {
+        return RedisScript.of(getScriptWithUtils("lua/scripts/player_ready.lua", "lua/utils/status.lua", "lua/utils/rooms.lua"), List.class);
+    }
+
+    @Bean
+    @SuppressWarnings("rawtypes")
+    public RedisScript<List> startGameScript() {
+        return RedisScript.of(getScriptWithUtils("lua/scripts/start_game.lua", "lua/utils/status.lua", "lua/utils/rooms.lua"), List.class);
     }
 }

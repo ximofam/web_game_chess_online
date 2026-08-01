@@ -39,3 +39,11 @@ prevents data loss, security, accessibility, the calibration real hardware needs
 a clock drifts, a sensor reads off), anything explicitly requested. Lazy code without its check is unfinished:
 non-trivial logic leaves ONE runnable check behind, the smallest thing that fails if the logic breaks (an assert-based
 demo/self-check or one small test file; no frameworks, no fixtures). Trivial one-liners need no test.
+
+## Lua Scripting Standards
+- Before writing a Lua script, if a function needs to return an error, define and use the error from `lua/utils/status.lua` instead of hardcoding it.
+- Reusable functions or logic must be extracted into utility files in the `utils` directory to avoid code duplication.
+- Whenever a new error code is added to `lua/utils/status.lua`, you MUST also update `src/main/java/com/ximofam/graduation_project/common/utils/LuaErrorHandler.java` to map the new error code to the appropriate Java exception.
+
+## Redis Guidelines
+- Whenever a new Redis key pattern or static key is introduced, you MUST define it centrally in `src/main/java/com/ximofam/graduation_project/common/utils/RedisKeys.java` rather than hardcoding string literals in services or controllers.

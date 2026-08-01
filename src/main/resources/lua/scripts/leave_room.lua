@@ -9,13 +9,13 @@ if not status then
     return {Errors.ROOM_NOT_FOUND, nil, nil}
 end
 
-if status ~= 'WAITING' then
-    return {Errors.ROOM_NOT_WAITING, nil, nil}
-end
-
 if redis.call('ZSCORE', KEYS[2], userId) ~= false then
     redis.call('ZREM', KEYS[2], userId)
     return {OK, 'SPECTATOR_LEFT', 'spectator'}
+end
+
+if status ~= RoomStatus.WAITING then
+    return {Errors.ROOM_NOT_WAITING, nil, nil}
 end
 
 local whiteId = redis.call('HGET', KEYS[1], 'whiteId') or ''
@@ -24,7 +24,7 @@ local hostId  = redis.call('HGET', KEYS[1], 'hostId') or ''
 local role = (whiteId == userId and 'white') or (blackId == userId and 'black')
 
 if role then
-    redis.call('HSET', KEYS[1], role .. 'Id', '')
+    redis.call('HSET', KEYS[1], role .. 'Id', '', role .. 'Ready', 'false')
 end
 
 if hostId == userId then

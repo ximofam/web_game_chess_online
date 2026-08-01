@@ -20,7 +20,9 @@ public class RoomResponse {
     private String hostId;
     private UserSimpleResponse host;
     private UserSimpleResponse white;
+    private boolean whiteReady;
     private UserSimpleResponse black;
+    private boolean blackReady;
     List<UserSimpleResponse> spectators;
     private long createdAt;
     private RoomSettings settings;
