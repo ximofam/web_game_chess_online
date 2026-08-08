@@ -24,13 +24,16 @@ người chơi ngắt kết nối. Các API được thiết kế theo dạng **
 > avatar, username) được Java Hydrate bằng 1 query DB duy nhất trước khi trả về Frontend — tránh rác JSON và race
 > condition.
 
-| Tên Key (`RedisKeys.java`) | Kiểu              | Mô tả                                                                                 |
-|:---------------------------|:------------------|:--------------------------------------------------------------------------------------|
-| `room:{roomId}`            | Hash              | Metadata chi tiết của một phòng.                                                      |
-| `game:{roomId}`            | Hash              | Trạng thái game đang diễn ra (chỉ tồn tại khi phòng ở IN_PROGRESS).                   |
-| `room:idx:lobby`           | ZSet (Sorted Set) | Danh sách phòng hiển thị ở sảnh chờ. `score` là `createdAt` (epoch ms) để phân trang. |
-| `room:{roomId}:spectators` | ZSet              | Danh sách khán giả. `score` là timestamp lúc join (mới nhất lên đầu).                 |
-| `room:{roomId}:chat`       | List              | Lịch sử chat trong phòng (tối đa 10 tin nhắn mới nhất).                               |
+| Tên Key (`RedisKeys.java`)    | Kiểu              | Mô tả                                                                                  |
+|:------------------------------|:------------------|:---------------------------------------------------------------------------------------|
+| `room:{roomId}`               | Hash              | Metadata chi tiết của một phòng.                                                       |
+| `room:{roomId}:game`          | Hash              | Trạng thái game đang diễn ra (chỉ tồn tại khi phòng ở `IN_PROGRESS`).                 |
+| `room:{roomId}:game:moves`    | List              | Danh sách nước đi (UCI notation). Tạo khi game bắt đầu, xóa khi game kết thúc.        |
+| `room:idx:lobby`              | ZSet (Sorted Set) | Danh sách phòng hiển thị ở sảnh chờ. `score` là `createdAt` (epoch ms) để phân trang. |
+| `room:{roomId}:spectators`    | ZSet              | Danh sách khán giả. `score` là timestamp lúc join (mới nhất lên đầu).                 |
+| `room:{roomId}:chat`          | List              | Lịch sử chat trong phòng (tối đa 10 tin nhắn mới nhất).                               |
+
+> **⚠️ Memory Leak:** Các key trên **không có TTL**. Cleanup xảy ra qua luồng nghiệp vụ (host leave → `delete_room.lua`, game over → `end_game.lua`). Nếu server crash trong lúc game đang chạy, các key sẽ bị orphan. Cần set TTL dài (ví dụ 24h) khi tạo room và TTL ngắn (ví dụ 1h) sau khi game kết thúc làm safety net — **chưa implement**.
 
 ### Cấu trúc Hash `room:{roomId}`
 
@@ -47,20 +50,24 @@ người chơi ngắt kết nối. Các API được thiết kế theo dạng **
 | `createdAt`  | Epoch millis                                                                                                                         |
 | `settings`   | JSON string của `RoomSettings` (`timeMinutes`, `incrementSeconds`, `variant`, `rated`, `isPrivate`, `chatLocked`, `spectatorLocked`) |
 
-### Cấu trúc Hash `game:{roomId}`
+### Cấu trúc Hash `room:{roomId}:game`
 
 | Field                  | Giá trị                                  |
 |:-----------------------|:-----------------------------------------|
 | `roomId`               | ID của phòng                             |
-| `white`                | ID người cầm quân Trắng                  |
-| `black`                | ID người cầm quân Đen                    |
+| `whiteId`              | ID người cầm quân Trắng                  |
+| `blackId`              | ID người cầm quân Đen                    |
 | `whiteRemainingMillis` | Thời gian còn lại của Trắng (ms)         |
 | `blackRemainingMillis` | Thời gian còn lại của Đen (ms)           |
 | `incrementMillis`      | Thời gian cộng thêm sau mỗi nước đi (ms) |
-| `turn`                 | `"WHITE"` hoặc `"BLACK"`                 |
+| `turn`                 | `"white"` hoặc `"black"`                 |
 | `turnStartedAt`        | Epoch millis bắt đầu turn hiện tại       |
 | `startAt`              | Epoch millis bắt đầu ván đấu             |
 | `fen`                  | FEN hiện tại của bàn cờ                  |
+
+### List `room:{roomId}:game:moves`
+
+Danh sách tất cả nước đi trong ván (UCI notation, ví dụ `"e2e4"`). Mỗi nước đi được `RPUSH` vào cuối sau khi được xác nhận hợp lệ. Dùng để replay ván đấu hoặc lưu lịch sử. Bị `DEL` trong `end_game.lua` khi ván kết thúc.
 
 ---
 
@@ -194,13 +201,13 @@ Báo cáo sẵn sàng hoặc huỷ sẵn sàng.
       `COUNTDOWN_CANCELLED` (3).
 - **Side effects:**
     - Thành công (bất kể code nào): Broadcast `PLAYER_READY` (kèm `role` và `isReady`) tới `/topic/room/{roomId}`.
-    - Khi bắt đầu đếm ngược (2): Lên lịch (Java TaskScheduler) gọi `startGame` sau 3 giây. Broadcast `GAME_COUNTDOWN`
+    - Khi bắt đầu đếm ngược (2): Lên lịch (Java `TaskScheduler`, key `start:{roomId}`) gọi `startGame` sau 3 giây. Broadcast `COUNTDOWN_STARTED`
       tới `/topic/room/{roomId}` và `ROOM_UPDATED` (status `COUNTDOWN`) tới `/topic/lobbies`.
     - Khi huỷ đếm ngược (3): Huỷ task `startGame`. Broadcast `COUNTDOWN_CANCELLED` tới `/topic/room/{roomId}` và
       `ROOM_UPDATED` (status `WAITING`) tới `/topic/lobbies`.
-    - Khi task `startGame` chạy (qua `start_game.lua`): Khởi tạo hash `game:{roomId}`, chuyển phòng sang `IN_PROGRESS`.
-      Broadcast `STARTED` (kèm `GameStartedPayload`) tới `/topic/room/{roomId}` và `ROOM_UPDATED` (status `IN_PROGRESS`)
-      tới `/topic/lobbies`.
+    - Khi task `startGame` chạy (qua `start_game.lua`): Khởi tạo hash `room:{roomId}:game`, chuyển phòng sang `IN_PROGRESS`.
+      Broadcast `GAME_STARTED` (kèm `GameStartedEvent`) tới `/topic/room/{roomId}` và `ROOM_UPDATED` (status `IN_PROGRESS`)
+      tới `/topic/lobbies`. **Đồng thời lên lịch turn timer cho white** (key `turn:{roomId}`) theo `timeMinutes` trong settings.
 
 ---
 
@@ -216,16 +223,42 @@ Báo cáo sẵn sàng hoặc huỷ sẵn sàng.
 
 ### Subscribe `/topic/room.{roomId}` — Cập nhật trong Phòng
 
-| `type`                | Khi nào                                       | `data`                                                              |
-|:----------------------|:----------------------------------------------|:--------------------------------------------------------------------|
-| `PLAYER_JOINED`       | Có người join ghế hoặc spectate               | `{ role: "white"\|"black"\|"spectator", user: UserSimpleResponse }` |
-| `PLAYER_LEFT`         | Player/spectator rời ghế hoặc disconnect      | `{ role: "white"\|"black"\|"spectator", userId: string }`           |
-| `PLAYER_READY`        | Người chơi toggle trạng thái sẵn sàng         | `{ role: "white"\|"black", isReady: boolean }` (`PlayerReadyEvent`) |
-| `ROOM_DELETED`        | Host leave/disconnect khi phòng `WAITING`     | `{ roomId }` — client phải redirect ra lobby                        |
-| `CHAT_MESSAGE`        | Có người gửi tin nhắn chat                    | `ChatMessagePayload`                                                |
-| `COUNTDOWN_STARTED`   | Khi cả 2 player sẵn sàng                      | `{ startAt, delayMillis }` (`GameCountDownEvent`)                   |
-| `COUNTDOWN_CANCELLED` | Khi có người huỷ sẵn sàng trong lúc đếm ngược | (No payload)                                                        |
-| `GAME_STARTED`        | Khi đếm ngược kết thúc, ván đấu bắt đầu       | `{ whiteId, blackId, turn, fen }` (`GameStartedPayload`)            |
+| `type`                | Khi nào                                        | `data`                                                               |
+|:----------------------|:-----------------------------------------------|:---------------------------------------------------------------------|
+| `PLAYER_JOINED`       | Có người join ghế hoặc spectate                | `{ role: "white"\|"black"\|"spectator", user: UserSimpleResponse }`  |
+| `PLAYER_LEFT`         | Player/spectator rời ghế hoặc disconnect       | `{ role: "white"\|"black"\|"spectator", userId: string }`            |
+| `PLAYER_READY`        | Người chơi toggle trạng thái sẵn sàng          | `{ role: "white"\|"black", isReady: boolean }` (`PlayerReadyEvent`)  |
+| `ROOM_DELETED`        | Host leave/disconnect khi phòng `WAITING`      | `{ roomId }` — client phải redirect ra lobby                         |
+| `CHAT_MESSAGE`        | Có người gửi tin nhắn chat                     | `ChatMessagePayload`                                                 |
+| `COUNTDOWN_STARTED`   | Khi cả 2 player sẵn sàng                       | `{ startAt, delayMillis }` (`GameCountDownEvent`)                    |
+| `COUNTDOWN_CANCELLED` | Khi có người huỷ sẵn sàng trong lúc đếm ngược  | (No payload)                                                         |
+| `GAME_STARTED`        | Khi đếm ngược kết thúc, ván đấu bắt đầu        | `{ whiteId, blackId, turn, fen }` (`GameStartedEvent`)               |
+| `MOVE_MADE`           | Sau mỗi nước đi hợp lệ                         | `{ move, color, newTurn, newFen, whiteRemainingMillis, blackRemainingMillis }` (`GameMovedPayload`) |
+| `GAME_OVER`           | Khi ván đấu kết thúc (mọi nguyên nhân)         | `{ winner, reason }` (`GameOverPayload`) — xem bảng bên dưới        |
+
+#### `GAME_OVER` — Giá trị `winner` và `reason`
+
+| `winner`           | `reason`      | Mô tả                                         |
+|:-------------------|:--------------|:----------------------------------------------|
+| `"white"` / `"black"` | `"checkmate"` | Chiếu hết                                  |
+| `"white"` / `"black"` | `"timeout"`   | Đối thủ hết giờ (server-side turn timer)   |
+| `"white"` / `"black"` | `"resign"`    | Đối thủ đầu hàng *(chưa implement)*        |
+| `"draw"`           | `"stalemate"` | Pat                                           |
+| `"draw"`           | `"draw"`      | Hòa (50-move rule, insufficient material...) |
+
+> **Server-side turn timer:** Sau mỗi nước đi (và khi game bắt đầu), server lên lịch một `ScheduledFuture` (key `turn:{roomId}`) với thời gian bằng `remainingMillis` của người đến lượt. Nếu hết giờ mà không có nước đi mới, server tự gọi `endGame()` và broadcast `GAME_OVER`. Client **không cần** gửi request để claim timeout.
+
+### Send `/app/room.{roomId}.move` — Gửi nước đi
+
+- **Auth:** Bắt buộc (JWT trong STOMP session).
+- **Payload:** `{ "move": "e2e4" }` (`MakeMoveRequest`) — UCI notation.
+- **Guard:** Server kiểm tra lượt đi, tính hợp lệ của nước đi (qua `chesslib`), và thời gian còn lại. Nếu sai → không có response, lỗi bị drop (chưa có `@MessageExceptionHandler`).
+- **Side effects khi hợp lệ:**
+    1. Cập nhật `fen`, `turn`, `{color}RemainingMillis`, `turnStartedAt` vào `room:{roomId}:game`.
+    2. `RPUSH` nước đi vào `room:{roomId}:game:moves`.
+    3. Broadcast `MOVE_MADE` tới `/topic/room.{roomId}`.
+    4. Nếu game over (checkmate/stalemate/draw): gọi `endGame()`, bỏ qua bước 5.
+    5. Cancel turn timer cũ, lên lịch turn timer mới cho người tiếp theo.
 
 ### Send `/app/room.{roomId}.chat` — Gửi tin nhắn chat
 
@@ -276,4 +309,6 @@ Khi host mất kết nối và phòng đang `WAITING`:
 
 ### `IN_GAME` disconnect
 
-Giữ nguyên presence hash — chờ reconnect hoặc xử lý timeout thua cuộc (chưa implement, handle bởi `GameService`).
+Giữ nguyên presence hash — chờ reconnect. Turn timer vẫn tiếp tục chạy phía server. Nếu player không reconnect và hết giờ, server tự broadcast `GAME_OVER` (winner là đối thủ, reason `"timeout"`).
+
+> `GameService.onUserWentOffline()` chưa implement — hiện chưa có xử lý đặc biệt khi player `IN_GAME` disconnect ngoài việc turn timer tự xử lý.

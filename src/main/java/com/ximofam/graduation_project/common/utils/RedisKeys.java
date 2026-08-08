@@ -4,6 +4,10 @@ public final class RedisKeys {
     private RedisKeys() {
     }
 
+    public static String lockKey(String key) {
+        return "lock:" + key;
+    }
+
     // Presence
     public static final String ONLINE_USERS = "sys:online_users";
     private static final String USER_PREFIX = "user:";
@@ -38,7 +42,11 @@ public final class RedisKeys {
 
     // Game
 
-    public static String gameInfo(String gameId) {
-        return "game:" + gameId;
+    public static String gameInfo(String roomId) {
+        return ROOM_PREFIX + roomId + ":game";
+    }
+
+    public static String gameMoves(String roomId) {
+        return gameInfo(roomId) + ":moves";
     }
 }

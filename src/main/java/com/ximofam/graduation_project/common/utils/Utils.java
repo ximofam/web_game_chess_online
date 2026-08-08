@@ -43,6 +43,15 @@ public class Utils {
         }
     }
 
+    public static long parseLong(Object val, long fallback) {
+        if (val == null) return fallback;
+        try {
+            return Long.parseLong(val.toString());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
     public static <T> T parseJson(ObjectMapper mapper, String json, Class<T> type) {
         try {
             return mapper.readValue(json, type);

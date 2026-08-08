@@ -85,4 +85,11 @@ public class LuaScriptConfig {
     public RedisScript<List> startGameScript() {
         return RedisScript.of(getScriptWithUtils("lua/scripts/start_game.lua", "lua/utils/status.lua", "lua/utils/rooms.lua"), List.class);
     }
+
+    @Bean
+    @SuppressWarnings("rawtypes")
+    public RedisScript<List> endGameScript() {
+        return RedisScript.of(getScriptWithUtils("lua/scripts/end_game.lua", "lua/utils/status.lua", "lua/utils/rooms.lua"), List.class);
+    }
+
 }

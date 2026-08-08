@@ -1,5 +1,5 @@
 -- KEYS[1] = room:{roomId}
--- KEYS[2] = game:{roomId}
+-- KEYS[2] = room:{roomId}:game
 -- ARGV[1] = roomId
 -- ARGV[2] = currentTimeMs
 -- ARGV[3] = initialFen

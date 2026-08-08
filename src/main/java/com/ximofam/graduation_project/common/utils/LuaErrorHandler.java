@@ -29,6 +29,9 @@ public class LuaErrorHandler {
             case -12 -> throw new ForbiddenException("You are not a player in this room.");
             case -13 -> throw new BadRequestException("Room is not in countdown state.");
             case -14 -> throw new BadRequestException("Game start time has not been reached yet.");
+            case -15 -> throw new BadRequestException("It is not your turn.");
+            case -16 -> throw new NotFoundException("Game not found.");
+            case -17 -> throw new BadRequestException("Time out.");
         }
     }
 }
