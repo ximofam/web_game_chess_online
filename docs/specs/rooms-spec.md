@@ -240,11 +240,11 @@ Báo cáo sẵn sàng hoặc huỷ sẵn sàng.
 
 | `winner`           | `reason`      | Mô tả                                         |
 |:-------------------|:--------------|:----------------------------------------------|
-| `"white"` / `"black"` | `"checkmate"` | Chiếu hết                                  |
-| `"white"` / `"black"` | `"timeout"`   | Đối thủ hết giờ (server-side turn timer)   |
-| `"white"` / `"black"` | `"resign"`    | Đối thủ đầu hàng *(chưa implement)*        |
-| `"draw"`           | `"stalemate"` | Pat                                           |
-| `"draw"`           | `"draw"`      | Hòa (50-move rule, insufficient material...) |
+| `"WHITE_WIN"` / `"BLACK_WIN"` | `"CHECKMATE"` | Chiếu hết                                  |
+| `"WHITE_WIN"` / `"BLACK_WIN"` | `"TIMEOUT"`   | Đối thủ hết giờ (server-side turn timer)   |
+| `"WHITE_WIN"` / `"BLACK_WIN"` | `"RESIGN"`    | Đối thủ đầu hàng *(chưa implement)*        |
+| `"DRAW"`                      | `"STALEMATE"` | Pat                                           |
+| `"DRAW"`                      | `"DRAW"`      | Hòa (50-move rule, insufficient material...) |
 
 > **Server-side turn timer:** Sau mỗi nước đi (và khi game bắt đầu), server lên lịch một `ScheduledFuture` (key `turn:{roomId}`) với thời gian bằng `remainingMillis` của người đến lượt. Nếu hết giờ mà không có nước đi mới, server tự gọi `endGame()` và broadcast `GAME_OVER`. Client **không cần** gửi request để claim timeout.
 

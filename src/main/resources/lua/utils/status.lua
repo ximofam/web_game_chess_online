@@ -17,5 +17,6 @@ local Errors = {
     START_TIME_NOT_REACHED = -14,
     NOT_YOUR_TURN = -15,
     GAME_NOT_FOUND = -16,
-    TIME_OUT = -17
+    TIME_OUT = -17,
+    ROOM_IN_PROGRESS = -18
 }

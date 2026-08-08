@@ -32,6 +32,7 @@ public class LuaErrorHandler {
             case -15 -> throw new BadRequestException("It is not your turn.");
             case -16 -> throw new NotFoundException("Game not found.");
             case -17 -> throw new BadRequestException("Time out.");
+            case -18 -> throw new BadRequestException("Cannot perform this action while the game is in progress.");
         }
     }
 }

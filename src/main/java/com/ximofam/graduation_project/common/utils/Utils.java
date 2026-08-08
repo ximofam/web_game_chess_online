@@ -4,8 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 public class Utils {
     private Utils() {
@@ -70,5 +72,29 @@ public class Utils {
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to serialize to JSON", e);
         }
+    }
+
+    public static UUID parseUuid(Object val) {
+        return val == null ? null : UUID.fromString(val.toString());
+    }
+
+    public static Instant parseEpochMillis(Object val) {
+        if (val == null) return null;
+        try { return Instant.ofEpochMilli(Long.parseLong(val.toString())); }
+        catch (NumberFormatException e) { return null; }
+    }
+
+    public static int toInt(Object val, int def) {
+        if (val instanceof Number n) return n.intValue();
+        if (val instanceof String s) { try { return Integer.parseInt(s); } catch (NumberFormatException ignored) {} }
+        return def;
+    }
+
+    public static boolean toBool(Object val) {
+        return Boolean.TRUE.equals(val) || "true".equals(val);
+    }
+
+    public static String orDefault(Object val, String def) {
+        return val != null ? val.toString() : def;
     }
 }

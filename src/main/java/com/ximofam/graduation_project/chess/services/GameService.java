@@ -5,7 +5,9 @@ import com.github.bhlangonijr.chesslib.Board;
 import com.github.bhlangonijr.chesslib.Side;
 import com.github.bhlangonijr.chesslib.move.Move;
 import com.ximofam.graduation_project.chess.dtos.ws.*;
-import com.ximofam.graduation_project.chess.enums.RoomStatus;
+import com.ximofam.graduation_project.chess.entities.Game;
+import com.ximofam.graduation_project.chess.enums.*;
+import com.ximofam.graduation_project.chess.repositories.GameRepository;
 import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
 import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
 import com.ximofam.graduation_project.common.exceptions.http.InternalException;
@@ -48,6 +50,7 @@ public class GameService {
     private final RedisScript<List<Object>> startGameScript;
     private final RedisScript<List<Object>> endGameScript;
     private final ObjectMapper objectMapper;
+    private final GameRepository gameRepository;
 
 
     public void ready(String userId, String roomId, boolean isReady) {
@@ -92,25 +95,26 @@ public class GameService {
             // Resolve color
             String whiteId = (String) redisTemplate.opsForHash().get(roomKey, "whiteId");
             String blackId = (String) redisTemplate.opsForHash().get(roomKey, "blackId");
-            String color;
-            if (userId.equals(whiteId)) color = "white";
-            else if (userId.equals(blackId)) color = "black";
+            PlayerRole color;
+            if (userId.equals(whiteId)) color = PlayerRole.WHITE;
+            else if (userId.equals(blackId)) color = PlayerRole.BLACK;
             else throw new ForbiddenException("You are not a player in this room.");
 
             // Check turn
-            String turn = (String) gameHash.get("turn");
-            if (!color.equals(turn)) throw new BadRequestException("It is not your turn.");
+            String turnStr = (String) gameHash.get("turn");
+            PlayerRole turn = PlayerRole.WHITE.toValue().equals(turnStr) ? PlayerRole.WHITE : PlayerRole.BLACK;
+            if (color != turn) throw new BadRequestException("It is not your turn.");
 
             Board board = new Board();
             board.loadFromFen((String) gameHash.get("fen"));
-            if (!board.doMove(new Move(move, "white".equals(color) ? Side.WHITE : Side.BLACK)))
+            if (!board.doMove(new Move(move, color == PlayerRole.WHITE ? Side.WHITE : Side.BLACK)))
                 throw new BadRequestException("Illegal move.");
             String newFen = board.getFen();
 
             // Time accounting
             long turnStartedAt = Utils.parseLong(gameHash.get("turnStartedAt"), now);
             long incrementMillis = Utils.parseLong(gameHash.get("incrementMillis"), 0);
-            String timeKey = color + "RemainingMillis";
+            String timeKey = color.toValue() + "RemainingMillis";
             long elapsed = Math.max(0, now - turnStartedAt);
             long newRemaining = Utils.parseLong(gameHash.get(timeKey), 0) - elapsed;
             if (newRemaining <= 0) {
@@ -118,15 +122,15 @@ public class GameService {
                 throw new BadRequestException("Time out.");
             }
             final long committedRemaining = newRemaining + incrementMillis;
-            String nextTurn = "white".equals(turn) ? "black" : "white";
+            PlayerRole nextTurn = turn == PlayerRole.WHITE ? PlayerRole.BLACK : PlayerRole.WHITE;
 
             // Both clocks for payload (opponent time unchanged, already in hash)
-            long opponentRemaining = Utils.parseLong(gameHash.get(nextTurn + "RemainingMillis"), 0);
-            long whiteRemaining = "white".equals(color) ? committedRemaining : opponentRemaining;
-            long blackRemaining = "black".equals(color) ? committedRemaining : opponentRemaining;
+            long opponentRemaining = Utils.parseLong(gameHash.get(nextTurn.toValue() + "RemainingMillis"), 0);
+            long whiteRemaining = color == PlayerRole.WHITE ? committedRemaining : opponentRemaining;
+            long blackRemaining = color == PlayerRole.BLACK ? committedRemaining : opponentRemaining;
 
             redisTemplate.opsForHash().putAll(gameKey, Map.of(
-                    "turn", nextTurn,
+                    "turn", nextTurn.toValue(),
                     "fen", newFen,
                     timeKey, String.valueOf(committedRemaining),
                     "turnStartedAt", String.valueOf(now)
@@ -134,21 +138,21 @@ public class GameService {
             if (!move.isBlank()) redisTemplate.opsForList().rightPush(RedisKeys.gameMoves(roomId), move);
 
             messagingTemplate.convertAndSend(TopicUtils.room(roomId),
-                    WsEvent.of(GameMovedPayload.TYPE, new GameMovedPayload(move, color, nextTurn, newFen, whiteRemaining, blackRemaining)));
+                    WsEvent.of(GameMovedPayload.TYPE, new GameMovedPayload(move, color.toValue(), nextTurn.toValue(), newFen, whiteRemaining, blackRemaining)));
 
             // Check for game over by board state (checkmate / stalemate / draw)
             if (board.isMated()) {
-                endGame(roomId, color, "checkmate");
+                endGame(roomId, GameResult.fromWinner(color), ResultReason.CHECKMATE);
                 return;
             }
             if (board.isStaleMate() || board.isDraw()) {
-                endGame(roomId, "draw", board.isStaleMate() ? "stalemate" : "draw");
+                endGame(roomId, GameResult.DRAW, board.isStaleMate() ? ResultReason.STALEMATE : ResultReason.DRAW);
                 return;
             }
 
             // Re-schedule the turn timer for the next player
             scheduleTurnTimer(roomId, nextTurn,
-                    "white".equals(nextTurn) ? whiteRemaining : blackRemaining);
+                    nextTurn == PlayerRole.WHITE ? whiteRemaining : blackRemaining);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new InternalException("Lock interrupted.");
@@ -158,31 +162,94 @@ public class GameService {
     }
 
     // Called by the turn timer when a player runs out of time
-    private void endGameByTimeout(String roomId, String loser) {
-        String winner = "white".equals(loser) ? "black" : "white";
-        endGame(roomId, winner, "timeout");
+    private void endGameByTimeout(String roomId, PlayerRole loser) {
+        endGame(roomId, GameResult.fromLoser(loser), ResultReason.TIMEOUT);
     }
 
-    // Shared end-game logic: mark FINISHED in Redis and broadcast GAME_OVER
-    private void endGame(String roomId, String winner, String reason) {
+    // Shared end-game logic: persist to DB and broadcast GAME_OVER
+    private void endGame(String roomId, GameResult result, ResultReason reason) {
         cancelTurnTimer(roomId);
-        List<Object> result = redisTemplate.execute(endGameScript,
-                List.of(RedisKeys.roomInfo(roomId), RedisKeys.gameInfo(roomId)),
-                winner, reason);
 
-        // FAIL (-1 room not found, or 0 room not IN_PROGRESS) → already ended, ignore
-        if (result == null || result.isEmpty() || !Long.valueOf(1L).equals(result.getFirst())) {
-            log.warn("endGame skipped for room={} winner={} reason={}: script returned {}", roomId, winner, reason, result);
+        List<Object> luaResult = redisTemplate.execute(endGameScript,
+                List.of(RedisKeys.roomInfo(roomId), RedisKeys.gameInfo(roomId), RedisKeys.gameMoves(roomId)));
+
+        if (luaResult == null || luaResult.isEmpty() || !Long.valueOf(1L).equals(luaResult.getFirst())) {
+            log.warn("endGame skipped for room={} result={} reason={}: script returned {}", roomId, result, reason, luaResult);
             return;
         }
 
+        // luaResult: [OK, settingsRaw, whiteId, blackId, startAt, incrementMillis, move0, move1, ...]
+        String settingsRaw = (String) luaResult.get(1);
+        String whiteId = (String) luaResult.get(2);
+        String blackId = (String) luaResult.get(3);
+        String startAt = (String) luaResult.get(4);
+        List<String> moves = luaResult.subList(6, luaResult.size()).stream().map(Object::toString).toList();
+
+        persistGame(result, reason, settingsRaw, whiteId, blackId, startAt, moves);
+
         messagingTemplate.convertAndSend(TopicUtils.room(roomId),
-                WsEvent.of(GameOverPayload.TYPE, new GameOverPayload(winner, reason)));
+                WsEvent.of(GameOverPayload.TYPE, new GameOverPayload(result.name(), reason.name())));
         messagingTemplate.convertAndSend(TopicUtils.LOBBIES,
-                WsEvent.of(RoomUpdateStatusEvent.TYPE, new RoomUpdateStatusEvent(roomId, RoomStatus.FINISHED.name())));
+                WsEvent.of(RoomUpdateStatusEvent.TYPE, new RoomUpdateStatusEvent(roomId, RoomStatus.WAITING.name())));
     }
 
-    private void scheduleTurnTimer(String roomId, String colorOnTurn, long remainingMillis) {
+    private void persistGame(GameResult result, ResultReason reason,
+                             String settingsRaw,
+                             String whiteId, String blackId, String startAt,
+                             List<String> moves) {
+        Map<?, ?> settings = Utils.parseJson(objectMapper, settingsRaw, Map.class);
+
+        Game game = new Game();
+        game.setWhiteId(Utils.parseUuid(whiteId));
+        game.setBlackId(Utils.parseUuid(blackId));
+        game.setStartTime(Utils.parseEpochMillis(startAt));
+        game.setEndTime(Instant.now());
+        game.setStatus(GameStatus.FINISHED);
+        game.setResult(result);
+        game.setResultReason(reason);
+        game.setSource(GameSource.ROOM);
+        game.setPgn(buildPgn(moves));
+
+        if (settings != null) {
+            game.setTimeMinutes(Utils.toInt(settings.get("timeMinutes"), 10));
+            game.setIncrementSeconds(Utils.toInt(settings.get("incrementSeconds"), 0));
+            game.setVariant(Utils.orDefault(settings.get("variant"), "STANDARD"));
+            game.setRated(Utils.toBool(settings.get("rated")));
+        } else {
+            game.setTimeMinutes(10);
+            game.setIncrementSeconds(0);
+            game.setVariant("STANDARD");
+        }
+
+        gameRepository.save(game);
+    }
+
+
+    private static String buildPgn(List<String> uciMoves) {
+        if (uciMoves == null || uciMoves.isEmpty()) return "";
+        try {
+            com.github.bhlangonijr.chesslib.move.MoveList list = new com.github.bhlangonijr.chesslib.move.MoveList();
+            Board board = new Board();
+            for (String uci : uciMoves) {
+                Move m = new Move(uci, board.getSideToMove());
+                list.add(m);
+                board.doMove(m);
+            }
+            return list.toSanWithMoveNumbers();
+        } catch (Exception e) {
+            log.warn("Failed to generate PGN: {}", e.getMessage());
+            // Fallback to simple UCI format if chesslib fails
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < uciMoves.size(); i++) {
+                if (i % 2 == 0) sb.append(i / 2 + 1).append(". ");
+                sb.append(uciMoves.get(i)).append(' ');
+            }
+            return sb.toString().trim();
+        }
+    }
+
+
+    private void scheduleTurnTimer(String roomId, PlayerRole colorOnTurn, long remainingMillis) {
         cancelTurnTimer(roomId);
         String key = turnKey(roomId);
         ScheduledFuture<?> future = scheduler.schedule(
@@ -218,10 +285,11 @@ public class GameService {
             if (code == 1 && result.size() >= 4) {
                 String whiteId = (String) result.get(1);
                 String blackId = (String) result.get(2);
-                String turn = (String) result.get(3);
+                String turnStr = (String) result.get(3);
+                PlayerRole turn = PlayerRole.WHITE.toValue().equals(turnStr) ? PlayerRole.WHITE : PlayerRole.BLACK;
 
                 messagingTemplate.convertAndSend(TopicUtils.room(roomId),
-                        WsEvent.of(GameStartedEvent.TYPE, new GameStartedEvent(whiteId, blackId, turn, STARTING_FEN)));
+                        WsEvent.of(GameStartedEvent.TYPE, new GameStartedEvent(whiteId, blackId, turnStr, STARTING_FEN)));
 
                 long initialTimeMillis = getInitialTimeMillis(roomId);
                 scheduleTurnTimer(roomId, turn, initialTimeMillis);
@@ -245,7 +313,7 @@ public class GameService {
                 WsEvent.of(RoomUpdateStatusEvent.TYPE, new RoomUpdateStatusEvent(roomId, RoomStatus.COUNTDOWN.name())));
     }
 
-    private void cancelCountdown(String roomId) {
+    public void cancelCountdown(String roomId) {
         ScheduledFuture<?> future = tasks.remove(startKey(roomId));
         if (future != null) future.cancel(false);
     }

@@ -6,7 +6,7 @@ local userId = ARGV[1]
 
 local status = redis.call('HGET', KEYS[1], 'status')
 if not status then
-    return {Errors.ROOM_NOT_FOUND, nil, nil}
+    return {Errors.ROOM_NOT_FOUND}
 end
 
 if redis.call('ZSCORE', KEYS[2], userId) ~= false then
@@ -14,8 +14,8 @@ if redis.call('ZSCORE', KEYS[2], userId) ~= false then
     return {OK, 'SPECTATOR_LEFT', 'spectator'}
 end
 
-if status ~= RoomStatus.WAITING then
-    return {Errors.ROOM_NOT_WAITING, nil, nil}
+if status == RoomStatus.IN_PROGRESS then
+    return {Errors.ROOM_IN_PROGRESS}
 end
 
 local whiteId = redis.call('HGET', KEYS[1], 'whiteId') or ''
@@ -27,13 +27,17 @@ if role then
     redis.call('HSET', KEYS[1], role .. 'Id', '', role .. 'Ready', 'false')
 end
 
+if status == RoomStatus.COUNTDOWN then
+    redis.call('HSET', KEYS[1], 'status', RoomStatus.WAITING)
+end
+
 if hostId == userId then
     redis.call('HSET', KEYS[1], 'hostId', '')
-    return {OK, 'HOST_LEFT', 'host'}
+    return {OK, 'HOST_LEFT', 'host', status}
 end
 
 if role == 'white' or role == 'black' then
-    return {OK, 'PLAYER_LEFT', role}
+    return {OK, 'PLAYER_LEFT', role, status}
 end
 
-return {Errors.NOT_IN_ROOM, nil, nil}
+return {Errors.NOT_IN_ROOM}
