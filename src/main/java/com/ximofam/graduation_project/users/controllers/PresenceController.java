@@ -19,7 +19,7 @@ public class PresenceController {
 
     private final PresenceService presenceService;
 
-    @GetMapping("/api/users/{userId}/presence")
+    @GetMapping("/api/presence/{userId}")
     public ResponseEntity<Map<String, Object>> getUserPresence(@PathVariable String userId) {
         Map<String, Object> presence = presenceService.getUserPresence(userId);
         return ResponseEntity.ok(presence);

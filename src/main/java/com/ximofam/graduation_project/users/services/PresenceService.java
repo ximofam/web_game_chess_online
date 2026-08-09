@@ -41,10 +41,6 @@ public class PresenceService {
     @Value("${app.presence.session-ttl-seconds:30}")
     private Duration sessionTtl = Duration.ofSeconds(30);
 
-    @DurationUnit(ChronoUnit.SECONDS)
-    @Value("${app.presence.offline-grace-period-seconds:5}")
-    private Duration offlineGracePeriod = Duration.ofSeconds(5);
-
     private final RedisScript<Long> presenceConnectScript;
     private final RedisScript<Long> handlePlayingDisconnectScript;
     private final RedisScript<List<Object>> presenceDisconnectScript;
@@ -119,8 +115,6 @@ public class PresenceService {
                 } else {
                     redisTemplate.delete(RedisKeys.presenceUser(userId));
                 }
-            } else if (PresenceStatus.IN_ROOM.name().equalsIgnoreCase(status)) {
-                redisTemplate.expire(RedisKeys.presenceUser(userId), offlineGracePeriod);
             } else {
                 redisTemplate.delete(RedisKeys.presenceUser(userId));
             }
