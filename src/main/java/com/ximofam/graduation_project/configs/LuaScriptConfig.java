@@ -42,6 +42,11 @@ public class LuaScriptConfig {
     }
 
     @Bean
+    public RedisScript<Long> handlePlayingDisconnectScript() {
+        return RedisScript.of(getScriptWithUtils("lua/scripts/handle_playing_disconnect.lua"), Long.class);
+    }
+
+    @Bean
     public RedisScript<Long> presenceSetStatusScript() {
         return RedisScript.of(new ClassPathResource("lua/scripts/presence_set_status.lua"), Long.class);
     }
@@ -89,13 +94,13 @@ public class LuaScriptConfig {
     @Bean
     @SuppressWarnings("rawtypes")
     public RedisScript<List> endGameScript() {
-        return RedisScript.of(getScriptWithUtils("lua/scripts/end_game.lua", "lua/utils/status.lua", "lua/utils/rooms.lua"), List.class);
+        return RedisScript.of(getScriptWithUtils("lua/scripts/end_game.lua", "lua/utils/status.lua", "lua/utils/rooms.lua", "lua/utils/user_presence.lua"), List.class);
     }
 
     @Bean
     @SuppressWarnings("rawtypes")
     public RedisScript<List> isPlayerScript() {
-        return RedisScript.of(getScriptWithUtils("lua/scripts/is_player.lua", "lua/utils/status.lua"), List.class);
+        return RedisScript.of(getScriptWithUtils("lua/scripts/is_player.lua", "lua/utils/status.lua", "lua/utils/rooms.lua"), List.class);
     }
 
 }

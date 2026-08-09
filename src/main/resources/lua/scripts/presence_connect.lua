@@ -12,7 +12,7 @@ redis.call('SADD', KEYS[1], ARGV[1])
 redis.call('PERSIST', KEYS[2])
 
 if wasEmpty then
-    redis.call('HSET', KEYS[2], 'status', UserStatus.ONLINE)
+    redis.call('HSETNX', KEYS[2], 'status', UserStatus.ONLINE)
     redis.call('SADD', KEYS[3], ARGV[2])
     return 1
 end

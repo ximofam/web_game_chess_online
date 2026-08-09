@@ -10,4 +10,8 @@ public class TopicUtils {
     }
 
     public static String LOBBIES = "/topic/lobbies";
+
+    public static String user(String userId) {
+        return "/topic/user." + userId;
+    }
 }

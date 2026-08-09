@@ -67,4 +67,6 @@ redis.call('HMSET', KEYS[2],
         'fen', initialFen
 )
 
+redis.call('EXPIRE', KEYS[2], 86400)
+
 return { OK, whiteId, blackId, PlayerRole.WHITE, initialFen, initialTimeMillis }

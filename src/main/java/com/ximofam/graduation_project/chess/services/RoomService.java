@@ -284,7 +284,10 @@ public class RoomService {
         ChatMessagePayload payload = new ChatMessagePayload(sender, message, Instant.now().toEpochMilli());
 
         String chatKey = RedisKeys.roomChat(roomId);
-        redisTemplate.opsForList().leftPush(chatKey, Utils.writeJson(objectMapper, payload));
+        Long size = redisTemplate.opsForList().leftPush(chatKey, Utils.writeJson(objectMapper, payload));
+        if (size != null && size == 1L) {
+            redisTemplate.expire(chatKey, java.time.Duration.ofHours(24));
+        }
         redisTemplate.opsForList().trim(chatKey, 0, CHAT_HISTORY_SIZE - 1L);
 
         messagingTemplate.convertAndSend(TopicUtils.room(roomId), new WsEvent<>("CHAT_MESSAGE", payload));

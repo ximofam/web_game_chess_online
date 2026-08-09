@@ -2,7 +2,7 @@ package com.ximofam.graduation_project.chess.listeners;
 
 import com.ximofam.graduation_project.chess.services.RoomService;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
-import com.ximofam.graduation_project.common.helpers.dtos.events.UserWentOfflineEvent;
+import com.ximofam.graduation_project.users.dtos.events.UserWentOfflineEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

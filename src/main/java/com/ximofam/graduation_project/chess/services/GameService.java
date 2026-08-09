@@ -26,6 +26,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -139,7 +140,13 @@ public class GameService {
                     timeKey, String.valueOf(committedRemaining),
                     "turnStartedAt", String.valueOf(now)
             ));
-            if (!move.isBlank()) redisTemplate.opsForList().rightPush(RedisKeys.gameMoves(roomId), move);
+            if (!move.isBlank()) {
+                String movesKey = RedisKeys.gameMoves(roomId);
+                Long size = redisTemplate.opsForList().rightPush(movesKey, move);
+                if (size != null && size == 1L) {
+                    redisTemplate.expire(movesKey, Duration.ofHours(24));
+                }
+            }
 
             messagingTemplate.convertAndSend(TopicUtils.room(roomId),
                     WsEvent.of(GameMovedPayload.TYPE, new GameMovedPayload(move, color.toValue(), nextTurn.toValue(), newFen, whiteRemaining, blackRemaining)));

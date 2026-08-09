@@ -139,3 +139,70 @@ classDiagram
 ## 3. Định dạng lỗi & Xử lý lỗi chung
 
 *(Tham chiếu cấu trúc lỗi chung từ Auth API Specification)*
+
+---
+
+## 4. Quản lý trạng thái trực tuyến (Presence)
+
+Hệ thống cung cấp cơ chế theo dõi trạng thái trực tuyến của người dùng (Presence) thông qua STOMP WebSocket và các REST
+APIs phụ trợ.
+
+Các trạng thái `PresenceStatus` hợp lệ:
+- **`ONLINE`**: User đang mở ứng dụng, duyệt web hoặc ở sảnh (Lobby). Không nằm trong phòng cụ thể nào. Dữ liệu presence thông thường chỉ bao gồm `{"status": "ONLINE"}`.
+- **`IN_ROOM`**: User đang ở trong một phòng chờ. Có thể với tư cách là người chơi (chưa bắt đầu ván) hoặc khán giả (spectator). Dữ liệu presence sẽ có thêm các trường như `{"status": "IN_ROOM", "roomId": "...", "role": "white"}`.
+- **`PLAYING`**: User đang thực sự chơi một ván cờ đang diễn ra (In-game). Nếu user bị rớt mạng trong lúc này, hệ thống sẽ tạm thời gán TTL (15 phút) cho presence hash để giữ trạng thái `PLAYING` phòng hờ user reconnect lại.
+- **`OFFLINE`**: User không còn kết nối với server (đóng web, rớt mạng quá lâu). Khi user OFFLINE, presence hash thường sẽ bị xóa khỏi Redis (trừ trường hợp rớt mạng khi đang `PLAYING`). Dữ liệu presence khi gọi REST API hoặc WS trả về mặc định là `{"status": "OFFLINE"}`.
+
+### 4.1. REST APIs
+
+**1. Lấy số lượng người dùng đang trực tuyến**
+
+- **Endpoint:** `GET /api/presence/online-count`
+- **Mô tả:** Trả về tổng số lượng người dùng đang kết nối (không đếm trùng lặp thiết bị).
+- **Response:** `200 OK`
+  ```json
+  120
+  ```
+
+### 4.2. STOMP WebSocket Endpoints
+
+**1. Lấy trạng thái tức thời của một người dùng**
+
+- **Destination:** `/app/user.{userId}` (qua `@SubscribeMapping`)
+- **Mô tả:** Dùng để gọi một lần khi vừa vào trang cá nhân/bạn bè để lấy trạng thái hiện tại mà không phải đợi event
+  thay đổi.
+- **Response:** (gửi thẳng về client vừa gọi)
+  ```json
+  {
+    "type": "USER_PRESENCE",
+    "data": {
+      "status": "IN_ROOM",
+      "roomId": "room-uuid",
+      "role": "white"
+    }
+  }
+  ```
+  *(Lưu ý: `data` chứa toàn bộ thông tin lấy được từ Redis hash `presenceUser`, bao gồm `status`, `roomId` và các field
+  khác nếu có. Nếu user offline, `data` sẽ chỉ chứa `{"status": "OFFLINE"}`).*
+
+**2. Subscribe nhận cập nhật trạng thái người dùng (Real-time)**
+
+- **Topic:** `/topic/user.{userId}`
+- **Mô tả:** Client subscribe vào topic này để nhận broadcast mỗi khi trạng thái của `userId` thay đổi (vd: từ `ONLINE`
+  sang `PLAYING`, hoặc bị rớt mạng `OFFLINE`).
+- **Event:**
+  ```json
+  {
+    "type": "USER_PRESENCE",
+    "data": {
+      "status": "OFFLINE"
+    }
+  }
+  ```
+
+**3. Gửi Heartbeat (Giữ kết nối)**
+
+- **Destination:** `/app/presence.heartbeat`
+- **Mô tả:** Định kỳ gửi heartbeat (vd: mỗi 15 giây) để gia hạn TTL của session trên Redis, tránh bị đánh dấu là OFFLINE
+  nếu mất kết nối websocket ảo.
+- **Payload Request:** Không cần gửi payload.

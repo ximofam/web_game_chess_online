@@ -26,4 +26,6 @@ redis.call('HSET', KEYS[1],
 redis.call('ZADD', KEYS[2], tonumber(ARGV[3]), ARGV[4])
 setUserPresenceToRoom(KEYS[3], ARGV[4], 'true', PlayerRole.WHITE)
 
+redis.call('EXPIRE', KEYS[1], 86400)
+
 return OK

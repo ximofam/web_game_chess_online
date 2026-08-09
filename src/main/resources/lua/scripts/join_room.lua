@@ -73,6 +73,9 @@ elseif role == PlayerRole.SPECTATOR then
         return Errors.SPECTATORS_LOCKED
     end
     redis.call('ZADD', KEYS[3], timestamp, userId)
+    if redis.call('ZCARD', KEYS[3]) == 1 then
+        redis.call('EXPIRE', KEYS[3], 86400)
+    end
     setUserPresenceToRoom(KEYS[2], roomId, 'false', PlayerRole.SPECTATOR)
     return OK
 

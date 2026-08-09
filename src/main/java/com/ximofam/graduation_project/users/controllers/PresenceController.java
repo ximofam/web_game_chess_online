@@ -1,11 +1,15 @@
 package com.ximofam.graduation_project.users.controllers;
 
+import com.ximofam.graduation_project.common.helpers.dtos.WsEvent;
 import com.ximofam.graduation_project.common.utils.AuthUtils;
+import com.ximofam.graduation_project.users.dtos.ws.UserPresenceEvent;
 import com.ximofam.graduation_project.users.services.PresenceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.annotation.SubscribeMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -17,6 +21,12 @@ import java.util.Map;
 public class PresenceController {
 
     private final PresenceService presenceService;
+
+    @SubscribeMapping("/user.{userId}")
+    public WsEvent<Map<String, Object>> subscribePresence(@DestinationVariable String userId) {
+        Map<String, Object> presence = presenceService.getUserPresence(userId);
+        return WsEvent.of(UserPresenceEvent.TYPE, presence);
+    }
 
     @MessageMapping("/presence.heartbeat")
     public void heartbeat(SimpMessageHeaderAccessor accessor) {
@@ -34,18 +44,4 @@ public class PresenceController {
         return ResponseEntity.ok(presenceService.getOnlineUserCount());
     }
 
-    @GetMapping("/api/presence/me")
-    public ResponseEntity<Map<String, Object>> getMyPresence(Principal principal) {
-        String userId = AuthUtils.resolveUserId(principal);
-        if (userId == null) {
-            return ResponseEntity.status(401).build();
-        }
-
-        Map<String, Object> presenceData = presenceService.getUserPresence(userId);
-        if (presenceData == null || presenceData.isEmpty()) {
-            return ResponseEntity.ok(Map.of("status", "OFFLINE"));
-        }
-
-        return ResponseEntity.ok(presenceData);
-    }
 }

@@ -1,4 +1,4 @@
-package com.ximofam.graduation_project.common.helpers.dtos.events;
+package com.ximofam.graduation_project.users.dtos.events;
 
 import java.util.Map;
 
