@@ -9,6 +9,7 @@
 
 local wasEmpty = (redis.call('SCARD', KEYS[1]) == 0)
 redis.call('SADD', KEYS[1], ARGV[1])
+redis.call('PERSIST', KEYS[2])
 
 if wasEmpty then
     redis.call('HSET', KEYS[2], 'status', UserStatus.ONLINE)

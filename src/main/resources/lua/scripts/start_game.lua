@@ -46,10 +46,10 @@ local incrementMillis = incrementSeconds * 1000
 redis.call('HSET', KEYS[1], 'status', RoomStatus.IN_PROGRESS)
 
 -- Cập nhật trạng thái người chơi
-if whiteId and whiteId ~= '' and not setPlayingIfInRoom(buildPresenceKey(whiteId)) then
+if whiteId and whiteId ~= '' and setPlayingIfInRoom(buildPresenceKey(whiteId)) == FAIL then
     return { Errors.NOT_IN_ROOM }
 end
-if blackId and blackId ~= '' and not setPlayingIfInRoom(buildPresenceKey(blackId)) then
+if blackId and blackId ~= '' and setPlayingIfInRoom(buildPresenceKey(blackId)) == FAIL then
     return { Errors.NOT_IN_ROOM }
 end
 
@@ -61,10 +61,10 @@ redis.call('HMSET', KEYS[2],
         'whiteRemainingMillis', initialTimeMillis,
         'blackRemainingMillis', initialTimeMillis,
         'incrementMillis', incrementMillis,
-        'turn', 'white',
+        'turn', PlayerRole.WHITE,
         'turnStartedAt', startAt,
         'startAt', startAt,
         'fen', initialFen
 )
 
-return { OK, whiteId, blackId, 'white', initialFen, initialTimeMillis }
+return { OK, whiteId, blackId, PlayerRole.WHITE, initialFen, initialTimeMillis }

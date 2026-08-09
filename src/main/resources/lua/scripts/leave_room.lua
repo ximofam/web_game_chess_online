@@ -11,7 +11,7 @@ end
 
 if redis.call('ZSCORE', KEYS[2], userId) ~= false then
     redis.call('ZREM', KEYS[2], userId)
-    return { OK, 'SPECTATOR_LEFT', 'spectator' }
+    return { OK, 'SPECTATOR_LEFT', PlayerRole.SPECTATOR }
 end
 
 if status == RoomStatus.IN_PROGRESS then
@@ -21,7 +21,7 @@ end
 local whiteId = redis.call('HGET', KEYS[1], 'whiteId') or ''
 local blackId = redis.call('HGET', KEYS[1], 'blackId') or ''
 local hostId = redis.call('HGET', KEYS[1], 'hostId') or ''
-local role = (whiteId == userId and 'white') or (blackId == userId and 'black')
+local role = (whiteId == userId and PlayerRole.WHITE) or (blackId == userId and PlayerRole.BLACK)
 
 if role then
     redis.call('HSET', KEYS[1], role .. 'Id', '', role .. 'Ready', 'false')
@@ -36,7 +36,7 @@ if hostId == userId then
     return { OK, 'HOST_LEFT', 'host', status }
 end
 
-if role == 'white' or role == 'black' then
+if role == PlayerRole.WHITE or role == PlayerRole.BLACK then
     return { OK, 'PLAYER_LEFT', role, status }
 end
 

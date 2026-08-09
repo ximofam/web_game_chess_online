@@ -28,7 +28,7 @@ local function setPlayingIfInRoom(presenceKey)
     local status = redis.call('HGET', presenceKey, 'status')
     if status == UserStatus.IN_ROOM then
         redis.call('HSET', presenceKey, 'status', UserStatus.PLAYING)
-        return true
+        return OK
     end
-    return false
+    return FAIL
 end

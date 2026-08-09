@@ -23,9 +23,9 @@ local blackId = redis.call('HGET', KEYS[1], 'blackId')
 
 local role = nil
 if whiteId == userId then
-    role = 'white'
+    role = PlayerRole.WHITE
 elseif blackId == userId then
-    role = 'black'
+    role = PlayerRole.BLACK
 else
     return { Errors.NOT_A_PLAYER }
 end

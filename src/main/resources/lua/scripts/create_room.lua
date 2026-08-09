@@ -24,6 +24,6 @@ redis.call('HSET', KEYS[1],
 )
 
 redis.call('ZADD', KEYS[2], tonumber(ARGV[3]), ARGV[4])
-setUserPresenceToRoom(KEYS[3], ARGV[4], 'true', 'white')
+setUserPresenceToRoom(KEYS[3], ARGV[4], 'true', PlayerRole.WHITE)
 
 return OK
