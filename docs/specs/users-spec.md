@@ -21,6 +21,7 @@ classDiagram
         +getMyProfile(Long userId) ResponseEntity~UserDetailResponse~
         +updateMyProfile(Long userId, UpdateUserProfileRequest request) ResponseEntity~UserDetailResponse~
         +uploadMyAvatar(Long userId, MultipartFile file) ResponseEntity~ApiResponse~
+        +getUserPresence(String userId) ResponseEntity~Map~
     }
 ```
 
@@ -148,10 +149,16 @@ Hệ thống cung cấp cơ chế theo dõi trạng thái trực tuyến của n
 APIs phụ trợ.
 
 Các trạng thái `PresenceStatus` hợp lệ:
-- **`ONLINE`**: User đang mở ứng dụng, duyệt web hoặc ở sảnh (Lobby). Không nằm trong phòng cụ thể nào. Dữ liệu presence thông thường chỉ bao gồm `{"status": "ONLINE"}`.
-- **`IN_ROOM`**: User đang ở trong một phòng chờ. Có thể với tư cách là người chơi (chưa bắt đầu ván) hoặc khán giả (spectator). Dữ liệu presence sẽ có thêm các trường như `{"status": "IN_ROOM", "roomId": "...", "role": "white"}`.
-- **`PLAYING`**: User đang thực sự chơi một ván cờ đang diễn ra (In-game). Nếu user bị rớt mạng trong lúc này, hệ thống sẽ tạm thời gán TTL (15 phút) cho presence hash để giữ trạng thái `PLAYING` phòng hờ user reconnect lại.
-- **`OFFLINE`**: User không còn kết nối với server (đóng web, rớt mạng quá lâu). Khi user OFFLINE, presence hash thường sẽ bị xóa khỏi Redis (trừ trường hợp rớt mạng khi đang `PLAYING`). Dữ liệu presence khi gọi REST API hoặc WS trả về mặc định là `{"status": "OFFLINE"}`.
+
+- **`ONLINE`**: User đang mở ứng dụng, duyệt web hoặc ở sảnh (Lobby). Không nằm trong phòng cụ thể nào. Dữ liệu presence
+  thông thường chỉ bao gồm `{"status": "ONLINE"}`.
+- **`IN_ROOM`**: User đang ở trong một phòng chờ. Có thể với tư cách là người chơi (chưa bắt đầu ván) hoặc khán giả (
+  spectator). Dữ liệu presence sẽ có thêm các trường như `{"status": "IN_ROOM", "roomId": "...", "role": "white"}`.
+- **`PLAYING`**: User đang thực sự chơi một ván cờ đang diễn ra (In-game). Nếu user bị rớt mạng trong lúc này, hệ thống
+  sẽ tạm thời gán TTL (15 phút) cho presence hash để giữ trạng thái `PLAYING` phòng hờ user reconnect lại.
+- **`OFFLINE`**: User không còn kết nối với server (đóng web, rớt mạng quá lâu). Khi user OFFLINE, presence hash thường
+  sẽ bị xóa khỏi Redis (trừ trường hợp rớt mạng khi đang `PLAYING`). Dữ liệu presence khi gọi REST API hoặc WS trả về
+  mặc định là `{"status": "OFFLINE"}`.
 
 ### 4.1. REST APIs
 
@@ -164,28 +171,27 @@ Các trạng thái `PresenceStatus` hợp lệ:
   120
   ```
 
+**2. Lấy trạng thái trực tuyến của người dùng (Get User Presence)**
+
+- **Endpoint:** `GET /api/presence/{userId}`
+- **Mô tả:** Lấy thông tin trạng thái trực tuyến (presence) của một người dùng thông qua REST API.
+- **Headers:** Không yêu cầu xác thực.
+- **Path Parameters:**
+    - `userId` (String): ID của người dùng.
+- **Response:**
+    - **Success:** `200 OK`
+      ```json
+      {
+        "status": "IN_ROOM",
+        "roomId": "room-uuid",
+        "role": "white"
+      }
+      ```
+      *(Lưu ý: Dữ liệu trả về phụ thuộc vào trạng thái của user, nếu user offline sẽ trả về `{"status": "OFFLINE"}`)*
+
 ### 4.2. STOMP WebSocket Endpoints
 
-**1. Lấy trạng thái tức thời của một người dùng**
-
-- **Destination:** `/app/user.{userId}` (qua `@SubscribeMapping`)
-- **Mô tả:** Dùng để gọi một lần khi vừa vào trang cá nhân/bạn bè để lấy trạng thái hiện tại mà không phải đợi event
-  thay đổi.
-- **Response:** (gửi thẳng về client vừa gọi)
-  ```json
-  {
-    "type": "USER_PRESENCE",
-    "data": {
-      "status": "IN_ROOM",
-      "roomId": "room-uuid",
-      "role": "white"
-    }
-  }
-  ```
-  *(Lưu ý: `data` chứa toàn bộ thông tin lấy được từ Redis hash `presenceUser`, bao gồm `status`, `roomId` và các field
-  khác nếu có. Nếu user offline, `data` sẽ chỉ chứa `{"status": "OFFLINE"}`).*
-
-**2. Subscribe nhận cập nhật trạng thái người dùng (Real-time)**
+**1. Subscribe nhận cập nhật trạng thái người dùng (Real-time)**
 
 - **Topic:** `/topic/user.{userId}`
 - **Mô tả:** Client subscribe vào topic này để nhận broadcast mỗi khi trạng thái của `userId` thay đổi (vd: từ `ONLINE`
@@ -200,7 +206,7 @@ Các trạng thái `PresenceStatus` hợp lệ:
   }
   ```
 
-**3. Gửi Heartbeat (Giữ kết nối)**
+**2. Gửi Heartbeat (Giữ kết nối)**
 
 - **Destination:** `/app/presence.heartbeat`
 - **Mô tả:** Định kỳ gửi heartbeat (vd: mỗi 15 giây) để gia hạn TTL của session trên Redis, tránh bị đánh dấu là OFFLINE
