@@ -60,6 +60,11 @@ class RoomServiceTest {
     private com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
     private com.ximofam.graduation_project.chess.mappers.RoomMapper roomMapper;
 
+    @Mock private com.ximofam.graduation_project.chess.services.GameService gameService;
+    @Mock private org.redisson.api.RedissonClient redissonClient;
+    @Mock private org.redisson.api.RLock rLock;
+    @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     private RoomService roomService;
 
     @BeforeEach
@@ -69,7 +74,15 @@ class RoomServiceTest {
         // Manual construction avoids Mockito generic-type confusion with multiple RedisScript fields
         roomService = new RoomService(redisTemplate, userService, messagingTemplate,
                 createRoomScript, searchLobbyScript, joinRoomScript, leaveRoomScript, deleteRoomScript,
-                presenceService, objectMapper, roomMapper);
+                objectMapper, roomMapper, gameService, redissonClient, eventPublisher);
+        
+        lenient().when(redissonClient.getLock(anyString())).thenReturn(rLock);
+        try {
+            lenient().when(rLock.tryLock(anyLong(), anyLong(), any(java.util.concurrent.TimeUnit.class))).thenReturn(true);
+        } catch (InterruptedException e) {
+            // ignore
+        }
+        lenient().when(rLock.isHeldByCurrentThread()).thenReturn(true);
 
         lenient().when(redisTemplate.execute(eq(createRoomScript), anyList(), any(), any(), any(), any(), any()))
                 .thenReturn(1L);
@@ -131,7 +144,7 @@ class RoomServiceTest {
         roomService.leaveRoom("room1", "00000000-0000-0000-0000-000000000001", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE);
 
         // presence reset for "00000000-0000-0000-0000-000000000001" (from USER_LEAVE) and then "00000000-0000-0000-0000-000000000001" and "00000000-0000-0000-0000-000000000042" (from delRoomRes loop)
-        verify(presenceService, times(3)).setPresenceStatus(anyString(), eq(com.ximofam.graduation_project.users.enums.PresenceStatus.ONLINE), eq("is_host"), eq("roomId"), eq("role"));
+        verify(eventPublisher, times(3)).publishEvent(any(com.ximofam.graduation_project.users.dtos.events.SetUserPresenceEvent.class));
         verify(messagingTemplate).convertAndSend(eq("/topic/lobbies"), (Object) any());
         verify(messagingTemplate).convertAndSend(eq(TopicUtils.room("room1")), (Object) any());
     }
@@ -144,7 +157,7 @@ class RoomServiceTest {
 
         roomService.leaveRoom("room1", "99", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE);
 
-        verify(presenceService).setPresenceStatus(eq("99"), eq(com.ximofam.graduation_project.users.enums.PresenceStatus.ONLINE), eq("is_host"), eq("roomId"), eq("role"));
+        verify(eventPublisher).publishEvent(any(com.ximofam.graduation_project.users.dtos.events.SetUserPresenceEvent.class));
         verify(messagingTemplate).convertAndSend(eq(TopicUtils.room("room1")), (Object) any());
         verify(messagingTemplate).convertAndSend(eq("/topic/lobbies"), (Object) any());
     }
@@ -157,7 +170,7 @@ class RoomServiceTest {
 
         roomService.leaveRoom("room1", "5", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE);
 
-        verify(presenceService).setPresenceStatus(eq("5"), eq(com.ximofam.graduation_project.users.enums.PresenceStatus.ONLINE), eq("is_host"), eq("roomId"), eq("role"));
+        verify(eventPublisher).publishEvent(any(com.ximofam.graduation_project.users.dtos.events.SetUserPresenceEvent.class));
         verify(messagingTemplate).convertAndSend(eq(TopicUtils.room("room1")), (Object) any());
         verify(messagingTemplate, never()).convertAndSend(eq("/topic/lobbies"), (Object) any());
     }

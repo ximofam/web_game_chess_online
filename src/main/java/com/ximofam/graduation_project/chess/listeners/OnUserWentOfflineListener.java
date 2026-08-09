@@ -8,7 +8,10 @@ import com.ximofam.graduation_project.users.dtos.events.UserWentOfflineEvent;
 import com.ximofam.graduation_project.users.enums.PresenceStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -19,8 +22,11 @@ import java.time.Instant;
 public class OnUserWentOfflineListener {
 
     private final RoomService roomService;
-    private final org.springframework.scheduling.TaskScheduler scheduler;
-    private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+    private final TaskScheduler scheduler;
+    private final StringRedisTemplate redisTemplate;
+
+    @Value("${app.presence.offline-grace-period-seconds:5}")
+    private long offlineGracePeriodSeconds = 5;
 
     @EventListener
     public void onUserWentOffline(UserWentOfflineEvent event) {
@@ -31,7 +37,7 @@ public class OnUserWentOfflineListener {
 
         if (PresenceStatus.IN_ROOM.name().equalsIgnoreCase(status)) {
             scheduler.schedule(() -> {
-                // If the user has not reconnected after 5 seconds, remove them
+                // If the user has not reconnected after the grace period, remove them
                 if (!Boolean.TRUE.equals(redisTemplate.opsForSet().isMember(RedisKeys.ONLINE_USERS, event.userId()))) {
                     try {
                         roomService.leaveRoom(roomId, event.userId(), LeaveReason.DISCONNECT);
@@ -39,7 +45,7 @@ public class OnUserWentOfflineListener {
                         log.warn("Could not clean up room {} for disconnected user {}: {}", roomId, event.userId(), e.getMessage());
                     }
                 }
-            }, Instant.now().plusSeconds(5));
+            }, Instant.now().plusSeconds(offlineGracePeriodSeconds));
         }
     }
 }

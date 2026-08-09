@@ -125,6 +125,7 @@ app:
 
   presence:
     session-ttl-seconds: ${PRESENCE_SESSION_TTL_SECONDS:30}
+    offline-grace-period-seconds: ${PRESENCE_OFFLINE_GRACE_PERIOD_SECONDS:10}
 
   user:
     guest-max-age-days: 30

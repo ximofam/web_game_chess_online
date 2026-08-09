@@ -7,4 +7,5 @@ public record ChatMessagePayload(
         String message,
         long sentAt
 ) {
+    public static String TYPE = "CHAT_MESSAGE";
 }

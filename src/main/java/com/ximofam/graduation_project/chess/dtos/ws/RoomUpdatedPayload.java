@@ -7,4 +7,5 @@ public record RoomUpdatedPayload(
         String role,
         UserSimpleResponse user
 ) {
+    public static String TYPE = "ROOM_UPDATED";
 }

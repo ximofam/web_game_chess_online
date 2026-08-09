@@ -1,16 +1,13 @@
 package com.ximofam.graduation_project.users.controllers;
 
-import com.ximofam.graduation_project.common.helpers.dtos.WsEvent;
 import com.ximofam.graduation_project.common.utils.AuthUtils;
-import com.ximofam.graduation_project.users.dtos.ws.UserPresenceEvent;
 import com.ximofam.graduation_project.users.services.PresenceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
-import org.springframework.messaging.simp.annotation.SubscribeMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
@@ -22,10 +19,10 @@ public class PresenceController {
 
     private final PresenceService presenceService;
 
-    @SubscribeMapping("/user.{userId}")
-    public WsEvent<Map<String, Object>> subscribePresence(@DestinationVariable String userId) {
+    @GetMapping("/api/users/{userId}/presence")
+    public ResponseEntity<Map<String, Object>> getUserPresence(@PathVariable String userId) {
         Map<String, Object> presence = presenceService.getUserPresence(userId);
-        return WsEvent.of(UserPresenceEvent.TYPE, presence);
+        return ResponseEntity.ok(presence);
     }
 
     @MessageMapping("/presence.heartbeat")

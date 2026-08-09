@@ -6,7 +6,6 @@ import com.ximofam.graduation_project.chess.dtos.request.JoinRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.response.RoomResponse;
 import com.ximofam.graduation_project.chess.dtos.ws.*;
 import com.ximofam.graduation_project.chess.enums.LeaveReason;
-import com.ximofam.graduation_project.chess.enums.PlayerRole;
 import com.ximofam.graduation_project.chess.enums.RoomStatus;
 import com.ximofam.graduation_project.chess.mappers.RoomMapper;
 import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
@@ -17,15 +16,17 @@ import com.ximofam.graduation_project.common.utils.LuaErrorHandler;
 import com.ximofam.graduation_project.common.utils.RedisKeys;
 import com.ximofam.graduation_project.common.utils.TopicUtils;
 import com.ximofam.graduation_project.common.utils.Utils;
+import com.ximofam.graduation_project.users.dtos.events.SetUserPresenceEvent;
+import com.ximofam.graduation_project.users.dtos.events.UserPresenceChangedEvent;
 import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
 import com.ximofam.graduation_project.users.enums.PresenceStatus;
-import com.ximofam.graduation_project.users.services.PresenceService;
 import com.ximofam.graduation_project.users.services.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -50,11 +51,11 @@ public class RoomService {
     private final RedisScript<Long> joinRoomScript;
     private final RedisScript<List<Object>> leaveRoomScript;
     private final RedisScript<List<Object>> deleteRoomScript;
-    private final PresenceService presenceService;
     private final ObjectMapper objectMapper;
     private final RoomMapper roomMapper;
     private final GameService gameService;
     private final RedissonClient redissonClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final int CHAT_HISTORY_SIZE = 10;
 
@@ -93,7 +94,9 @@ public class RoomService {
         roomData.setCreatedAt(createdAt);
         roomData.setSettings(request.getSettings());
 
-        messagingTemplate.convertAndSend(TopicUtils.LOBBIES, new WsEvent<>("ROOM_CREATED", roomData));
+        eventPublisher.publishEvent(new UserPresenceChangedEvent(hostId));
+        messagingTemplate.convertAndSend(TopicUtils.LOBBIES, WsEvent.of("ROOM_CREATED", roomData));
+
         return roomData;
     }
 
@@ -195,12 +198,14 @@ public class RoomService {
         LuaErrorHandler.handle(luaCode, role);
 
         UserSimpleResponse userInfo = userService.getUserSimpleResponseById(UUID.fromString(userId));
+
+        eventPublisher.publishEvent(new UserPresenceChangedEvent(userId));
         messagingTemplate.convertAndSend(TopicUtils.room(roomId),
-                new WsEvent<>("PLAYER_JOINED", new PlayerJoinedPayload(role, userInfo)));
+                WsEvent.of(PlayerJoinedPayload.TYPE, new PlayerJoinedPayload(role, userInfo)));
 
         if (!"spectator".equals(role)) {
             messagingTemplate.convertAndSend(TopicUtils.LOBBIES,
-                    new WsEvent<>("ROOM_UPDATED", new RoomUpdatedPayload(roomId, role, userInfo)));
+                    WsEvent.of(RoomUpdatedPayload.TYPE, new RoomUpdatedPayload(roomId, role, userInfo)));
         }
 
         return getRoomDetails(roomId);
@@ -211,6 +216,10 @@ public class RoomService {
         try {
             if (!lock.tryLock(3, 5, TimeUnit.SECONDS))
                 throw new InternalException("Could not acquire lock.");
+
+            if (leaveReason.equals(LeaveReason.USER_LEAVE)) {
+                eventPublisher.publishEvent(new SetUserPresenceEvent(userId, PresenceStatus.ONLINE, null));
+            }
 
             List<Object> result = redisTemplate.execute(leaveRoomScript,
                     List.of(RedisKeys.roomInfo(roomId), RedisKeys.roomSpectators(roomId)), userId);
@@ -224,10 +233,6 @@ public class RoomService {
             String role = result.size() > 2 ? (String) result.get(2) : null;
             String prevStatus = result.size() > 3 ? (String) result.get(3) : null;
 
-            if (leaveReason.equals(LeaveReason.USER_LEAVE)) {
-                presenceService.setPresenceStatus(userId, PresenceStatus.ONLINE, "is_host", "roomId", "role");
-            }
-
             if ("HOST_LEFT".equals(reason)) {
                 List<Object> delRoomRes = redisTemplate.execute(
                         deleteRoomScript,
@@ -237,7 +242,7 @@ public class RoomService {
 
                 if (delRoomRes != null) {
                     for (Object obj : delRoomRes) {
-                        presenceService.setPresenceStatus(String.valueOf(obj), PresenceStatus.ONLINE, "is_host", "roomId", "role");
+                        eventPublisher.publishEvent(new SetUserPresenceEvent(String.valueOf(obj), PresenceStatus.ONLINE, null));
                     }
                 }
 
@@ -246,12 +251,12 @@ public class RoomService {
                 }
 
                 RoomDeletedPayload payload = new RoomDeletedPayload(roomId);
-                WsEvent<RoomDeletedPayload> event = new WsEvent<>("ROOM_DELETED", payload);
+                WsEvent<RoomDeletedPayload> event = WsEvent.of(RoomDeletedPayload.TYPE, payload);
                 messagingTemplate.convertAndSend(TopicUtils.LOBBIES, event);
                 messagingTemplate.convertAndSend(TopicUtils.room(roomId), event);
             } else if ("SPECTATOR_LEFT".equals(reason)) {
                 messagingTemplate.convertAndSend(TopicUtils.room(roomId),
-                        new WsEvent<>("PLAYER_LEFT", new PlayerLeftPayload(role, userId)));
+                        WsEvent.of(PlayerLeftPayload.TYPE, new PlayerLeftPayload(role, userId)));
             } else {
                 if (RoomStatus.COUNTDOWN.name().equals(prevStatus)) {
                     gameService.cancelCountdown(roomId);
@@ -260,9 +265,9 @@ public class RoomService {
                             WsEvent.of(RoomUpdateStatusEvent.TYPE, new RoomUpdateStatusEvent(roomId, RoomStatus.WAITING.name())));
                 }
                 messagingTemplate.convertAndSend(TopicUtils.room(roomId),
-                        new WsEvent<>("PLAYER_LEFT", new PlayerLeftPayload(role, userId)));
+                        WsEvent.of(PlayerLeftPayload.TYPE, new PlayerLeftPayload(role, userId)));
                 messagingTemplate.convertAndSend(TopicUtils.LOBBIES,
-                        new WsEvent<>("ROOM_UPDATED", new RoomUpdatedPayload(roomId, role, null)));
+                        WsEvent.of(RoomUpdatedPayload.TYPE, new RoomUpdatedPayload(roomId, role, null)));
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -290,7 +295,7 @@ public class RoomService {
         }
         redisTemplate.opsForList().trim(chatKey, 0, CHAT_HISTORY_SIZE - 1L);
 
-        messagingTemplate.convertAndSend(TopicUtils.room(roomId), new WsEvent<>("CHAT_MESSAGE", payload));
+        messagingTemplate.convertAndSend(TopicUtils.room(roomId), WsEvent.of(ChatMessagePayload.TYPE, payload));
     }
 
     public List<ChatMessagePayload> getChatHistory(String roomId) {

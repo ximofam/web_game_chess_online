@@ -16,10 +16,12 @@ import com.ximofam.graduation_project.common.utils.LuaErrorHandler;
 import com.ximofam.graduation_project.common.utils.RedisKeys;
 import com.ximofam.graduation_project.common.utils.TopicUtils;
 import com.ximofam.graduation_project.common.utils.Utils;
+import com.ximofam.graduation_project.users.dtos.events.UserPresenceChangedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -52,6 +54,7 @@ public class GameService {
     private final RedisScript<List<Object>> isPlayerScript;
     private final ObjectMapper objectMapper;
     private final GameRepository gameRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
 
     public void ready(String userId, String roomId, boolean isReady) {
@@ -196,6 +199,9 @@ public class GameService {
         String startAt = (String) luaResult.get(4);
         List<String> moves = luaResult.subList(6, luaResult.size()).stream().map(Object::toString).toList();
 
+        eventPublisher.publishEvent(new UserPresenceChangedEvent(whiteId));
+        eventPublisher.publishEvent(new UserPresenceChangedEvent(blackId));
+
         persistGame(result, reason, settingsRaw, whiteId, blackId, startAt, moves);
 
         messagingTemplate.convertAndSend(TopicUtils.room(roomId),
@@ -301,14 +307,17 @@ public class GameService {
                 long initialTimeMillis = ((Number) result.get(5)).longValue();
                 PlayerRole turn = PlayerRole.load(turnStr);
 
+                eventPublisher.publishEvent(new UserPresenceChangedEvent(whiteId));
+                eventPublisher.publishEvent(new UserPresenceChangedEvent(blackId));
+
                 messagingTemplate.convertAndSend(TopicUtils.room(roomId),
                         WsEvent.of(GameStartedEvent.TYPE, new GameStartedEvent(whiteId, blackId, turnStr, fen)));
+                messagingTemplate.convertAndSend(TopicUtils.LOBBIES,
+                        WsEvent.of(RoomUpdateStatusEvent.TYPE, new RoomUpdateStatusEvent(roomId, RoomStatus.IN_PROGRESS.name())));
 
                 scheduleTurnTimer(roomId, turn, initialTimeMillis);
             }
         }
-        messagingTemplate.convertAndSend(TopicUtils.LOBBIES,
-                WsEvent.of(RoomUpdateStatusEvent.TYPE, new RoomUpdateStatusEvent(roomId, RoomStatus.IN_PROGRESS.name())));
     }
 
     private void startCountdown(String roomId, long startAt) {
