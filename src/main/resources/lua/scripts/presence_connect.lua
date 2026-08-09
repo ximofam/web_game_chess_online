@@ -1,6 +1,6 @@
--- KEYS[1] = sessions set key      (presence:sessions:{userId})
--- KEYS[2] = presence hash key     (presence:user:{userId})
--- KEYS[3] = online users set key  (presence:online_users)
+-- KEYS[1] = user:{userId}:sessions
+-- KEYS[2] = user:{userId}:presence
+-- KEYS[3] = sys:online_users
 -- ARGV[1] = sessionId
 -- ARGV[2] = userId
 --
@@ -11,9 +11,9 @@ local wasEmpty = (redis.call('SCARD', KEYS[1]) == 0)
 redis.call('SADD', KEYS[1], ARGV[1])
 
 if wasEmpty then
-  redis.call('HSET', KEYS[2], 'status', 'ONLINE')
-  redis.call('SADD', KEYS[3], ARGV[2])
-  return 1
+    redis.call('HSET', KEYS[2], 'status', UserStatus.ONLINE)
+    redis.call('SADD', KEYS[3], ARGV[2])
+    return 1
 end
 
 return 0

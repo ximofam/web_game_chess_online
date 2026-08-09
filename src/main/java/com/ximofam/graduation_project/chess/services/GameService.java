@@ -9,7 +9,6 @@ import com.ximofam.graduation_project.chess.entities.Game;
 import com.ximofam.graduation_project.chess.enums.*;
 import com.ximofam.graduation_project.chess.repositories.GameRepository;
 import com.ximofam.graduation_project.common.exceptions.http.BadRequestException;
-import com.ximofam.graduation_project.common.exceptions.http.ForbiddenException;
 import com.ximofam.graduation_project.common.exceptions.http.InternalException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.common.helpers.dtos.WsEvent;
@@ -49,6 +48,7 @@ public class GameService {
     private final RedisScript<List<Object>> playerReadyScript;
     private final RedisScript<List<Object>> startGameScript;
     private final RedisScript<List<Object>> endGameScript;
+    private final RedisScript<List<Object>> isPlayerScript;
     private final ObjectMapper objectMapper;
     private final GameRepository gameRepository;
 
@@ -93,16 +93,20 @@ public class GameService {
             if (gameHash.isEmpty()) throw new NotFoundException("Game not found.");
 
             // Resolve color
-            String whiteId = (String) redisTemplate.opsForHash().get(roomKey, "whiteId");
-            String blackId = (String) redisTemplate.opsForHash().get(roomKey, "blackId");
-            PlayerRole color;
-            if (userId.equals(whiteId)) color = PlayerRole.WHITE;
-            else if (userId.equals(blackId)) color = PlayerRole.BLACK;
-            else throw new ForbiddenException("You are not a player in this room.");
+            List<Object> isPlayerResult = redisTemplate.execute(isPlayerScript, List.of(roomKey), userId);
+            if (isPlayerResult == null || isPlayerResult.isEmpty()) {
+                throw new InternalException("Fail to run lua script");
+            }
+
+            Long code = (Long) isPlayerResult.get(0);
+            LuaErrorHandler.handle(code.intValue());
+
+            String colorStr = (String) isPlayerResult.get(1);
+            PlayerRole color = PlayerRole.load(colorStr);
 
             // Check turn
             String turnStr = (String) gameHash.get("turn");
-            PlayerRole turn = PlayerRole.WHITE.toValue().equals(turnStr) ? PlayerRole.WHITE : PlayerRole.BLACK;
+            PlayerRole turn = PlayerRole.load(turnStr);
             if (color != turn) throw new BadRequestException("It is not your turn.");
 
             Board board = new Board();
@@ -122,7 +126,7 @@ public class GameService {
                 throw new BadRequestException("Time out.");
             }
             final long committedRemaining = newRemaining + incrementMillis;
-            PlayerRole nextTurn = turn == PlayerRole.WHITE ? PlayerRole.BLACK : PlayerRole.WHITE;
+            PlayerRole nextTurn = PlayerRole.nextTurn(turn);
 
             // Both clocks for payload (opponent time unchanged, already in hash)
             long opponentRemaining = Utils.parseLong(gameHash.get(nextTurn.toValue() + "RemainingMillis"), 0);
@@ -282,16 +286,17 @@ public class GameService {
             Long code = (Long) result.getFirst();
             LuaErrorHandler.handle(code.intValue());
 
-            if (code == 1 && result.size() >= 4) {
+            if (code == 1 && result.size() >= 6) {
                 String whiteId = (String) result.get(1);
                 String blackId = (String) result.get(2);
                 String turnStr = (String) result.get(3);
-                PlayerRole turn = PlayerRole.WHITE.toValue().equals(turnStr) ? PlayerRole.WHITE : PlayerRole.BLACK;
+                String fen = (String) result.get(4);
+                long initialTimeMillis = ((Number) result.get(5)).longValue();
+                PlayerRole turn = PlayerRole.load(turnStr);
 
                 messagingTemplate.convertAndSend(TopicUtils.room(roomId),
-                        WsEvent.of(GameStartedEvent.TYPE, new GameStartedEvent(whiteId, blackId, turnStr, STARTING_FEN)));
+                        WsEvent.of(GameStartedEvent.TYPE, new GameStartedEvent(whiteId, blackId, turnStr, fen)));
 
-                long initialTimeMillis = getInitialTimeMillis(roomId);
                 scheduleTurnTimer(roomId, turn, initialTimeMillis);
             }
         }
@@ -320,18 +325,5 @@ public class GameService {
 
     private static String startKey(String roomId) {
         return "start:" + roomId;
-    }
-
-    /**
-     * Read timeMinutes from the room settings hash to set the initial turn timer.
-     */
-    private long getInitialTimeMillis(String roomId) {
-        Object raw = redisTemplate.opsForHash().get(RedisKeys.roomInfo(roomId), "settings");
-        if (raw == null) return 10 * 60 * 1000L;
-        Map<?, ?> settings = Utils.parseJson(objectMapper, raw, Map.class);
-        if (settings == null) return 10 * 60 * 1000L;
-        Object timeMinutes = settings.get("timeMinutes");
-        if (timeMinutes instanceof Number n) return n.longValue() * 60 * 1000L;
-        return 10 * 60 * 1000L;
     }
 }

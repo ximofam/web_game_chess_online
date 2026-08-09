@@ -25,4 +25,4 @@ for _, id in ipairs(roomIds) do
     end
 end
 
-return {matched, result}
+return { matched, result }

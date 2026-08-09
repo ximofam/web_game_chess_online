@@ -4,3 +4,9 @@ local RoomStatus = {
     IN_PROGRESS = 'IN_PROGRESS',
     FINISHED = 'FINISHED'
 }
+
+local PlayerRole = {
+    WHITE = 'white',
+    BLACK = 'black',
+    SPECTATOR = 'spectator'
+}

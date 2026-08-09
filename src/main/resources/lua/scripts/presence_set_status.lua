@@ -1,5 +1,5 @@
--- KEYS[1] = presence:user:{userId}
--- KEYS[2] = presence:sessions:{userId}
+-- KEYS[1] = user:{userId}:presence
+-- KEYS[2] = user:{userId}:sessions
 -- ARGV[1] = status value cần set (vd "ONLINE")
 -- ARGV[2..N] = tên các field cần xoá khỏi hash (vd roomId, is_host, role)
 

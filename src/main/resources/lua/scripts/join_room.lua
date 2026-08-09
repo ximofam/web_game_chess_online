@@ -6,13 +6,15 @@
 -- ARGV[3] = role  (white | black | spectator)
 -- ARGV[4] = timestamp (epoch ms, for spectator ZSet score)
 
-local userId    = ARGV[1]
-local roomId    = ARGV[2]
-local role      = ARGV[3]
+local userId = ARGV[1]
+local roomId = ARGV[2]
+local role = ARGV[3]
 local timestamp = tonumber(ARGV[4])
 
 local err = checkUserStatusOnline(KEYS[2])
-if err then return err end
+if err then
+    return err
+end
 
 -- 1. Phòng phải tồn tại
 local status = redis.call('HGET', KEYS[1], 'status')
@@ -21,7 +23,7 @@ if not status then
 end
 
 -- 2. Phòng phải đang WAITING
-if status ~= RoomStatus.WAITING and role ~= 'spectator' then
+if status ~= RoomStatus.WAITING and role ~= PlayerRole.SPECTATOR then
     return Errors.ROOM_NOT_WAITING
 end
 
@@ -30,7 +32,9 @@ local settingsRaw = redis.call('HGET', KEYS[1], 'settings')
 local settings = {}
 if settingsRaw then
     local ok, decoded = pcall(cjson.decode, settingsRaw)
-    if ok then settings = decoded end
+    if ok then
+        settings = decoded
+    end
 end
 
 -- 4. Nếu phòng private thì chặn join (bất kể role gì)
@@ -48,28 +52,28 @@ if whiteId == userId or blackId == userId or hostId == userId or redis.call('ZSC
 end
 
 -- 6. Xử lý theo role
-if role == 'white' then
+if role == PlayerRole.WHITE then
     if whiteId ~= nil and whiteId ~= '' then
         return Errors.SEAT_TAKEN
     end
     redis.call('HSET', KEYS[1], 'whiteId', userId)
-    setUserPresenceToRoom(KEYS[2], roomId, 'false', 'white')
+    setUserPresenceToRoom(KEYS[2], roomId, 'false', PlayerRole.WHITE)
     return OK
 
-elseif role == 'black' then
+elseif role == PlayerRole.BLACK then
     if blackId ~= nil and blackId ~= '' then
         return Errors.SEAT_TAKEN
     end
     redis.call('HSET', KEYS[1], 'blackId', userId)
-    setUserPresenceToRoom(KEYS[2], roomId, 'false', 'black')
+    setUserPresenceToRoom(KEYS[2], roomId, 'false', PlayerRole.BLACK)
     return OK
 
-elseif role == 'spectator' then
+elseif role == PlayerRole.SPECTATOR then
     if settings.spectatorLocked then
         return Errors.SPECTATORS_LOCKED
     end
     redis.call('ZADD', KEYS[3], timestamp, userId)
-    setUserPresenceToRoom(KEYS[2], roomId, 'false', 'spectator')
+    setUserPresenceToRoom(KEYS[2], roomId, 'false', PlayerRole.SPECTATOR)
     return OK
 
 else
