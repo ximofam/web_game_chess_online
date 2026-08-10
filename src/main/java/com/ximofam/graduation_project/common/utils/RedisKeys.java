@@ -49,4 +49,8 @@ public final class RedisKeys {
     public static String gameMoves(String roomId) {
         return gameInfo(roomId) + ":moves";
     }
+
+    public static String gameDrawOffer(String roomId) {
+        return gameInfo(roomId) + ":draw_offer";
+    }
 }

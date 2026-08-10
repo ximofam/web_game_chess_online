@@ -21,6 +21,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.convert.DurationUnit;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -30,6 +32,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,6 +45,10 @@ import java.util.concurrent.TimeUnit;
 public class GameService {
     private static final long START_DELAY_MILLIS = 3000L;
     private static final String STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+    @DurationUnit(ChronoUnit.SECONDS)
+    @Value("${app.chess.draw-offer-ttl-seconds:30}")
+    private Duration drawOfferTtl = Duration.ofSeconds(30);
 
     private final SimpMessagingTemplate messagingTemplate;
     private final StringRedisTemplate redisTemplate;
@@ -152,7 +159,7 @@ public class GameService {
             }
 
             messagingTemplate.convertAndSend(TopicUtils.room(roomId),
-                    WsEvent.of(GameMovedPayload.TYPE, new GameMovedPayload(move, color.toValue(), nextTurn.toValue(), newFen, whiteRemaining, blackRemaining)));
+                    WsEvent.of(GameMovedPayload.TYPE, new GameMovedPayload(move, color.toValue(), nextTurn.toValue(), newFen, whiteRemaining, blackRemaining, now)));
 
             // Check for game over by board state (checkmate / stalemate / draw)
             if (board.isMated()) {
@@ -178,6 +185,49 @@ public class GameService {
     // Called by the turn timer when a player runs out of time
     private void endGameByTimeout(String roomId, PlayerRole loser) {
         endGame(roomId, GameResult.fromLoser(loser), ResultReason.TIMEOUT);
+    }
+
+    public void resign(String userId, String roomId) {
+        List<Object> result = redisTemplate.execute(isPlayerScript, List.of(RedisKeys.roomInfo(roomId)), userId);
+        if (result == null || result.isEmpty()) throw new InternalException("Fail to run lua script");
+
+        LuaErrorHandler.handle(((Long) result.get(0)).intValue());
+        PlayerRole color = PlayerRole.load((String) result.get(1));
+
+        endGame(roomId, GameResult.fromLoser(color), ResultReason.RESIGN);
+    }
+
+    public void offerDraw(String userId, String roomId) {
+        List<Object> result = redisTemplate.execute(isPlayerScript, List.of(RedisKeys.roomInfo(roomId)), userId);
+        if (result == null || result.isEmpty()) throw new InternalException("Fail to run lua script");
+
+        LuaErrorHandler.handle(((Long) result.get(0)).intValue());
+        String color = (String) result.get(1);
+
+        Boolean set = redisTemplate.opsForValue()
+                .setIfAbsent(RedisKeys.gameDrawOffer(roomId), userId, drawOfferTtl);
+        if (!Boolean.TRUE.equals(set)) return; // offer already pending — ignore
+
+        messagingTemplate.convertAndSend(TopicUtils.room(roomId),
+                WsEvent.of(DrawOfferedEvent.TYPE, new DrawOfferedEvent(color)));
+    }
+
+    public void acceptDraw(String userId, String roomId) {
+        String offeredBy = redisTemplate.opsForValue().getAndDelete(RedisKeys.gameDrawOffer(roomId));
+        if (offeredBy == null || offeredBy.equals(userId)) return; // no offer, or self-accept
+
+        endGame(roomId, GameResult.DRAW, ResultReason.DRAW_AGREEMENT);
+    }
+
+    public void declineDraw(String userId, String roomId) {
+        List<Object> result = redisTemplate.execute(isPlayerScript, List.of(RedisKeys.roomInfo(roomId)), userId);
+        if (result == null || result.isEmpty()) throw new InternalException("Fail to run lua script");
+        LuaErrorHandler.handle(((Long) result.getFirst()).intValue());
+
+        String deleted = redisTemplate.opsForValue().getAndDelete(RedisKeys.gameDrawOffer(roomId));
+        if (deleted == null || deleted.equals(userId)) return; // no offer, or declining own offer
+
+        messagingTemplate.convertAndSend(TopicUtils.room(roomId), WsEvent.of("DRAW_DECLINED", null));
     }
 
     // Shared end-game logic: persist to DB and broadcast GAME_OVER
@@ -287,11 +337,12 @@ public class GameService {
 
     private void startGame(String roomId) {
         tasks.remove(startKey(roomId));
+        long now = System.currentTimeMillis();
         List<Object> result = redisTemplate.execute(
                 startGameScript,
                 List.of(RedisKeys.roomInfo(roomId), RedisKeys.gameInfo(roomId)),
                 roomId,
-                String.valueOf(System.currentTimeMillis()),
+                String.valueOf(now),
                 STARTING_FEN
         );
 
@@ -311,7 +362,7 @@ public class GameService {
                 eventPublisher.publishEvent(new UserPresenceChangedEvent(blackId));
 
                 messagingTemplate.convertAndSend(TopicUtils.room(roomId),
-                        WsEvent.of(GameStartedEvent.TYPE, new GameStartedEvent(whiteId, blackId, turnStr, fen)));
+                        WsEvent.of(GameStartedEvent.TYPE, new GameStartedEvent(whiteId, blackId, turnStr, fen, initialTimeMillis, initialTimeMillis, now)));
                 messagingTemplate.convertAndSend(TopicUtils.LOBBIES,
                         WsEvent.of(RoomUpdateStatusEvent.TYPE, new RoomUpdateStatusEvent(roomId, RoomStatus.IN_PROGRESS.name())));
 

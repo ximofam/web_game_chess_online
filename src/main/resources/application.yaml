@@ -128,3 +128,6 @@ app:
 
   user:
     guest-max-age-days: 30
+
+  chess:
+    draw-offer-ttl-seconds: ${DRAW_OFFER_TTL_SECONDS:30}

@@ -3,6 +3,7 @@ package com.ximofam.graduation_project.chess.controllers;
 import com.ximofam.graduation_project.chess.dtos.request.ChatSendRequest;
 import com.ximofam.graduation_project.chess.dtos.request.CreateRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.request.JoinRoomRequest;
+import com.ximofam.graduation_project.chess.dtos.response.RoomDetailResponse;
 import com.ximofam.graduation_project.chess.dtos.response.RoomResponse;
 import com.ximofam.graduation_project.chess.dtos.ws.ChatMessagePayload;
 import com.ximofam.graduation_project.chess.enums.LeaveReason;
@@ -43,7 +44,7 @@ public class RoomController {
     }
 
     @PostMapping("/{roomId}/join")
-    public ResponseEntity<RoomResponse> joinRoom(
+    public ResponseEntity<RoomDetailResponse> joinRoom(
             @AuthenticationPrincipal UUID userId,
             @PathVariable String roomId,
             @RequestBody(required = false) @Valid JoinRoomRequest request) {
@@ -76,11 +77,11 @@ public class RoomController {
     }
 
     @GetMapping("/{roomId}")
-    public ResponseEntity<RoomResponse> getRoomDetails(
+    public ResponseEntity<RoomDetailResponse> getRoomDetails(
             @AuthenticationPrincipal UUID userId,
             @PathVariable String roomId) {
 
-        RoomResponse room = roomService.getRoomDetails(roomId);
+        RoomDetailResponse room = roomService.getRoomDetails(roomId);
         if (room == null) throw new NotFoundException("Room not found.");
 
         if (room.getSettings() != null && room.getSettings().isPrivate() && !roomService.isMember(roomId, userId.toString())) {

@@ -41,4 +41,34 @@ public class GameController {
 
         gameService.makeMove(userId, roomId, request.getMove());
     }
+
+    @MessageMapping("/room.{roomId}.resign")
+    public void resign(@DestinationVariable String roomId,
+                       SimpMessageHeaderAccessor accessor) {
+        String userId = AuthUtils.resolveUserId(accessor.getUser());
+        if (userId == null) return;
+
+        gameService.resign(userId, roomId);
+    }
+
+    @MessageMapping("/room.{roomId}.draw.offer")
+    public void offerDraw(@DestinationVariable String roomId, SimpMessageHeaderAccessor accessor) {
+        String userId = AuthUtils.resolveUserId(accessor.getUser());
+        if (userId == null) return;
+        gameService.offerDraw(userId, roomId);
+    }
+
+    @MessageMapping("/room.{roomId}.draw.accept")
+    public void acceptDraw(@DestinationVariable String roomId, SimpMessageHeaderAccessor accessor) {
+        String userId = AuthUtils.resolveUserId(accessor.getUser());
+        if (userId == null) return;
+        gameService.acceptDraw(userId, roomId);
+    }
+
+    @MessageMapping("/room.{roomId}.draw.decline")
+    public void declineDraw(@DestinationVariable String roomId, SimpMessageHeaderAccessor accessor) {
+        String userId = AuthUtils.resolveUserId(accessor.getUser());
+        if (userId == null) return;
+        gameService.declineDraw(userId, roomId);
+    }
 }

@@ -3,6 +3,7 @@ package com.ximofam.graduation_project.chess.services;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ximofam.graduation_project.chess.dtos.request.CreateRoomRequest;
 import com.ximofam.graduation_project.chess.dtos.request.JoinRoomRequest;
+import com.ximofam.graduation_project.chess.dtos.response.RoomDetailResponse;
 import com.ximofam.graduation_project.chess.dtos.response.RoomResponse;
 import com.ximofam.graduation_project.chess.dtos.ws.*;
 import com.ximofam.graduation_project.chess.enums.LeaveReason;
@@ -90,7 +91,6 @@ public class RoomService {
         roomData.setHost(hostInfo);
         roomData.setWhite(hostInfo);
         roomData.setBlack(null);
-        roomData.setSpectators(List.of());
         roomData.setCreatedAt(createdAt);
         roomData.setSettings(request.getSettings());
 
@@ -162,7 +162,7 @@ public class RoomService {
 
         List<RoomResponse> content = new ArrayList<>(rawByRoomId.size());
         for (Map.Entry<String, Map<Object, Object>> entry : rawByRoomId.entrySet()) {
-            content.add(roomMapper.buildRoomResponse(entry.getKey(), entry.getValue(), List.of(), hydratedUsers));
+            content.add(roomMapper.buildRoomResponse(entry.getKey(), entry.getValue(), hydratedUsers));
         }
         return content;
     }
@@ -182,7 +182,7 @@ public class RoomService {
         return result;
     }
 
-    public RoomResponse joinRoom(String roomId, String userId, JoinRoomRequest request) {
+    public RoomDetailResponse joinRoom(String roomId, String userId, JoinRoomRequest request) {
         String role = request.getRole();
         long now = Instant.now().toEpochMilli();
 
@@ -250,8 +250,7 @@ public class RoomService {
                     gameService.cancelCountdown(roomId);
                 }
 
-                RoomDeletedPayload payload = new RoomDeletedPayload(roomId);
-                WsEvent<RoomDeletedPayload> event = WsEvent.of(RoomDeletedPayload.TYPE, payload);
+                WsEvent<RoomDeletedPayload> event = WsEvent.of(RoomDeletedPayload.TYPE, new RoomDeletedPayload(roomId));
                 messagingTemplate.convertAndSend(TopicUtils.LOBBIES, event);
                 messagingTemplate.convertAndSend(TopicUtils.room(roomId), event);
             } else if ("SPECTATOR_LEFT".equals(reason)) {
@@ -325,7 +324,7 @@ public class RoomService {
         return false;
     }
 
-    public RoomResponse getRoomDetails(String roomId) {
+    public RoomDetailResponse getRoomDetails(String roomId) {
         Map<Object, Object> raw = redisTemplate.opsForHash().entries(RedisKeys.roomInfo(roomId));
         if (raw.isEmpty()) return null;
 
@@ -350,7 +349,12 @@ public class RoomService {
                 .filter(Objects::nonNull)
                 .toList();
 
-        return roomMapper.buildRoomResponse(roomId, raw, spectators, users);
+        Map<Object, Object> gameRaw = redisTemplate.opsForHash().entries(RedisKeys.gameInfo(roomId));
+        List<String> moves = gameRaw.isEmpty() ? List.of()
+                : redisTemplate.opsForList().range(RedisKeys.gameMoves(roomId), 0, -1)
+                .stream().map(Object::toString).toList();
+
+        return roomMapper.buildRoomDetailResponse(roomId, raw, spectators, users, gameRaw, moves);
     }
 
     private static void collectParticipantIds(Map<Object, Object> raw, Set<UUID> target) {

@@ -2,6 +2,8 @@ package com.ximofam.graduation_project.chess.mappers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ximofam.graduation_project.chess.dtos.models.RoomSettings;
+import com.ximofam.graduation_project.chess.dtos.response.GameResponse;
+import com.ximofam.graduation_project.chess.dtos.response.RoomDetailResponse;
 import com.ximofam.graduation_project.chess.dtos.response.RoomResponse;
 import com.ximofam.graduation_project.common.utils.Utils;
 import com.ximofam.graduation_project.users.dtos.response.UserSimpleResponse;
@@ -26,11 +28,30 @@ public class RoomMapper {
     }
 
     public RoomResponse buildRoomResponse(String roomId, Map<Object, Object> raw,
-                                          List<UserSimpleResponse> spectators,
                                           Map<UUID, UserSimpleResponse> users) {
         String hostId = Utils.str(raw, "hostId");
 
         RoomResponse response = new RoomResponse();
+        response.setRoomId(roomId);
+        response.setName(Utils.str(raw, "name"));
+        response.setStatus(Utils.str(raw, "status"));
+        response.setHostId(hostId);
+        response.setHost(resolveUser(hostId, users));
+        response.setWhite(resolveUser(Utils.str(raw, "whiteId"), users));
+        response.setBlack(resolveUser(Utils.str(raw, "blackId"), users));
+        response.setCreatedAt(Utils.parseLong(raw, "createdAt"));
+        response.setSettings(parseSettings(raw.get("settings")));
+        return response;
+    }
+
+    public RoomDetailResponse buildRoomDetailResponse(String roomId, Map<Object, Object> raw,
+                                                      List<UserSimpleResponse> spectators,
+                                                      Map<UUID, UserSimpleResponse> users,
+                                                      Map<Object, Object> gameRaw,
+                                                      List<String> moves) {
+        String hostId = Utils.str(raw, "hostId");
+
+        RoomDetailResponse response = new RoomDetailResponse();
         response.setRoomId(roomId);
         response.setName(Utils.str(raw, "name"));
         response.setStatus(Utils.str(raw, "status"));
@@ -43,6 +64,20 @@ public class RoomMapper {
         response.setSpectators(spectators);
         response.setCreatedAt(Utils.parseLong(raw, "createdAt"));
         response.setSettings(parseSettings(raw.get("settings")));
+
+        if (!gameRaw.isEmpty()) {
+            GameResponse game = new GameResponse();
+            game.setWhiteId(Utils.str(gameRaw, "whiteId"));
+            game.setBlackId(Utils.str(gameRaw, "blackId"));
+            game.setTurn(Utils.str(gameRaw, "turn"));
+            game.setFen(Utils.str(gameRaw, "fen"));
+            game.setWhiteRemainingMillis(Utils.parseLong(gameRaw, "whiteRemainingMillis"));
+            game.setBlackRemainingMillis(Utils.parseLong(gameRaw, "blackRemainingMillis"));
+            game.setTurnStartedAt(Utils.parseLong(gameRaw, "turnStartedAt"));
+            game.setMoves(moves);
+            response.setGameData(game);
+        }
+
         return response;
     }
 

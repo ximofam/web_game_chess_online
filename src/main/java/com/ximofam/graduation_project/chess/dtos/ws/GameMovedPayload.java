@@ -6,7 +6,8 @@ public record GameMovedPayload(
         String newTurn,
         String newFen,
         long whiteRemainingMillis,
-        long blackRemainingMillis
+        long blackRemainingMillis,
+        long turnStartedAt
 ) {
     public static final String TYPE = "MOVE_MADE";
 }
