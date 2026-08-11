@@ -103,4 +103,10 @@ public class LuaScriptConfig {
         return RedisScript.of(getScriptWithUtils("lua/scripts/is_player.lua", "lua/utils/status.lua", "lua/utils/rooms.lua"), List.class);
     }
 
+    @Bean
+    @SuppressWarnings("rawtypes")
+    public RedisScript<List> switchSeatScript() {
+        return RedisScript.of(getScriptWithUtils("lua/scripts/switch_seat.lua", "lua/utils/status.lua", "lua/utils/rooms.lua", "lua/utils/user_presence.lua"), List.class);
+    }
+
 }

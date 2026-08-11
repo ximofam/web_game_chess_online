@@ -18,5 +18,6 @@ local Errors = {
     NOT_YOUR_TURN = -15,
     GAME_NOT_FOUND = -16,
     TIME_OUT = -17,
-    ROOM_IN_PROGRESS = -18
+    ROOM_IN_PROGRESS = -18,
+    SEAT_SWITCH_NOT_ALLOWED = -19
 }

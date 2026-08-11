@@ -135,23 +135,36 @@ class RoomServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void leaveRoom_HostLeft_ShouldResetOthersPresenceAndBroadcastRoomDeleted() {
+    void leaveRoom_HostTransferred_ShouldBroadcastHostTransferred() {
         when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
-                .thenReturn(List.of(1L, "HOST_LEFT", "host"));
-        when(redisTemplate.execute(eq(deleteRoomScript), anyList(), any()))
-                .thenReturn(List.of("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000042")); // 1 is host, 42 is another player
+                .thenReturn(List.of(1L, "HOST_TRANSFERRED", "none", "WAITING", "00000000-0000-0000-0000-000000000002", "white"));
+        when(userService.getUserSimpleResponseById(java.util.UUID.fromString("00000000-0000-0000-0000-000000000002")))
+                .thenReturn(new UserSimpleResponse());
+        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
 
         roomService.leaveRoom("room1", "00000000-0000-0000-0000-000000000001", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE);
 
-        // presence reset for "00000000-0000-0000-0000-000000000001" (from USER_LEAVE) and then "00000000-0000-0000-0000-000000000001" and "00000000-0000-0000-0000-000000000042" (from delRoomRes loop)
-        verify(eventPublisher, times(3)).publishEvent(any(com.ximofam.graduation_project.users.dtos.events.SetUserPresenceEvent.class));
+        verify(messagingTemplate, atLeastOnce()).convertAndSend(eq(TopicUtils.room("room1")), (Object) any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void leaveRoom_RoomEmpty_ShouldDeleteRoomAndBroadcast() {
+        when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
+                .thenReturn(List.of(1L, "ROOM_EMPTY", "none", "WAITING"));
+        when(redisTemplate.execute(eq(deleteRoomScript), anyList(), any()))
+                .thenReturn(List.of("00000000-0000-0000-0000-000000000042"));
+
+        roomService.leaveRoom("room1", "00000000-0000-0000-0000-000000000001", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE);
+
+        verify(eventPublisher, times(2)).publishEvent(any(com.ximofam.graduation_project.users.dtos.events.SetUserPresenceEvent.class));
         verify(messagingTemplate).convertAndSend(eq("/topic/lobbies"), (Object) any());
         verify(messagingTemplate).convertAndSend(eq(TopicUtils.room("room1")), (Object) any());
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    void leaveRoom_PlayerLeft_ShouldResetPresenceAndBroadcastPlayerLeftAndRoomUpdated() {
+    void leaveRoom_PlayerLeft_ShouldBroadcastPlayerLeftAndRoomUpdated() {
         when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
                 .thenReturn(List.of(1L, "PLAYER_LEFT", "black"));
 
@@ -181,7 +194,8 @@ class RoomServiceTest {
         when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
                 .thenReturn(List.of(-1L));
 
-        assertThatThrownBy(() -> roomService.leaveRoom("room1", "00000000-0000-0000-0000-000000000001", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE))
+        assertThatThrownBy(() -> roomService.leaveRoom("room1", "00000000-0000-0000-0000-000000000001",
+                com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -191,7 +205,8 @@ class RoomServiceTest {
         when(redisTemplate.execute(eq(leaveRoomScript), anyList(), any()))
                 .thenReturn(List.of(-10L));
 
-        assertThatThrownBy(() -> roomService.leaveRoom("room1", "00000000-0000-0000-0000-000000000001", com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE))
+        assertThatThrownBy(() -> roomService.leaveRoom("room1", "00000000-0000-0000-0000-000000000001",
+                com.ximofam.graduation_project.chess.enums.LeaveReason.USER_LEAVE))
                 .isInstanceOf(ForbiddenException.class);
     }
 

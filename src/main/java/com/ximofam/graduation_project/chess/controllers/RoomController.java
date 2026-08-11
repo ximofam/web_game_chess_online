@@ -67,6 +67,14 @@ public class RoomController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/{roomId}/switch-seat")
+    public ResponseEntity<Void> switchSeat(@AuthenticationPrincipal UUID userId,
+                                           @PathVariable String roomId,
+                                           @RequestBody @Valid JoinRoomRequest request) {
+        roomService.switchSeat(roomId, userId.toString(), request.getRole());
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping
     public ResponseEntity<Map<String, Object>> getLobbyRooms(
             @RequestParam(required = false) String q,

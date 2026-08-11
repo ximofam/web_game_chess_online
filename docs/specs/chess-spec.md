@@ -99,10 +99,10 @@ Tạo phòng mới.
 
 - **Auth:** Bắt buộc. User phải có `PresenceStatus.ONLINE`, nếu không → `403`.
 - **Guard:** User không được đang ở trong phòng khác (`isInRoom`) → `400`.
-- **Body:** `{ name: string, settings?: RoomSettings }`
+- **Body:** `{ name: string, settings?: RoomSettings, white?: boolean }` — `white` mặc định `true` nếu không truyền.
 - **Response:** `RoomDetailResponse`
 - **Side effects:**
-    - Chạy Lua script `create_room.lua` (atomic): tạo Hash phòng, thêm vào `room:idx:lobby`, update presence host thành `IN_ROOM`.
+    - Chạy Lua script `create_room.lua` (atomic): tạo Hash phòng với `whiteId`/`blackId` theo lựa chọn của host (`isWhite`), thêm vào `room:idx:lobby`, update presence host thành `IN_ROOM` với role tương ứng.
     - Broadcast `ROOM_CREATED` tới `/topic/lobbies`.
 
 ### `GET /api/rooms/{roomId}`
@@ -166,6 +166,21 @@ Tham gia phòng với vai trò cụ thể.
     - `white`/`black`: update presence thành `IN_ROOM`, broadcast `PLAYER_JOINED` tới `/topic/room/{roomId}` **và** `ROOM_UPDATED` tới `/topic/lobbies`.
     - `spectator`: thêm vào ZSet `room:{roomId}:spectators`, presence **giữ nguyên `ONLINE`**, chỉ broadcast `PLAYER_JOINED` tới `/topic/room/{roomId}`.
 
+### `POST /api/rooms/{roomId}/switch-seat`
+
+Chuyển đổi vị trí ngồi (white, black, spectator) trong phòng.
+
+- **Auth:** Bắt buộc. User phải đang ở trong phòng.
+- **Body:** `{ "role": "white" | "black" | "spectator" }`
+- **Response:** `200 OK`
+- **Logic (Lua atomic `switch_seat.lua`):**
+    - Đảm bảo phòng đang ở `WAITING`.
+    - Kiểm tra ghế đích có đang trống hay không.
+    - Cập nhật hash phòng, ZSet khán giả và presence của user một cách atomic.
+- **Side effects:**
+    - Broadcast `SEAT_SWITCHED` tới `/topic/room/{roomId}`.
+    - Nếu ghế mới không phải spectator, broadcast `ROOM_UPDATED` tới `/topic/lobbies`.
+
 ### `POST /api/rooms/{roomId}/leave`
 
 Rời phòng.
@@ -185,8 +200,8 @@ Rời phòng.
 | Vai trò               | Lua làm gì                                                                                           | Java làm gì                                                                                                                     |
 |:----------------------|:-----------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------|
 | **Spectator**         | `ZREM room:{roomId}:spectators userId`                                                               | Broadcast `PLAYER_LEFT` tới `/topic/room/{roomId}`                                                                              |
-| **Player** (non-host) | `HSET room:{roomId} {role} ""` + `DEL presence:user:{userId}`                                        | Reset presence → `ONLINE`, broadcast `PLAYER_LEFT` + `ROOM_UPDATED`                                                             |
-| **Host**              | `DEL room:{roomId}` + `ZREM room:idx:lobby` + `DEL presence host` + `DEL spectators ZSet`; trả về danh sách white/black + spectator ids | Reset presence white/black → `ONLINE`, broadcast `ROOM_DELETED` tới cả 2 topic |
+| **Player** (non-host) | `HSET room:{roomId} {role} ""`                                                                       | Reset presence → `ONLINE`, broadcast `PLAYER_LEFT` + `ROOM_UPDATED`                                                             |
+| **Host**              | Bàn giao quyền host cho user khác (ưu tiên white → black → spectator vào sớm nhất). Nếu không còn ai, trả về `ROOM_EMPTY`| Nếu transfer: cập nhật presence, broadcast `HOST_TRANSFERRED` + `ROOM_UPDATED`. Nếu empty: chạy `delete_room.lua`, reset presence, broadcast `ROOM_DELETED`. |
 
 ### `GET /api/rooms/{roomId}/chat`
 
@@ -229,6 +244,8 @@ Báo cáo sẵn sàng hoặc huỷ sẵn sàng.
 |:----------------------|:-----------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------|
 | `PLAYER_JOINED`       | Có người join ghế hoặc spectate                | `{ role: "white"\|"black"\|"spectator", user: UserSimpleResponse }`                                                                 |
 | `PLAYER_LEFT`         | Player/spectator rời ghế hoặc disconnect       | `{ role: "white"\|"black"\|"spectator", userId: string }`                                                                           |
+| `SEAT_SWITCHED`       | Người chơi đổi ghế                             | `{ fromRole: "white"\|"black"\|"spectator", toRole: "white"\|"black"\|"spectator", user: UserSimpleResponse }`                      |
+| `HOST_TRANSFERRED`    | Host rời phòng, quyền host chuyển cho user khác| `{ newHostId: string, newHost: UserSimpleResponse }`                                                                                |
 | `PLAYER_READY`        | Người chơi toggle trạng thái sẵn sàng          | `{ role: "white"\|"black", isReady: boolean }`                                                                                      |
 | `ROOM_DELETED`        | Host leave/disconnect khi phòng `WAITING`      | `{ roomId }` — client phải redirect ra lobby                                                                                        |
 | `CHAT_MESSAGE`        | Có người gửi tin nhắn chat                     | `ChatMessagePayload`                                                                                                                |
@@ -324,11 +341,11 @@ PresenceService.applyDisconnect()
 
 ### Host disconnect (`is_host = true`, `status = IN_ROOM`)
 
-Khi host mất kết nối và phòng đang `WAITING`:
+Khi host mất kết nối và phòng đang `WAITING` hoặc `COUNTDOWN`:
 
-1. Chạy `leave_room.lua` (atomic): xóa `room:{roomId}`, `room:idx:lobby`, `presence host` (NOP nếu đã bị xóa bởi disconnect Lua), **`room:{roomId}:spectators`**; trả về danh sách white/black + `spectator:{id}`.
-2. Reset presence của white/black → `ONLINE` (spectator không set `IN_ROOM` nên không cần reset).
-3. Broadcast `ROOM_DELETED` tới cả `/topic/lobbies` và `/topic/room/{roomId}`.
+1. Chạy `leave_room.lua` (atomic): Bàn giao quyền host cho user kế tiếp (ưu tiên white → black → spectator). Nếu phòng không còn ai, trả về trạng thái `ROOM_EMPTY`.
+2. Nếu có người kế tiếp (`HOST_TRANSFERRED`), broadcast event `HOST_TRANSFERRED` cho phòng và cập nhật lại `ROOM_UPDATED` cho sảnh.
+3. Nếu không còn ai (`ROOM_EMPTY`), chạy `delete_room.lua` để dọn dẹp Redis. Sau đó reset presence và broadcast `ROOM_DELETED` tới cả `/topic/lobbies` và `/topic/room/{roomId}`.
 
 ### Non-host player disconnect (`is_host = false`, `status = IN_ROOM`)
 

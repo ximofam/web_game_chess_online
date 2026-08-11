@@ -11,4 +11,5 @@ public class CreateRoomRequest {
     @NotBlank(message = "Tên phòng không được bỏ trống")
     private String name;
     private RoomSettings settings;
+    private boolean white = true;
 }
