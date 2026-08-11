@@ -1,5 +1,5 @@
 -- KEYS[1] = room:{roomId}
--- KEYS[2] = presence:user:{userId}
+-- KEYS[2] = user:{userId}:presence
 -- KEYS[3] = room:{roomId}:spectators
 -- ARGV[1] = userId
 -- ARGV[2] = targetRole  (white | black | spectator)
@@ -12,10 +12,10 @@ local timestamp = tonumber(ARGV[3])
 -- 1. Phòng phải tồn tại và đang WAITING
 local status = redis.call('HGET', KEYS[1], 'status')
 if not status then
-    return Errors.ROOM_NOT_FOUND
+    return { Errors.ROOM_NOT_FOUND }
 end
 if status ~= RoomStatus.WAITING then
-    return Errors.ROOM_NOT_WAITING
+    return { Errors.ROOM_NOT_WAITING }
 end
 
 local whiteId = redis.call('HGET', KEYS[1], 'whiteId')
@@ -31,20 +31,20 @@ elseif blackId == userId then
 elseif isSpectator then
     fromRole = PlayerRole.SPECTATOR
 else
-    return Errors.NOT_IN_ROOM
+    return { Errors.NOT_IN_ROOM }
 end
 
 -- 3. Không chuyển sang chính ghế đang ngồi
 if fromRole == targetRole then
-    return Errors.SEAT_SWITCH_NOT_ALLOWED
+    return { Errors.SEAT_SWITCH_NOT_ALLOWED }
 end
 
 -- 4. Kiểm tra ghế đích có trống không (chỉ với player seat)
 if targetRole == PlayerRole.WHITE and whiteId ~= nil and whiteId ~= '' then
-    return Errors.SEAT_TAKEN
+    return { Errors.SEAT_TAKEN }
 end
 if targetRole == PlayerRole.BLACK and blackId ~= nil and blackId ~= '' then
-    return Errors.SEAT_TAKEN
+    return { Errors.SEAT_TAKEN }
 end
 
 -- 5. Xoá khỏi ghế cũ
@@ -74,4 +74,4 @@ else
     setUserPresenceToRoom(KEYS[2], roomId, isHost, PlayerRole.SPECTATOR)
 end
 
-return {OK, fromRole}
+return { OK, fromRole }

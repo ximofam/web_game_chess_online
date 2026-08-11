@@ -70,7 +70,6 @@ else
     if #earliest > 0 then
         nextHost = earliest[1]
         nextHostRole = PlayerRole.SPECTATOR
-        redis.call('ZREM', KEYS[2], nextHost)
     end
 end
 
