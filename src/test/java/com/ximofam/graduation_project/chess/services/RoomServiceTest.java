@@ -47,6 +47,8 @@ class RoomServiceTest {
     @Mock
     private RedisScript deleteRoomScript;
     @Mock
+    private RedisScript<List<Object>> switchSeatScript;
+    @Mock
     private UserService userService;
     @Mock
     private SimpMessagingTemplate messagingTemplate;
@@ -73,7 +75,7 @@ class RoomServiceTest {
         roomMapper = spy(new com.ximofam.graduation_project.chess.mappers.RoomMapper(objectMapper));
         // Manual construction avoids Mockito generic-type confusion with multiple RedisScript fields
         roomService = new RoomService(redisTemplate, userService, messagingTemplate,
-                createRoomScript, searchLobbyScript, joinRoomScript, leaveRoomScript, deleteRoomScript,
+                createRoomScript, searchLobbyScript, joinRoomScript, leaveRoomScript, deleteRoomScript, switchSeatScript,
                 objectMapper, roomMapper, gameService, redissonClient, eventPublisher);
         
         lenient().when(redissonClient.getLock(anyString())).thenReturn(rLock);
