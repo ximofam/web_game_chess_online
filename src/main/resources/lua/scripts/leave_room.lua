@@ -27,7 +27,7 @@ end
 
 local whiteId = redis.call('HGET', KEYS[1], 'whiteId') or ''
 local blackId = redis.call('HGET', KEYS[1], 'blackId') or ''
-local hostId  = redis.call('HGET', KEYS[1], 'hostId')  or ''
+local hostId = redis.call('HGET', KEYS[1], 'hostId') or ''
 
 -- Xác định role hiện tại của user
 local role = (whiteId == userId and PlayerRole.WHITE) or (blackId == userId and PlayerRole.BLACK)
@@ -76,9 +76,9 @@ end
 
 if nextHost then
     redis.call('HSET', KEYS[1], 'hostId', nextHost)
-    return { OK, 'HOST_TRANSFERRED', role or 'none', status, nextHost, nextHostRole }
+    return { OK, 'HOST_TRANSFERRED', role or PlayerRole.SPECTATOR, status, nextHost, nextHostRole }
 end
 
 -- Không còn ai → room cần xóa
 redis.call('HSET', KEYS[1], 'hostId', '')
-return { OK, 'ROOM_EMPTY', role or 'none', status }
+return { OK, 'ROOM_EMPTY', role or PlayerRole.SPECTATOR, status }

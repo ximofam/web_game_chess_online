@@ -120,6 +120,15 @@ public class RoomService {
 
         messagingTemplate.convertAndSend(TopicUtils.room(roomId),
                 WsEvent.of(SeatSwitchedPayload.TYPE, new SeatSwitchedPayload(fromRole, targetRole, userInfo)));
+
+        if (fromRole != null && !PlayerRole.SPECTATOR.name().equalsIgnoreCase(fromRole)) {
+            messagingTemplate.convertAndSend(TopicUtils.LOBBIES,
+                    WsEvent.of(RoomUpdatedPayload.TYPE, new RoomUpdatedPayload(roomId, fromRole, null)));
+        }
+        if (!PlayerRole.SPECTATOR.name().equalsIgnoreCase(targetRole)) {
+            messagingTemplate.convertAndSend(TopicUtils.LOBBIES,
+                    WsEvent.of(RoomUpdatedPayload.TYPE, new RoomUpdatedPayload(roomId, targetRole, userInfo)));
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -272,8 +281,10 @@ public class RoomService {
                     UserSimpleResponse newHostInfo = userService.getUserSimpleResponseById(UUID.fromString(newHostId));
                     messagingTemplate.convertAndSend(TopicUtils.room(roomId),
                             WsEvent.of(HostTransferredPayload.TYPE, new HostTransferredPayload(newHostId, newHostInfo)));
+                    messagingTemplate.convertAndSend(TopicUtils.room(roomId),
+                            WsEvent.of(PlayerLeftPayload.TYPE, new PlayerLeftPayload(role, userId)));
 
-                    if (role != null && !"none".equals(role) && !PlayerRole.SPECTATOR.name().equalsIgnoreCase(role)) {
+                    if (role != null && !PlayerRole.SPECTATOR.name().equalsIgnoreCase(role)) {
                         messagingTemplate.convertAndSend(TopicUtils.LOBBIES,
                                 WsEvent.of(RoomUpdatedPayload.TYPE, new RoomUpdatedPayload(roomId, role, null)));
                     }
