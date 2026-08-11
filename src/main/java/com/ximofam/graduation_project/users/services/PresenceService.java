@@ -1,6 +1,7 @@
 package com.ximofam.graduation_project.users.services;
 
 import com.ximofam.graduation_project.common.utils.RedisKeys;
+import com.ximofam.graduation_project.common.utils.RedisLockUtils;
 import com.ximofam.graduation_project.users.dtos.events.UserPresenceChangedEvent;
 import com.ximofam.graduation_project.users.dtos.events.UserWentOfflineEvent;
 import com.ximofam.graduation_project.users.enums.PresenceStatus;
@@ -77,12 +78,9 @@ public class PresenceService {
     @SuppressWarnings("unchecked")
     private void applyDisconnect(String userId, String sessionId) {
         RLock lock = redissonClient.getLock(RedisKeys.lockKey("presence:" + userId));
-        try {
-            if (!lock.tryLock(3, 5, TimeUnit.SECONDS)) {
-                log.warn("Could not acquire presence lock for disconnect: {}", userId);
-                return;
-            }
+        RedisLockUtils.tryLockOrThrow(lock, 3, 5, TimeUnit.SECONDS);
 
+        try {
             List<Object> result = redisTemplate.execute(
                     presenceDisconnectScript,
                     List.of(RedisKeys.presenceSessions(userId),
@@ -120,13 +118,8 @@ public class PresenceService {
             }
 
             broadcastOnlineUserCount();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error("Lock interrupted on disconnect", e);
         } finally {
-            if (lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
+            lock.unlock();
         }
     }
 

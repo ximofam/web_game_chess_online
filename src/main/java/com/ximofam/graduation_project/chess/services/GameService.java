@@ -12,10 +12,7 @@ import com.ximofam.graduation_project.common.exceptions.http.BadRequestException
 import com.ximofam.graduation_project.common.exceptions.http.InternalException;
 import com.ximofam.graduation_project.common.exceptions.http.NotFoundException;
 import com.ximofam.graduation_project.common.helpers.dtos.WsEvent;
-import com.ximofam.graduation_project.common.utils.LuaErrorHandler;
-import com.ximofam.graduation_project.common.utils.RedisKeys;
-import com.ximofam.graduation_project.common.utils.TopicUtils;
-import com.ximofam.graduation_project.common.utils.Utils;
+import com.ximofam.graduation_project.common.utils.*;
 import com.ximofam.graduation_project.users.dtos.events.UserPresenceChangedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -94,10 +91,9 @@ public class GameService {
         long now = System.currentTimeMillis();
         String gameKey = RedisKeys.gameInfo(roomId);
         RLock lock = redissonClient.getLock(RedisKeys.lockKey(gameKey));
-        try {
-            if (!lock.tryLock(3, 5, TimeUnit.SECONDS))
-                throw new InternalException("Could not acquire game lock.");
+        RedisLockUtils.tryLockOrThrow(lock, 3, TimeUnit.SECONDS);
 
+        try {
             String roomKey = RedisKeys.roomInfo(roomId);
 
             Map<Object, Object> gameHash = redisTemplate.opsForHash().entries(gameKey);
@@ -174,11 +170,8 @@ public class GameService {
             // Re-schedule the turn timer for the next player
             scheduleTurnTimer(roomId, nextTurn,
                     nextTurn == PlayerRole.WHITE ? whiteRemaining : blackRemaining);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new InternalException("Lock interrupted.");
         } finally {
-            if (lock.isHeldByCurrentThread()) lock.unlock();
+            lock.unlock();
         }
     }
 
