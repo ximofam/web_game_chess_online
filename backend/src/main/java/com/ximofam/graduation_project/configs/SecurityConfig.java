@@ -61,6 +61,7 @@ public class SecurityConfig {
                                 "/api/auth/logout"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
+                                "/api/health",
                                 "/api/posts/**",
                                 "/api/comments/**"
                         ).permitAll()
