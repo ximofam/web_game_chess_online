@@ -86,7 +86,7 @@ class RoomServiceTest {
         }
         lenient().when(rLock.isHeldByCurrentThread()).thenReturn(true);
 
-        lenient().when(redisTemplate.execute(eq(createRoomScript), anyList(), any(), any(), any(), any(), any()))
+        lenient().when(redisTemplate.execute(eq(createRoomScript), anyList(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(1L);
     }
 
@@ -108,7 +108,7 @@ class RoomServiceTest {
         assertThat(result.getRoomId()).isNotNull();
         assertThat(result.getHost()).isEqualTo(host);
 
-        verify(redisTemplate).execute(eq(createRoomScript), anyList(), any(), any(), any(), any(), any());
+        verify(redisTemplate).execute(eq(createRoomScript), anyList(), any(), any(), any(), any(), any(), any());
         verify(messagingTemplate).convertAndSend(eq("/topic/lobbies"), (Object) any());
     }
 
@@ -124,7 +124,7 @@ class RoomServiceTest {
         RoomResponse result = roomService.createRoom("00000000-0000-0000-0000-000000000002", req);
 
         ArgumentCaptor<List<String>> keysCaptor = ArgumentCaptor.forClass(List.class);
-        verify(redisTemplate).execute(eq(createRoomScript), keysCaptor.capture(), any(), any(), any(), any(), any());
+        verify(redisTemplate).execute(eq(createRoomScript), keysCaptor.capture(), any(), any(), any(), any(), any(), any());
 
         List<String> keys = keysCaptor.getValue();
         assertThat(keys).hasSize(3);
