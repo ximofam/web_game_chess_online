@@ -3,8 +3,8 @@ name: Server Lint
 on:
   push:
     paths:
-      - 'server/**'
-      - '.github/workflows/server-**'
+      - 'backend/**'
+      - '.github/workflows/backend-**'
   workflow_dispatch:
 
 permissions:
@@ -26,5 +26,5 @@ jobs:
           cache: maven
 
       - name: Run Checkstyle
-        working-directory: server
+        working-directory: backend
         run: ./mvnw --batch-mode --no-transfer-progress verify -DskipTests

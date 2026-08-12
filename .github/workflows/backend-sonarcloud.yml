@@ -4,13 +4,13 @@ on:
   push:
     branches: [main]
     paths:
-      - 'server/**'
-      - '.github/workflows/server-**'
+      - 'backend/**'
+      - '.github/workflows/backend-**'
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - 'server/**'
-      - '.github/workflows/server-**'
+      - 'backend/**'
+      - '.github/workflows/backend-**'
 
 permissions:
   contents: read
@@ -34,7 +34,7 @@ jobs:
           cache: maven
 
       - name: Build and analyze
-        working-directory: server
+        working-directory: backend
         run: >
           ./mvnw -B verify
           org.sonarsource.scanner.maven:sonar-maven-plugin:sonar

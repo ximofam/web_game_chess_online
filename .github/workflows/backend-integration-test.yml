@@ -4,13 +4,13 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - 'server/**'
-      - '.github/workflows/server-**'
+      - 'backend/**'
+      - '.github/workflows/backend-**'
   pull_request:
     branches: [ "main" ]
     paths:
-      - 'server/**'
-      - '.github/workflows/server-**'
+      - 'backend/**'
+      - '.github/workflows/backend-**'
 
 jobs:
   build-and-test:
@@ -29,7 +29,7 @@ jobs:
           cache: 'maven'
 
       - name: Run Tests
-        working-directory: server
+        working-directory: backend
         env:
           JWT_SECRET_KEY: RGF5TGFNb3RDaHVvaUJpTWF0RGFuaENob01vaVRydW9uZ1Rlc3REdURhaTI1NkJpdA==
           ACCESS_TOKEN_EXP_SEC: 3600
