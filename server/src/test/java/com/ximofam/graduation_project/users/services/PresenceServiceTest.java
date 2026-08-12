@@ -62,7 +62,6 @@ class PresenceServiceTest {
         );
 
         ReflectionTestUtils.setField(presenceService, "sessionTtl", Duration.ofSeconds(30));
-        ReflectionTestUtils.setField(presenceService, "offlineGracePeriod", Duration.ofSeconds(5));
 
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         lenient().when(redisTemplate.opsForHash()).thenReturn(hashOperations);

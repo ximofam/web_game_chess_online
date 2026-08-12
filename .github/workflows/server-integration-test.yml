@@ -1,22 +1,16 @@
-name: API Integration Test
+name: Server API Integration Test
 
 on:
   push:
     branches: [ "main" ]
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - 'LICENSE'
-      - '.gitignore'
-      - '.env.example'
+    paths:
+      - 'server/**'
+      - '.github/workflows/server-**'
   pull_request:
     branches: [ "main" ]
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - 'LICENSE'
-      - '.gitignore'
-      - '.env.example'
+    paths:
+      - 'server/**'
+      - '.github/workflows/server-**'
 
 jobs:
   build-and-test:
@@ -35,6 +29,7 @@ jobs:
           cache: 'maven'
 
       - name: Run Tests
+        working-directory: server
         env:
           JWT_SECRET_KEY: RGF5TGFNb3RDaHVvaUJpTWF0RGFuaENob01vaVRydW9uZ1Rlc3REdURhaTI1NkJpdA==
           ACCESS_TOKEN_EXP_SEC: 3600

@@ -14,7 +14,7 @@ target/
 .sts4-cache
 
 ### IntelliJ IDEA ###
-.idea
+server/.idea
 *.iws
 *.iml
 *.ipr
@@ -56,6 +56,6 @@ build/
 hs_err_pid*
 replay_pid*
 
-.env
-.env.*
-!.env.example
+# Environment variables
+**/.env*
+!**/.env*.example

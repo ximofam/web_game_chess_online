@@ -1,10 +1,16 @@
-name: SonarCloud analysis
+name: Server SonarCloud analysis
 
 on:
   push:
     branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/server-**'
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - 'server/**'
+      - '.github/workflows/server-**'
 
 permissions:
   contents: read
@@ -28,6 +34,7 @@ jobs:
           cache: maven
 
       - name: Build and analyze
+        working-directory: server
         run: >
           ./mvnw -B verify
           org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
