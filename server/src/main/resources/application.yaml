@@ -51,9 +51,13 @@ spring:
       chat:
         model: ${GROQ_MODEL:llama3-8b-8192}
 
+decorator:
+  datasource:
+    enabled: ${P6SPY_ENABLED:true}
+
 logging:
   level:
-    p6spy: DEBUG
+    p6spy: ${P6SPY_LOG_LEVEL:DEBUG}
 
 app:
   security:
