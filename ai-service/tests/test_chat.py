@@ -97,7 +97,7 @@ def test_generate_direct_calls_llm_and_appends_history():
 
     assert out["answer"] == "Chess answer"
     call_arg = mock_llm.invoke.call_args.args[0]
-    assert "chess Q" in call_arg
+    assert "chess Q" in call_arg[-1].content
     assert any(isinstance(m, HumanMessage) for m in out["chat_history"])
     assert any(isinstance(m, AIMessage) for m in out["chat_history"])
 

@@ -63,7 +63,9 @@ async def chat(
                 ):
                     node = event.get("metadata", {}).get("langgraph_node")
                     if event["event"] == "on_chain_end" and node == "analyze_question":
-                        question_type = event["data"]["output"].get("question_type")
+                        output = event.get("data", {}).get("output")
+                        if isinstance(output, dict) and "question_type" in output:
+                            question_type = output["question_type"]
 
                     if event["event"] == "on_chat_model_stream":
                         chunk = event["data"]["chunk"].content

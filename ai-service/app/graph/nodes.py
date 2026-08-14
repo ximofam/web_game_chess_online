@@ -1,6 +1,6 @@
 from typing import Literal
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.output_parsers import StrOutputParser
 from pydantic import BaseModel, Field
 
@@ -15,16 +15,20 @@ class QuestionAnalysis(BaseModel):
         description="The question rewritten to be standalone, incorporating context "
                     "from chat history. If already standalone, return it unchanged."
     )
-    category: Literal["system", "chess"] = Field(
+    category: Literal["system", "chess", "chitchat"] = Field(
         description="'system' if the question is about the platform/app itself "
                     "(features, account, matchmaking, lobby, how the site works). "
                     "'chess' if it's about chess as a game (rules, openings, "
-                    "players, history, strategy) unrelated to the platform."
+                    "players, history, strategy) unrelated to the platform. "
+                    "'chitchat' for greetings, thanks, small talk, or anything "
+                    "unrelated to chess or the platform."
     )
 
 
 def analyze_question(state: RagState) -> dict:
-    history = state.get("chat_history", [])
+    # ponytail: Sliding window of 6 cuts cost now. Ceiling: loses long context.
+    # Upgrade path: LLM summarization of past messages (memory summarization).
+    history = state.get("chat_history", [])[-6:]
     history_text = (
         "\n".join(f"{m.type}: {m.content}" for m in history) or "(none)"
     )
@@ -48,9 +52,11 @@ def retrieve_docs(state: RagState) -> dict:
 
 
 def generate_rag(state: RagState) -> dict:
+    recent_history = state.get("chat_history", [])[-6:]
     answer = (RAG_PROMPT | get_llm() | StrOutputParser()).invoke(
         {
             "context": "\n\n".join(state["documents"]),
+            "history": recent_history,
             "question": state["rewritten_question"],
         }
     )
@@ -62,10 +68,31 @@ def generate_rag(state: RagState) -> dict:
 
 
 def generate_direct(state: RagState) -> dict:
-    answer = get_llm().invoke(
-        "Answer this chess-related question clearly and accurately.\n\n"
-        f"Question: {state['rewritten_question']}"
-    ).content
+    recent_history = state.get("chat_history", [])[-6:]
+    messages = [
+        SystemMessage("Answer this chess-related question clearly and accurately."),
+        *recent_history,
+        HumanMessage(state["rewritten_question"]),
+    ]
+    answer = get_llm().invoke(messages).content
+    return {
+        "answer": answer,
+        "chat_history": [HumanMessage(state["original_question"]), AIMessage(answer)],
+    }
+
+
+def generate_chitchat(state: RagState) -> dict:
+    recent_history = state.get("chat_history", [])[-6:]
+    messages = [
+        SystemMessage(
+            "You are a friendly assistant for a chess platform. "
+            "Respond briefly and warmly to this message. If it's off-topic "
+            "small talk, gently note you're best at chess and platform questions."
+        ),
+        *recent_history,
+        HumanMessage(state["rewritten_question"]),
+    ]
+    answer = get_llm().invoke(messages).content
     return {
         "answer": answer,
         "chat_history": [HumanMessage(state["original_question"]), AIMessage(answer)],
