@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     huggingface_api_key: str | None = None
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 
+    jwt_secret: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:

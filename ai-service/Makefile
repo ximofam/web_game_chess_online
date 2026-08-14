@@ -1,4 +1,4 @@
-.PHONY: run install migrate test clean
+.PHONY: run install migrate test graph clean
 
 # Variables
 VENV = .venv
@@ -22,6 +22,11 @@ migrate:
 # Chạy test
 test:
 	$(PYTHON) -m pytest tests/
+
+# Vẽ LangGraph ra docs/graph.md + docs/graph.png
+graph:
+	$(PYTHON) -m scripts.generate_graph
+
 
 # Xóa các file cache sinh ra trong quá trình chạy
 clean:
