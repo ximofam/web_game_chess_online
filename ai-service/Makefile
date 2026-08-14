@@ -1,10 +1,11 @@
-.PHONY: run install test clean
+.PHONY: run install migrate test clean
 
 # Variables
 VENV = .venv
 PYTHON = $(VENV)/bin/python
 PIP = $(VENV)/bin/pip
 UVICORN = $(VENV)/bin/uvicorn
+ALEMBIC = $(VENV)/bin/alembic
 
 # Khởi chạy server FastAPI (Development)
 run:
@@ -13,6 +14,10 @@ run:
 # Cài đặt thư viện từ requirements.txt
 install:
 	$(PIP) install -r requirements.txt
+
+# Áp dụng database migrations (cần DATABASE_URL trong .env)
+migrate:
+	$(ALEMBIC) upgrade head
 
 # Chạy test
 test:

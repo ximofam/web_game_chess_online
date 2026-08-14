@@ -26,7 +26,9 @@ def get_vector_store():
         embeddings=get_embeddings(),
         collection_name=settings.vector_collection,
         connection=settings.database_url,
+        engine_args={"connect_args": {"options": "-csearch_path=ai_service,public"}},
         use_jsonb=True,
+        create_extension=False,
     )
 
 
