@@ -27,20 +27,19 @@ def _state(**kwargs) -> RagState:
 
 # ── analyze_question ──────────────────────────────────────────────────────────
 
-def test_analyze_question_returns_rewrite_and_type():
-    mock_result = Mock(rewritten_question="What is en passant exactly?", category="chess")
+def test_analyze_question_returns_type():
+    mock_result = Mock(category="chess")
     mock_llm = MagicMock()
     mock_llm.with_structured_output.return_value.invoke.return_value = mock_result
 
     with patch("app.graph.nodes.get_router_llm", return_value=mock_llm):
         out = analyze_question(_state(original_question="What is en passant?"))
 
-    assert out["rewritten_question"] == "What is en passant exactly?"
     assert out["question_type"] == "chess"
 
 
 def test_analyze_question_includes_history_in_prompt():
-    mock_result = Mock(rewritten_question="Q", category="system")
+    mock_result = Mock(category="system")
     mock_llm = MagicMock()
     mock_llm.with_structured_output.return_value.invoke.return_value = mock_result
 
@@ -50,7 +49,7 @@ def test_analyze_question_includes_history_in_prompt():
 
     prompt_arg = mock_llm.with_structured_output.return_value.invoke.call_args.args[0]
     assert "prev question" in prompt_arg
-    assert "prev answer" in prompt_arg
+    assert "follow up" in prompt_arg
 
 
 # ── retrieve_docs ─────────────────────────────────────────────────────────────
@@ -59,7 +58,7 @@ def test_retrieve_docs_returns_page_contents():
     docs = [Document(page_content="fact one"), Document(page_content="fact two")]
     with patch("app.graph.nodes.retrieve", return_value=docs):
         out = retrieve_docs(_state(rewritten_question="how to report a bug?"))
-    assert out["documents"] == ["fact one", "fact two"]
+    assert out["documents"] == docs
 
 
 # ── generate_rag ──────────────────────────────────────────────────────────────
@@ -72,7 +71,7 @@ def test_generate_rag_invokes_prompt_chain_and_appends_history():
     state = _state(
         original_question="original",
         rewritten_question="rewritten platform Q",
-        documents=["doc content"],
+        documents=[Document(page_content="doc content")],
     )
     with (
         patch("app.graph.nodes.RAG_PROMPT", chain),
@@ -97,7 +96,7 @@ def test_generate_direct_calls_llm_and_appends_history():
 
     assert out["answer"] == "Chess answer"
     call_arg = mock_llm.invoke.call_args.args[0]
-    assert "chess Q" in call_arg[-1].content
+    assert "original" in call_arg[-1].content
     assert any(isinstance(m, HumanMessage) for m in out["chat_history"])
     assert any(isinstance(m, AIMessage) for m in out["chat_history"])
 

@@ -1,4 +1,4 @@
-.PHONY: run install migrate test graph clean
+.PHONY: run install migrate test graph clean ingest
 
 # Variables
 VENV = .venv
@@ -26,6 +26,14 @@ test:
 # Vẽ LangGraph ra docs/graph.md + docs/graph.png
 graph:
 	$(PYTHON) -m scripts.generate_graph
+
+# Ingest markdown documents into Vector Store
+ingest:
+	$(PYTHON) -m scripts.ingest
+
+# Clear old vectors and ingest again (dùng khi có update docs mới)
+ingest-clear:
+	$(PYTHON) -m scripts.ingest --clear
 
 
 # Xóa các file cache sinh ra trong quá trình chạy
