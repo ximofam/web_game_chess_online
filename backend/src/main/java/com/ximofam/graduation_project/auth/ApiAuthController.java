@@ -1,11 +1,15 @@
 package com.ximofam.graduation_project.auth;
 
 import com.ximofam.graduation_project.auth.dtos.request.LoginRequest;
+import com.ximofam.graduation_project.auth.dtos.request.RefreshGuestTokenRequest;
+import com.ximofam.graduation_project.auth.dtos.request.RefreshTokenRequest;
 import com.ximofam.graduation_project.auth.dtos.request.RegisterUserRequest;
+import com.ximofam.graduation_project.auth.dtos.response.GuestTokenResponse;
 import com.ximofam.graduation_project.auth.dtos.response.TokenResponse;
 import com.ximofam.graduation_project.auth.services.AuthService;
 import com.ximofam.graduation_project.auth.services.TokenService;
 import com.ximofam.graduation_project.auth.enums.TokenType;
+import com.ximofam.graduation_project.common.exceptions.http.UnauthorizedException;
 import com.ximofam.graduation_project.common.utils.CookieUtils;
 import com.ximofam.graduation_project.users.dtos.response.UserResponse;
 import io.jsonwebtoken.Claims;
@@ -39,10 +43,10 @@ public class ApiAuthController {
     }
 
     @PostMapping("/register/guest")
-    public ResponseEntity<Void> registerGuest(HttpServletResponse response) {
+    public ResponseEntity<GuestTokenResponse> registerGuest(HttpServletResponse response) {
         String newGuestToken = authService.registerGuest();
         cookieUtils.addCookie(response, GUEST_COOKIE_NAME, newGuestToken, Duration.ofDays(guestMaxAgeDays));
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return ResponseEntity.status(HttpStatus.CREATED).body(new GuestTokenResponse(newGuestToken));
     }
 
     @PostMapping("/login/guest")
@@ -64,9 +68,19 @@ public class ApiAuthController {
     }
 
     @PostMapping("/refresh/guest-token")
-    public ResponseEntity<Void> refreshQuestToken(
-            @CookieValue(name = GUEST_COOKIE_NAME) String guestToken,
+    public ResponseEntity<GuestTokenResponse> refreshQuestToken(
+            @CookieValue(name = GUEST_COOKIE_NAME, required = false) String cookieGuestToken,
+            @RequestBody(required = false) RefreshGuestTokenRequest request,
             HttpServletResponse response) {
+
+        String guestToken = cookieGuestToken;
+        if (guestToken == null && request != null) {
+            guestToken = request.getGuestToken();
+        }
+        
+        if (guestToken == null) {
+            throw new UnauthorizedException("Guest token is required");
+        }
 
         Claims claims = tokenService.verifyAndParseToken(guestToken, TokenType.GUEST);
 
@@ -74,13 +88,24 @@ public class ApiAuthController {
         String newGuestToken = tokenService.generateGuestToken(guestId);
         cookieUtils.addCookie(response, GUEST_COOKIE_NAME, newGuestToken, Duration.ofDays(guestMaxAgeDays));
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(new GuestTokenResponse(newGuestToken));
     }
 
     @PostMapping("/refresh")
     public ResponseEntity<TokenResponse> refreshToken(
-            @CookieValue(name = REFRESH_COOKIE_NAME) String refreshToken,
+            @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String cookieRefreshToken,
+            @RequestBody(required = false) RefreshTokenRequest request,
             HttpServletResponse response) {
+            
+        String refreshToken = cookieRefreshToken;
+        if (refreshToken == null && request != null) {
+            refreshToken = request.getRefreshToken();
+        }
+        
+        if (refreshToken == null) {
+            throw new UnauthorizedException("Refresh token is required");
+        }
+
         TokenResponse tokens = tokenService.refresh(refreshToken);
         setRefreshTokenCookie(response, tokens.getRefreshToken());
         return ResponseEntity.ok(tokens);

@@ -56,11 +56,11 @@ Tất cả các API dưới đây có tiền tố (base path) là `/api/auth`.
 classDiagram
     class ApiAuthController {
         +register(RegisterUserRequest) ResponseEntity~UserResponse~
-        +registerGuest(guestToken) ResponseEntity~Void~
+        +registerGuest(guestToken) ResponseEntity~GuestTokenResponse~
         +loginGuest(guestToken) ResponseEntity~TokenResponse~
         +login(LoginRequest) ResponseEntity~TokenResponse~
-        +refreshQuestToken(guestToken) ResponseEntity~Void~
-        +refreshToken(refreshToken) ResponseEntity~TokenResponse~
+        +refreshQuestToken(guestToken, request) ResponseEntity~GuestTokenResponse~
+        +refreshToken(refreshToken, request) ResponseEntity~TokenResponse~
         +logout(refreshToken) ResponseEntity~String~
     }
 ```
@@ -112,7 +112,12 @@ classDiagram
     - **Trường hợp đã có `guestToken` hợp lệ:** `200 OK` (Không tạo mới).
     - **Trường hợp chưa có hoặc token không hợp lệ:** `201 Created`
         - Set-Cookie: `guestToken=<New_JWT>; Max-Age=<Config_Days>; Path=/`
-- **Lưu ý:** API này không trả về dữ liệu body.
+        - Body JSON: `GuestTokenResponse`
+          ```json
+          {
+            "guestToken": "eyJhbGciOi..."
+          }
+          ```
 
 ---
 
@@ -166,11 +171,23 @@ classDiagram
 
 - **Endpoint:** `POST /api/auth/refresh/guest-token`
 - **Mô tả:** Kiểm tra và cấp lại (gia hạn) `guestToken` mới để duy trì trạng thái khách dài hạn.
-- **Headers / Cookies:**
-    - Cookie (bắt buộc): `guestToken=<JWT>`
+- **Headers / Cookies / Request Body:**
+    - Cookie (tùy chọn): `guestToken=<JWT>`
+    - Request Body (tùy chọn, fallback nếu không có Cookie): `RefreshGuestTokenRequest`
+      ```json
+      {
+        "guestToken": "eyJhbGciOi..."
+      }
+      ```
 - **Response:**
     - **Success:** `200 OK`
         - Set-Cookie: `guestToken=<New_JWT>; Max-Age=<Config_Days>; Path=/`
+        - Body JSON: `GuestTokenResponse`
+          ```json
+          {
+            "guestToken": "eyJhbGciOi..."
+          }
+          ```
     - **Error:** `401 Unauthorized`.
 
 ---
@@ -179,8 +196,14 @@ classDiagram
 
 - **Endpoint:** `POST /api/auth/refresh`
 - **Mô tả:** Sử dụng `refreshToken` từ cookie để đổi cặp Access Token và Refresh Token mới (áp dụng cơ chế xoay vòng).
-- **Headers / Cookies:**
-    - Cookie (bắt buộc): `refreshToken=<JWT>`
+- **Headers / Cookies / Request Body:**
+    - Cookie (tùy chọn): `refreshToken=<JWT>`
+    - Request Body (tùy chọn, fallback nếu không có Cookie): `RefreshTokenRequest`
+      ```json
+      {
+        "refreshToken": "eyJhbGciOi..."
+      }
+      ```
 - **Response:**
     - **Success:** `200 OK`
         - Set-Cookie: `refreshToken=<New_JWT>; Path=/api/auth; HttpOnly; SameSite=Strict`
