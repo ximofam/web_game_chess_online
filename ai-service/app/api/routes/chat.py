@@ -67,7 +67,7 @@ async def chat(
                         if isinstance(output, dict) and "question_type" in output:
                             question_type = output["question_type"]
 
-                    if event["event"] == "on_chat_model_stream":
+                    if event["event"] == "on_chat_model_stream" and node in ("generate_rag", "generate_direct", "generate_chitchat"):
                         chunk = event["data"]["chunk"].content
                         if chunk:
                             full_answer += chunk

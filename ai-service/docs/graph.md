@@ -13,15 +13,17 @@ graph TD;
 	generate_rag(generate_rag)
 	generate_direct(generate_direct)
 	generate_chitchat(generate_chitchat)
+	summarize_memory(summarize_memory)
 	__end__([<p>__end__</p>]):::last
 	__start__ --> analyze_question;
 	analyze_question -. &nbsp;chitchat&nbsp; .-> generate_chitchat;
 	analyze_question -. &nbsp;chess&nbsp; .-> generate_direct;
 	analyze_question -. &nbsp;system&nbsp; .-> retrieve;
+	generate_chitchat --> summarize_memory;
+	generate_direct --> summarize_memory;
+	generate_rag --> summarize_memory;
 	retrieve --> generate_rag;
-	generate_chitchat --> __end__;
-	generate_direct --> __end__;
-	generate_rag --> __end__;
+	summarize_memory --> __end__;
 	classDef default fill:#f2f0ff,line-height:1.2
 	classDef first fill-opacity:0
 	classDef last fill:#bfb6fc

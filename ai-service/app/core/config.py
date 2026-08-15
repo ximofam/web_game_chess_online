@@ -15,8 +15,10 @@ class Settings(BaseSettings):
     llm_provider: Literal["groq", "openai"] = "groq"
     groq_api_key: str | None = None
     groq_model: str = "llama-3.3-70b-versatile"
+    groq_router_model: str = "llama-3.1-8b-instant"
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
+    openai_router_model: str = "gpt-4o-mini"
 
     embedding_provider: Literal["huggingface", "openai"] = "huggingface"
     huggingface_api_key: str | None = None

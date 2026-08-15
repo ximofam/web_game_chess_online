@@ -1,10 +1,10 @@
 from typing import Literal
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, SystemMessage
 from langchain_core.output_parsers import StrOutputParser
 from pydantic import BaseModel, Field
 
-from app.ai.llm import get_llm
+from app.ai.llm import get_llm, get_router_llm
 from app.ai.prompts import RAG_PROMPT
 from app.ai.retriever import retrieve
 from app.graph.state import RagState
@@ -26,11 +26,11 @@ class QuestionAnalysis(BaseModel):
 
 
 def analyze_question(state: RagState) -> dict:
-    # ponytail: Sliding window of 6 cuts cost now. Ceiling: loses long context.
-    # Upgrade path: LLM summarization of past messages (memory summarization).
-    history = state.get("chat_history", [])[-6:]
+    # ponytail: The router only needs the immediate context (last 2 turns) to resolve pronouns.
+    # Passing the full summary here wastes tokens.
+    history = state.get("chat_history", [])[-4:]
     history_text = (
-        "\n".join(f"{m.type}: {m.content}" for m in history) or "(none)"
+            "\n".join(f"{m.type}: {m.content}" for m in history) or "(none)"
     )
     prompt = (
         "Given the chat history and a follow-up question, do two things:\n"
@@ -39,7 +39,7 @@ def analyze_question(state: RagState) -> dict:
         f"Chat history:\n{history_text}\n\n"
         f"Follow-up question: {state['original_question']}"
     )
-    result = get_llm().with_structured_output(QuestionAnalysis).invoke(prompt)
+    result = get_router_llm().with_structured_output(QuestionAnalysis).invoke(prompt)
     return {
         "rewritten_question": result.rewritten_question,
         "question_type": result.category,
@@ -52,11 +52,11 @@ def retrieve_docs(state: RagState) -> dict:
 
 
 def generate_rag(state: RagState) -> dict:
-    recent_history = state.get("chat_history", [])[-6:]
+    history = state.get("chat_history", [])
     answer = (RAG_PROMPT | get_llm() | StrOutputParser()).invoke(
         {
             "context": "\n\n".join(state["documents"]),
-            "history": recent_history,
+            "history": history,
             "question": state["rewritten_question"],
         }
     )
@@ -68,10 +68,10 @@ def generate_rag(state: RagState) -> dict:
 
 
 def generate_direct(state: RagState) -> dict:
-    recent_history = state.get("chat_history", [])[-6:]
+    history = state.get("chat_history", [])
     messages = [
         SystemMessage("Answer this chess-related question clearly and accurately."),
-        *recent_history,
+        *history,
         HumanMessage(state["rewritten_question"]),
     ]
     answer = get_llm().invoke(messages).content
@@ -82,14 +82,14 @@ def generate_direct(state: RagState) -> dict:
 
 
 def generate_chitchat(state: RagState) -> dict:
-    recent_history = state.get("chat_history", [])[-6:]
+    history = state.get("chat_history", [])
     messages = [
         SystemMessage(
             "You are a friendly assistant for a chess platform. "
             "Respond briefly and warmly to this message. If it's off-topic "
             "small talk, gently note you're best at chess and platform questions."
         ),
-        *recent_history,
+        *history,
         HumanMessage(state["rewritten_question"]),
     ]
     answer = get_llm().invoke(messages).content
@@ -97,3 +97,26 @@ def generate_chitchat(state: RagState) -> dict:
         "answer": answer,
         "chat_history": [HumanMessage(state["original_question"]), AIMessage(answer)],
     }
+
+
+def summarize_memory(state: RagState) -> dict:
+    history = state.get("chat_history", [])
+    # 1 system msg + 3 human/ai pairs = 7 messages. If > 6, we summarize.
+    if len(history) <= 6:
+        return {}
+
+    # Summarize all EXCEPT the last 2 (the latest turn we just added)
+    messages_to_summarize = history[:-2]
+    history_text = "\n".join(f"{m.type}: {m.content}" for m in messages_to_summarize)
+
+    summary_prompt = (
+        "Distill the following chat history into a concise summary. "
+        "Keep user preferences (like language) and key discussion points.\n\n"
+        f"{history_text}"
+    )
+    summary = get_router_llm().invoke(summary_prompt).content
+
+    delete_msgs = [RemoveMessage(id=m.id) for m in messages_to_summarize if getattr(m, 'id', None)]
+    new_summary_msg = SystemMessage(content=f"Summary of previous conversation:\n{summary}")
+
+    return {"chat_history": delete_msgs + [new_summary_msg]}

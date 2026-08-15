@@ -32,7 +32,7 @@ def test_analyze_question_returns_rewrite_and_type():
     mock_llm = MagicMock()
     mock_llm.with_structured_output.return_value.invoke.return_value = mock_result
 
-    with patch("app.graph.nodes.get_llm", return_value=mock_llm):
+    with patch("app.graph.nodes.get_router_llm", return_value=mock_llm):
         out = analyze_question(_state(original_question="What is en passant?"))
 
     assert out["rewritten_question"] == "What is en passant exactly?"
@@ -45,7 +45,7 @@ def test_analyze_question_includes_history_in_prompt():
     mock_llm.with_structured_output.return_value.invoke.return_value = mock_result
 
     history = [HumanMessage("prev question"), AIMessage("prev answer")]
-    with patch("app.graph.nodes.get_llm", return_value=mock_llm):
+    with patch("app.graph.nodes.get_router_llm", return_value=mock_llm):
         analyze_question(_state(original_question="follow up", chat_history=history))
 
     prompt_arg = mock_llm.with_structured_output.return_value.invoke.call_args.args[0]

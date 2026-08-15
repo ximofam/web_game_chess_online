@@ -9,6 +9,7 @@ from app.graph.nodes import (
     generate_direct,
     generate_rag,
     retrieve_docs,
+    summarize_memory,
 )
 from app.graph.state import RagState
 
@@ -20,6 +21,7 @@ def _build() -> StateGraph:
     g.add_node("generate_rag", generate_rag)
     g.add_node("generate_direct", generate_direct)
     g.add_node("generate_chitchat", generate_chitchat)
+    g.add_node("summarize_memory", summarize_memory)
     g.set_entry_point("analyze_question")
     g.add_conditional_edges(
         "analyze_question",
@@ -27,9 +29,10 @@ def _build() -> StateGraph:
         {"system": "retrieve", "chess": "generate_direct", "chitchat": "generate_chitchat"},
     )
     g.add_edge("retrieve", "generate_rag")
-    g.add_edge("generate_rag", END)
-    g.add_edge("generate_direct", END)
-    g.add_edge("generate_chitchat", END)
+    g.add_edge("generate_rag", "summarize_memory")
+    g.add_edge("generate_direct", "summarize_memory")
+    g.add_edge("generate_chitchat", "summarize_memory")
+    g.add_edge("summarize_memory", END)
     return g
 
 
