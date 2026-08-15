@@ -5,9 +5,11 @@ from langgraph.graph import END, StateGraph
 
 from app.graph.nodes import (
     analyze_question,
+    rewrite_question,
     generate_chitchat,
     generate_direct,
     generate_rag,
+    no_context_answer,
     retrieve_docs,
     summarize_memory,
 )
@@ -15,24 +17,35 @@ from app.graph.state import RagState
 
 
 def _build() -> StateGraph:
+    # summarize_memory chạy đầu mỗi turn (prune-before-process).
+    # Khi thêm nhánh mới, chỉ cần nối thẳng vào END — không cần wire vào summarize_memory.
     g = StateGraph(RagState)
+    g.add_node("summarize_memory", summarize_memory)
     g.add_node("analyze_question", analyze_question)
+    g.add_node("rewrite_question", rewrite_question)
     g.add_node("retrieve", retrieve_docs)
     g.add_node("generate_rag", generate_rag)
+    g.add_node("no_context_answer", no_context_answer)
     g.add_node("generate_direct", generate_direct)
     g.add_node("generate_chitchat", generate_chitchat)
-    g.add_node("summarize_memory", summarize_memory)
-    g.set_entry_point("analyze_question")
+    g.set_entry_point("summarize_memory")
+    g.add_edge("summarize_memory", "analyze_question")
     g.add_conditional_edges(
         "analyze_question",
         lambda s: s["question_type"],
-        {"system": "retrieve", "chess": "generate_direct", "chitchat": "generate_chitchat"},
+        {"system": "rewrite_question", "chess": "generate_direct", "chitchat": "generate_chitchat"},
     )
-    g.add_edge("retrieve", "generate_rag")
-    g.add_edge("generate_rag", "summarize_memory")
-    g.add_edge("generate_direct", "summarize_memory")
-    g.add_edge("generate_chitchat", "summarize_memory")
-    g.add_edge("summarize_memory", END)
+    g.add_edge("rewrite_question", "retrieve")
+    # Short-circuit khi không tìm được document nào — tránh tốn LLM call với context rỗng.
+    g.add_conditional_edges(
+        "retrieve",
+        lambda s: "generate_rag" if s.get("documents") else "no_context_answer",
+        {"generate_rag": "generate_rag", "no_context_answer": "no_context_answer"},
+    )
+    g.add_edge("generate_rag", END)
+    g.add_edge("no_context_answer", END)
+    g.add_edge("generate_direct", END)
+    g.add_edge("generate_chitchat", END)
     return g
 
 

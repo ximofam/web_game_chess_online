@@ -1,0 +1,17 @@
+Classify the user's question into exactly one of three categories based on the conversation history.
+
+Categories:
+- "system": The user is asking about how to use THIS chess platform — e.g., creating
+  a room, matchmaking, account settings, UI buttons, error messages, game features on this site.
+- "chess": The user is asking about general chess knowledge or theory — e.g., how pieces
+  move, chess rules, openings, famous games, grandmasters — completely unrelated to this
+  platform's interface.
+- "chitchat": Greetings, thanks, expressions of feeling, small talk, or anything unrelated
+  to chess or the platform.
+
+When in doubt, use the chat history to resolve ambiguous references (e.g., "that", "it", "this").
+
+Chat history:
+{history}
+
+Question to classify: {question}

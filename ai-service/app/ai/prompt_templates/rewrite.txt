@@ -1,0 +1,13 @@
+Rewrite the follow-up question below into a fully self-contained search query suitable
+for a knowledge base lookup.
+
+Instructions:
+- Resolve all pronouns and references using the chat history (e.g., "it", "that feature",
+  "the one you mentioned").
+- If the question is already standalone, return it unchanged.
+- Output ONLY the rewritten question. No explanation, no extra text.
+
+Chat history:
+{history}
+
+Follow-up question: {question}
