@@ -3,7 +3,6 @@ from typing import Literal
 
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, SystemMessage
 from langchain_core.output_parsers import StrOutputParser
-from pydantic import BaseModel, Field
 
 from app.ai.llm import get_llm, get_router_llm
 from app.ai.prompts import (
@@ -23,20 +22,15 @@ logger = logging.getLogger(__name__)
 _HISTORY_WINDOW = 6
 
 
-class QuestionCategory(BaseModel):
-    category: Literal["system", "chess", "chitchat"] = Field(
-        description="'system' if asking about how to use THIS website/platform (e.g., how to play a game on this site, how to create a room, matchmaking, account, buttons, UI, errors). "
-                    "'chess' ONLY if asking about general real-world chess knowledge/theory (e.g., how chess pieces move in general, chess rules, openings, grandmasters) completely unrelated to this website's interface. "
-                    "'chitchat' for greetings, thanks, small talk, or anything unrelated to chess or the platform."
-    )
-
-
 def analyze_question(state: RagState) -> dict:
     history = state.get("chat_history", [])[-_HISTORY_WINDOW:]
     history_text = "\n".join(f"{m.type}: {m.content}" for m in history) or "(none)"
+    
     prompt = ANALYZE_PROMPT.format(history=history_text, question=state["original_question"])
-    result = get_router_llm().with_structured_output(QuestionCategory).invoke(prompt)
-    return {"question_type": result.category}
+    
+    result = get_router_llm().invoke(prompt).content.strip().strip("'\"").lower()
+    category = result if result in ("system", "chess", "chitchat") else "system"
+    return {"question_type": category}
 
 
 def rewrite_question(state: RagState) -> dict:

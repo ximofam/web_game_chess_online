@@ -28,9 +28,9 @@ def _state(**kwargs) -> RagState:
 # ── analyze_question ──────────────────────────────────────────────────────────
 
 def test_analyze_question_returns_type():
-    mock_result = Mock(category="chess")
+    mock_result = Mock(content="chess")
     mock_llm = MagicMock()
-    mock_llm.with_structured_output.return_value.invoke.return_value = mock_result
+    mock_llm.invoke.return_value = mock_result
 
     with patch("app.graph.nodes.get_router_llm", return_value=mock_llm):
         out = analyze_question(_state(original_question="What is en passant?"))
@@ -39,15 +39,15 @@ def test_analyze_question_returns_type():
 
 
 def test_analyze_question_includes_history_in_prompt():
-    mock_result = Mock(category="system")
+    mock_result = Mock(content="system")
     mock_llm = MagicMock()
-    mock_llm.with_structured_output.return_value.invoke.return_value = mock_result
+    mock_llm.invoke.return_value = mock_result
 
     history = [HumanMessage("prev question"), AIMessage("prev answer")]
     with patch("app.graph.nodes.get_router_llm", return_value=mock_llm):
         analyze_question(_state(original_question="follow up", chat_history=history))
 
-    prompt_arg = mock_llm.with_structured_output.return_value.invoke.call_args.args[0]
+    prompt_arg = mock_llm.invoke.call_args.args[0]
     assert "prev question" in prompt_arg
     assert "follow up" in prompt_arg
 

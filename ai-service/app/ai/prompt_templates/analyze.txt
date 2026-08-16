@@ -15,3 +15,5 @@ Chat history:
 {history}
 
 Question to classify: {question}
+
+Output ONLY the exact category name: "system", "chess", or "chitchat". No other text.

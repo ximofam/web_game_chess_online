@@ -1,14 +1,16 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user_id
-from app.core.db import get_db, get_session_factory
-from app.models.chat import AiChatMessage
-from app.schemas.chat import ChatRequest, CreateSessionResponse
+from app.core.db import get_db
+from app.models.chat_session import ChatSession
+from app.schemas.chat import ChatRequest, ChatResponse, CreateSessionResponse
 from app.services.chat_service import create_session, get_session, save_message
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat")
 
@@ -23,62 +25,45 @@ async def create_chat_session(
     return CreateSessionResponse(session_id=session.id)
 
 
-@router.post("/{session_id}")
-async def chat(
+async def get_owned_session(
     session_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> ChatSession:
+    session = await get_session(db, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return session
+
+
+@router.post("/{session_id}", response_model=ChatResponse)
+async def chat(
     body: ChatRequest,
     req: Request,
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    session: ChatSession = Depends(get_owned_session),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Send a message to an existing chat session and stream the response."""
+    """Send a message to an existing chat session and get the response."""
     graph = req.app.state.graph
     if graph is None:
         raise HTTPException(status_code=503, detail="DATABASE_URL is required for chat")
 
-    async def event_stream():
-        async with get_session_factory()() as db:
-            # 1. Verify session exists and belongs to user
-            session = await get_session(db, session_id)
-            if not session:
-                yield f"event: error\ndata: Session not found\n\n"
-                return
-            if session.user_id != user_id:
-                yield f"event: error\ndata: Forbidden\n\n"
-                return
+    await save_message(db, session.id, "user", body.question)
 
-            # 2. Save user message
-            db.add(AiChatMessage(session_id=session.id, role="user", content=body.question))
-            await db.commit()
+    config = {"configurable": {"thread_id": str(session.id)}}
+    try:
+        result = await graph.ainvoke(
+            {"original_question": body.question, "chat_history": []},
+            config,
+        )
+    except Exception:
+        logger.exception("Chat graph invocation failed (session_id=%s)", session.id)
+        raise HTTPException(status_code=502, detail="Failed to generate a response")
 
-            full_answer = ""
-            question_type: str | None = None
-            config = {"configurable": {"thread_id": str(session.id)}}
+    answer = result["answer"]
+    question_type = result.get("question_type")
+    await save_message(db, session.id, "assistant", answer, question_type)
 
-            try:
-                # 3. Stream from LangGraph
-                async for event in graph.astream_events(
-                    {"original_question": body.question, "chat_history": []},
-                    config,
-                    version="v2",
-                ):
-                    node = event.get("metadata", {}).get("langgraph_node")
-                    if event["event"] == "on_chain_end" and node == "analyze_question":
-                        output = event.get("data", {}).get("output")
-                        if isinstance(output, dict) and "question_type" in output:
-                            question_type = output["question_type"]
-
-                    if event["event"] == "on_chat_model_stream" and node in ("generate_rag", "generate_direct", "generate_chitchat"):
-                        chunk = event["data"]["chunk"].content
-                        if chunk:
-                            full_answer += chunk
-                            yield f"data: {chunk}\n\n"
-
-            except Exception as exc:
-                yield f"event: error\ndata: {exc}\n\n"
-                return
-
-            # 4. Save assistant response
-            await save_message(db, session.id, "assistant", full_answer, question_type)
-            yield "event: done\ndata: [DONE]\n\n"
-
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return ChatResponse(answer=answer, question_type=question_type)

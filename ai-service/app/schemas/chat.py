@@ -9,3 +9,8 @@ class ChatRequest(BaseModel):
 
 class CreateSessionResponse(BaseModel):
     session_id: uuid.UUID
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    question_type: str | None = None
