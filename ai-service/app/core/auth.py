@@ -42,3 +42,37 @@ def get_current_user_id(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing token",
         ) from exc
+
+
+def require_superuser(
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> uuid.UUID:
+    """Decode JWT bearer token and require SUPERUSER role."""
+    settings = get_settings()
+    if not settings.jwt_secret:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="JWT_SECRET is not configured on the server",
+        )
+
+    try:
+        secret_bytes = base64.b64decode(settings.jwt_secret)
+
+        payload = jwt.decode(
+            credentials.credentials,
+            secret_bytes,
+            algorithms=["HS256"],
+        )
+        if payload.get("role") != "SUPERUSER":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Superuser role required",
+            )
+        return uuid.UUID(payload["sub"])
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing token",
+        ) from exc
