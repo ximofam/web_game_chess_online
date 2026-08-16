@@ -34,6 +34,7 @@ RAG_PROMPT = ChatPromptTemplate.from_messages(
 ANALYZE_PROMPT: PromptTemplate = PromptTemplate.from_template(_load("analyze"))
 REWRITE_PROMPT: PromptTemplate = PromptTemplate.from_template(_load("rewrite"))
 SUMMARIZE_PROMPT: PromptTemplate = PromptTemplate.from_template(_load("summarize"))
+TITLE_PROMPT: PromptTemplate = PromptTemplate.from_template(_load("title"))
 
 # ---------------------------------------------------------------------------
 # System message strings for generate_direct and generate_chitchat nodes.
