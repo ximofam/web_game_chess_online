@@ -1,6 +1,12 @@
 import uuid
 from datetime import datetime, timezone
 
+try:
+    uuid7 = uuid.uuid7
+except AttributeError:
+    import uuid_utils
+    uuid7 = lambda: uuid.UUID(bytes=uuid_utils.uuid7().bytes)
+
 from sqlalchemy import DateTime, func
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -28,7 +34,7 @@ class _Model(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid7,
+        default=uuid7,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
