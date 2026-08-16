@@ -40,3 +40,5 @@ SUMMARIZE_PROMPT: PromptTemplate = PromptTemplate.from_template(_load("summarize
 # ---------------------------------------------------------------------------
 DIRECT_SYSTEM: str = _load("direct_system")
 CHITCHAT_SYSTEM: str = _load("chitchat_system")
+
+NO_CONTEXT_PROMPT: PromptTemplate = PromptTemplate.from_template(_load("no_context"))

@@ -10,6 +10,7 @@ from app.ai.prompts import (
     ANALYZE_PROMPT,
     CHITCHAT_SYSTEM,
     DIRECT_SYSTEM,
+    NO_CONTEXT_PROMPT,
     RAG_PROMPT,
     REWRITE_PROMPT,
     SUMMARIZE_PROMPT,
@@ -71,11 +72,8 @@ def generate_rag(state: RagState) -> dict:
 
 
 def no_context_answer(state: RagState) -> dict:
-    """Short-circuit khi retrieve không tìm được document nào, tránh tốn LLM call."""
-    answer = (
-        "Tôi không tìm thấy thông tin liên quan đến câu hỏi của bạn trong cơ sở dữ liệu. "
-        "Hãy thử diễn đạt lại câu hỏi hoặc liên hệ hỗ trợ để được giúp đỡ."
-    )
+    prompt = NO_CONTEXT_PROMPT.format(question=state["original_question"])
+    answer = get_router_llm().invoke(prompt).content.strip()
     return {
         "answer": answer,
         "chat_history": [HumanMessage(state["original_question"]), AIMessage(answer)],
