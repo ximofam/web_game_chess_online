@@ -12,7 +12,9 @@ filepath = f"docs/graph/{timestamp}_graph.md"
 
 with open(filepath, "w") as f:
     f.write("# RAG Chat — LangGraph\n\n```mermaid\n")
-    f.write(graph.draw_mermaid())
+    mermaid_str = graph.draw_mermaid()
+    mermaid_str = mermaid_str.replace("classDef default ", "classDef default color:#000000,")
+    f.write(mermaid_str)
     f.write("\n```\n")
 
 print(f"{filepath} generated")
