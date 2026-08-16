@@ -14,7 +14,7 @@ def test_format_context_joins_retrieved_documents():
 def test_accepts_huggingface_api_configuration():
     settings = Settings(vector_store="chroma", groq_api_key="groq", huggingface_api_key="hf")
     assert settings.vector_store == "chroma"
-    assert settings.embedding_model == "BAAI/bge-m3"
+    assert settings.embedding_model == "sentence-transformers/all-MiniLM-L6-v2"
 
 
 def test_allows_openai_providers():
