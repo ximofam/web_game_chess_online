@@ -15,3 +15,5 @@ langgraph==1.0.1
 langgraph-checkpoint-postgres==3.0.5
 sqlalchemy[asyncio]
 pyjwt==2.13.0
+asyncpg==0.31.0
+pgvector==0.3.6
