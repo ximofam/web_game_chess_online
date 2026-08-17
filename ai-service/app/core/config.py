@@ -11,11 +11,12 @@ class Settings(BaseSettings):
     vector_collection: str = "knowledge_doc"
     chroma_persist_directory: str = "data/chroma"
     database_url: str | None = None
+    cors_origins: list[str] = ["http://localhost:5173"]
 
     llm_provider: Literal["groq", "openai"] = "groq"
     groq_api_key: str | None = None
     groq_model: str = "llama-3.3-70b-versatile"
-    groq_router_model: str = "llama-3.1-8b-instant"
+    groq_router_model: str = "llama-3.3-70b-versatile"
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     openai_router_model: str = "gpt-4o-mini"

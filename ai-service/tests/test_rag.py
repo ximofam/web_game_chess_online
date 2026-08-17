@@ -22,6 +22,15 @@ def test_allows_openai_providers():
     assert settings.llm_provider == "openai"
 
 
+def test_uses_an_available_groq_router_model_by_default():
+    assert Settings(_env_file=None).groq_router_model == "llama-3.3-70b-versatile"
+
+
+def test_allows_configuring_cors_origins():
+    settings = Settings(cors_origins=["http://localhost:5173", "https://app.example.com"])
+    assert settings.cors_origins == ["http://localhost:5173", "https://app.example.com"]
+
+
 def test_add_document_passes_content_and_metadata_to_vector_store():
     vector_store = Mock()
     vector_store.add_documents.return_value = ["document-id"]

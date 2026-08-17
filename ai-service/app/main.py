@@ -1,9 +1,11 @@
 import warnings
+
 warnings.filterwarnings("ignore", message=".*allowed_objects.*")
 
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import get_settings
@@ -24,5 +26,11 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="AI Service API", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_settings().cors_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 app.include_router(api_router, prefix="/api")
-
