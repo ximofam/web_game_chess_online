@@ -32,10 +32,8 @@ except Exception as e:
 
 if echo "$CHECK_RESULT" | grep -q "NO_DATA"; then
     echo "Vector store is empty. Running ingestion..."
-    if [ -d "../docs/business/integrated" ]; then
-        python -m scripts.ingest --path ../docs/business/integrated
-    elif [ -d "./docs/business/integrated" ]; then
-        python -m scripts.ingest --path ./docs/business/integrated
+    if [ -d "./docs/business/viechess" ]; then
+        python -m scripts.ingest --path ./docs/business/viechess
     else
         echo "Warning: docs/business/integrated folder not found. Skipping ingest."
     fi

@@ -80,7 +80,7 @@ def ingest(docs_path: str, clear: bool = False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Ingest markdown docs into Vector DB")
-    parser.add_argument("--path", type=str, default="../docs/business/integrated", help="Path to markdown docs")
+    parser.add_argument("--path", type=str, default="./docs/business/viechess", help="Path to markdown docs")
     parser.add_argument("--clear", action="store_true", help="Clear existing vectors before ingesting")
     args = parser.parse_args()
 
