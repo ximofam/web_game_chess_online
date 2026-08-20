@@ -2,11 +2,10 @@
 
 VieChess is a modern, real-time multiplayer chess platform with an integrated community forum and intelligent AI assistant. 
 
-This repository is structured as a monorepo containing the two core services powering the platform:
+This repository contains the core services powering the platform, which together with the frontend make up the complete system:
 1. **Core Backend (`backend`)**: A robust Java Spring Boot application handling real-time chess logic, community forums, and secure authentication.
 2. **AI Service (`ai-service`)**: A Python FastAPI application providing a stateful, RAG-powered conversational assistant to answer user questions about the platform and chess rules.
-
-*(Note: The Single Page Application frontend built with React + Vite is hosted separately at [https://viechess.vercel.app/](https://viechess.vercel.app/). Its source code can be found at [ximofam/web_game_chess_online_frontend](https://github.com/ximofam/web_game_chess_online_frontend))*
+3. **Frontend SPA**: Built with React + Vite, it is hosted separately at [https://viechess.vercel.app/](https://viechess.vercel.app/) and its source code is located at [ximofam/web_game_chess_online_frontend](https://github.com/ximofam/web_game_chess_online_frontend).
 
 ---
 
