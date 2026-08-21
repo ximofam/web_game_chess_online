@@ -7,13 +7,13 @@ from langchain_core.output_parsers import StrOutputParser
 from app.ai.llm import get_llm, get_router_llm
 from app.ai.prompts import (
     ANALYZE_PROMPT,
-    CHITCHAT_SYSTEM,
-    DIRECT_SYSTEM,
+    GENERAL_SYSTEM,
     NO_CONTEXT_PROMPT,
     RAG_PROMPT,
     REWRITE_PROMPT,
     SUMMARIZE_PROMPT,
 )
+
 from app.ai.retriever import retrieve
 from app.graph.state import RagState
 
@@ -22,24 +22,35 @@ logger = logging.getLogger(__name__)
 _HISTORY_WINDOW = 6
 
 
-def analyze_question(state: RagState) -> dict:
-    history = state.get("chat_history", [])[-_HISTORY_WINDOW:]
-    history_text = "\n".join(f"{m.type}: {m.content}" for m in history) or "(none)"
-    
-    prompt = ANALYZE_PROMPT.format(history=history_text, question=state["original_question"])
-    
-    result = get_router_llm().invoke(prompt).content.strip().strip("'\"").lower()
-    category = result if result in ("system", "chess", "chitchat") else "system"
-    return {"question_type": category}
+def contextualize_question(state: RagState) -> dict:
+    """Resolve pronouns/references using chat history so downstream nodes always get
+    a fully self-contained question.
 
+    Example: history has "Sicilian Defense là gì?" → "Nó phù hợp cho người mới không?"
+    becomes "Sicilian Defense có phù hợp cho người mới không?".
 
-def rewrite_question(state: RagState) -> dict:
+    If the question is already standalone, the prompt returns it unchanged.
+    """
     history = state.get("chat_history", [])[-_HISTORY_WINDOW:]
-    history_text = "\n".join(f"{m.type}: {m.content}" for m in history) or "(none)"
+    # Không có history → không thể có reference cần resolve → skip LLM call.
+    if not history:
+        return {"rewritten_question": state["original_question"]}
+
+    history_text = "\n".join(f"{m.type}: {m.content}" for m in history)
     prompt = REWRITE_PROMPT.format(history=history_text, question=state["original_question"])
-    # Dùng router LLM (model nhỏ hơn) — rewrite là tác vụ đơn giản, không cần model lớn.
+    # ponytail: reuse REWRITE_PROMPT — it already handles the standalone-passthrough case.
+    # Ceiling: prompt conflates "rewrite for search" with "contextualize for classify".
+    # Upgrade: add a dedicated contextualize.txt if they diverge.
     rewritten = get_router_llm().invoke(prompt).content.strip()
     return {"rewritten_question": rewritten}
+
+
+def route_question(state: RagState) -> dict:
+    # rewritten_question đã được contextualize → standalone → không cần history để classify.
+    prompt = ANALYZE_PROMPT.format(question=state["rewritten_question"])
+    result = get_router_llm().invoke(prompt).content.strip().strip("'\"").lower()
+    category = result if result in ("rag", "general") else "rag"
+    return {"question_type": category}
 
 
 def retrieve_docs(state: RagState) -> dict:
@@ -74,24 +85,11 @@ def no_context_answer(state: RagState) -> dict:
     }
 
 
-def generate_direct(state: RagState) -> dict:
+def generate_general(state: RagState) -> dict:
+    """Xử lý câu hỏi chess kiến thức + chitchat — không cần retrieval."""
     history = state.get("chat_history", [])[-_HISTORY_WINDOW:]
     messages = [
-        SystemMessage(DIRECT_SYSTEM),
-        *history,
-        HumanMessage(state["original_question"]),
-    ]
-    answer = get_llm().invoke(messages).content
-    return {
-        "answer": answer,
-        "chat_history": [HumanMessage(state["original_question"]), AIMessage(answer)],
-    }
-
-
-def generate_chitchat(state: RagState) -> dict:
-    history = state.get("chat_history", [])[-_HISTORY_WINDOW:]
-    messages = [
-        SystemMessage(CHITCHAT_SYSTEM),
+        SystemMessage(GENERAL_SYSTEM),
         *history,
         HumanMessage(state["original_question"]),
     ]

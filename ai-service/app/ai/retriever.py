@@ -33,4 +33,7 @@ def get_vector_store():
 
 
 def retrieve(query: str, top_k: int) -> list[Document]:
-    return get_vector_store().similarity_search(query, k=top_k)
+    settings = get_settings()
+    results = get_vector_store().similarity_search_with_relevance_scores(query, k=top_k)
+    # similarity_search luôn trả top_k docs dù không liên quan → cần lọc theo score.
+    return [doc for doc, score in results if score >= settings.retrieval_score_threshold]

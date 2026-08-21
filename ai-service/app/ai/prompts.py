@@ -37,9 +37,8 @@ SUMMARIZE_PROMPT: PromptTemplate = PromptTemplate.from_template(_load("summarize
 TITLE_PROMPT: PromptTemplate = PromptTemplate.from_template(_load("title"))
 
 # ---------------------------------------------------------------------------
-# System message strings for generate_direct and generate_chitchat nodes.
+# System message string for generate_general node.
 # ---------------------------------------------------------------------------
-DIRECT_SYSTEM: str = _load("direct_system")
-CHITCHAT_SYSTEM: str = _load("chitchat_system")
+GENERAL_SYSTEM: str = _load("general_system")
 
 NO_CONTEXT_PROMPT: PromptTemplate = PromptTemplate.from_template(_load("no_context"))

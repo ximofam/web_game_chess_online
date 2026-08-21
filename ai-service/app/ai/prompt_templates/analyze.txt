@@ -1,19 +1,14 @@
-Classify the user's question into exactly one of three categories based on the conversation history.
+Classify the user's question into exactly one of two categories.
 
 Categories:
-- "system": The user is asking about how to use THIS chess platform — e.g., creating
-  a room, matchmaking, account settings, UI buttons, error messages, game features on this site.
-- "chess": The user is asking about general chess knowledge or theory — e.g., how pieces
-  move, chess rules, openings, famous games, grandmasters — completely unrelated to this
-  platform's interface.
-- "chitchat": Greetings, thanks, expressions of feeling, small talk, or anything unrelated
-  to chess or the platform.
+- "rag": The question needs a verified source of truth — e.g., how to use THIS chess platform
+  (rooms, matchmaking, account settings, UI, errors), official FIDE rules, specific opening theory,
+  historical game records, or any factual chess/platform information where accuracy is critical.
+- "general": Casual or conversational — greetings, compliments, small talk, vague chess opinions,
+  or anything that does NOT require a verified source (e.g., "which opening do you like?", "thanks!").
 
-When in doubt, use the chat history to resolve ambiguous references (e.g., "that", "it", "this").
-
-Chat history:
-{history}
+When in doubt, prefer "rag" to avoid giving ungrounded answers.
 
 Question to classify: {question}
 
-Output ONLY the exact category name: "system", "chess", or "chitchat". No other text.
+Output ONLY the exact category name: "rag" or "general". No other text.

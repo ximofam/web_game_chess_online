@@ -8,7 +8,7 @@ from langgraph.graph.message import add_messages
 class RagState(TypedDict):
     original_question: str
     rewritten_question: str
-    question_type: Literal["system", "chess", "chitchat"]
+    question_type: Literal["rag", "general"]
     # add_messages reducer: appends on each invocation, preserved by checkpointer across turns
     chat_history: Annotated[list[BaseMessage], add_messages]
     documents: list[Document]  # Giữ Document để có metadata (source, score)

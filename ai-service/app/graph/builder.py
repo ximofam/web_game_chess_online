@@ -4,10 +4,9 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, StateGraph
 
 from app.graph.nodes import (
-    analyze_question,
-    rewrite_question,
-    generate_chitchat,
-    generate_direct,
+    contextualize_question,
+    route_question,
+    generate_general,
     generate_rag,
     no_context_answer,
     retrieve_docs,
@@ -21,21 +20,20 @@ def _build() -> StateGraph:
     # Khi thêm nhánh mới, chỉ cần nối thẳng vào END — không cần wire vào summarize_memory.
     g = StateGraph(RagState)
     g.add_node("summarize_memory", summarize_memory)
-    g.add_node("analyze_question", analyze_question)
-    g.add_node("rewrite_question", rewrite_question)
+    g.add_node("contextualize_question", contextualize_question)
+    g.add_node("route_question", route_question)
     g.add_node("retrieve", retrieve_docs)
     g.add_node("generate_rag", generate_rag)
     g.add_node("no_context_answer", no_context_answer)
-    g.add_node("generate_direct", generate_direct)
-    g.add_node("generate_chitchat", generate_chitchat)
+    g.add_node("generate_general", generate_general)
     g.set_entry_point("summarize_memory")
-    g.add_edge("summarize_memory", "analyze_question")
+    g.add_edge("summarize_memory", "contextualize_question")
+    g.add_edge("contextualize_question", "route_question")
     g.add_conditional_edges(
-        "analyze_question",
+        "route_question",
         lambda s: s["question_type"],
-        {"system": "rewrite_question", "chess": "generate_direct", "chitchat": "generate_chitchat"},
+        {"rag": "retrieve", "general": "generate_general"},
     )
-    g.add_edge("rewrite_question", "retrieve")
     # Short-circuit khi không tìm được document nào — tránh tốn LLM call với context rỗng.
     g.add_conditional_edges(
         "retrieve",
@@ -44,8 +42,7 @@ def _build() -> StateGraph:
     )
     g.add_edge("generate_rag", END)
     g.add_edge("no_context_answer", END)
-    g.add_edge("generate_direct", END)
-    g.add_edge("generate_chitchat", END)
+    g.add_edge("generate_general", END)
     return g
 
 
