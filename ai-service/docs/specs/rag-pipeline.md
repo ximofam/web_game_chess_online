@@ -216,9 +216,18 @@ Every indexed chunk in the vector store is decorated with comprehensive metadata
 
 ---
 
-## 10. Subsequent Pipeline Stages (Roadmap)
-*(The following stages will be elaborated in separate subsequent specification sections:)*
-- **Stage 2 — Query Analysis & Route Classification:** Distinguish between platform questions, general chess concepts, and specific FIDE rule citations.
-- **Stage 3 — Hybrid & Filtered Retrieval:** Domain filtering (`domain: "chess"`), metadata boosting (Article/Section hints), and vector similarity.
-- **Stage 4 — Parent Context Expansion:** Expanding matched subsections to their parent context before prompting LLM.
-- **Stage 5 — Generation & Precise Citation:** Synthesizing answers with verifiable FIDE Article / Subsection numbers.
+## 10. Pipeline Query Routing & Retrieval Filtering
+
+### 10.1. Query Analysis & Domain Routing (`route_question` node)
+- **Router LLM:** Employs `get_router_llm()` to classify questions in 1 shot without additional latency.
+- **Output Schema:** Structured JSON parsed via `_parse_router_output()`:
+  - `question_type`: `"rag"` (needs knowledge retrieval) | `"general"` (casual chitchat/opinions).
+  - `domain`: `"chess"` (FIDE rules, moves, notation) | `"system"` (platform features, rooms, websocket, auth) | `"all"` (cross-domain or ambiguous).
+
+### 10.2. Filtered Retrieval (`retrieve_docs` node & `retriever.py`)
+- **Strict Domain Filtering:**
+  - `domain == "chess"`: Vector search with `filter={"domain": "chess"}`.
+  - `domain == "system"`: Vector search with `filter={"domain": "system"}`.
+  - `domain == "all"`: Unfiltered vector search across all indexed knowledge.
+- **Relevance Cutoff:** Discards retrieved documents with score below `RETRIEVAL_SCORE_THRESHOLD` (default: 0.5), transitioning to `no_context_answer` if no documents qualify.
+

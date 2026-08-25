@@ -36,3 +36,8 @@ _Avoid_: StateStorage, GraphSaver, MemoryBackend
 A structured representation of an illustrative chessboard diagram extracted from FIDE regulations, containing a verified FEN string and semantic explanation.
 _Avoid_: BoardImage, ChessPicture, DiagramSnippet
 
+**DomainRouter**:
+The classification mechanism that identifies whether a user query pertains to chess regulations (`chess`), web platform workflows (`system`), or general topics (`all`) to scope vector retrieval.
+_Avoid_: IntentDetector, CategorySwitch, DomainFilterer
+
+

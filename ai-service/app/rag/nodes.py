@@ -8,7 +8,9 @@ from app.ai.prompts import (
     ANALYZE_PROMPT,
     GENERAL_SYSTEM,
     NO_CONTEXT_PROMPT,
+    RAG_CHESS_PROMPT,
     RAG_PROMPT,
+    RAG_SYSTEM_PROMPT,
     REWRITE_PROMPT,
     SUMMARIZE_PROMPT,
 )
@@ -18,7 +20,39 @@ from app.rag.state import RagState
 
 logger = logging.getLogger(__name__)
 
+import json
+
 _HISTORY_WINDOW = 6
+
+
+def _parse_router_output(raw: str) -> tuple[str, str]:
+    """Safely parse JSON or text output from router LLM into (question_type, domain)."""
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
+
+    try:
+        data = json.loads(cleaned)
+        q_type = str(data.get("question_type", "rag")).lower().strip()
+        domain = str(data.get("domain", "all")).lower().strip()
+    except Exception:
+        lowered = cleaned.lower()
+        q_type = "general" if "general" in lowered else "rag"
+        if "chess" in lowered:
+            domain = "chess"
+        elif "system" in lowered:
+            domain = "system"
+        else:
+            domain = "all"
+
+    final_type = q_type if q_type in ("rag", "general") else "rag"
+    final_domain = domain if domain in ("chess", "system", "all") else "all"
+    return final_type, final_domain
 
 
 def contextualize_question(state: RagState) -> dict:
@@ -41,29 +75,31 @@ def contextualize_question(state: RagState) -> dict:
     # Ceiling: prompt conflates "rewrite for search" with "contextualize for classify".
     # Upgrade: add a dedicated contextualize.txt if they diverge.
     rewritten = get_router_llm().invoke(prompt).content.strip()
-    print(f"rewritten: {rewritten}")
     return {"rewritten_question": rewritten}
 
 
 def route_question(state: RagState) -> dict:
     # rewritten_question đã được contextualize → standalone → không cần history để classify.
     prompt = ANALYZE_PROMPT.format(question=state["rewritten_question"])
-    result = get_router_llm().invoke(prompt).content.strip().strip("'\"").lower()
-    category = result if result in ("rag", "general") else "rag"
-    print(f"category: {category}")
-    return {"question_type": category}
+    raw_result = get_router_llm().invoke(prompt).content
+    q_type, domain = _parse_router_output(raw_result)
+    logger.info("Router classified question: type=%s, domain=%s", q_type, domain)
+    return {"question_type": q_type, "domain": domain}
 
 
 def retrieve_docs(state: RagState) -> dict:
-    # Trả về list[Document] để giữ metadata (source, score) cho citation sau này.
-    docs = retrieve(state["rewritten_question"], top_k=4)
+    domain = state.get("domain", "all")
+    docs = retrieve(state["rewritten_question"], top_k=4, domain=domain)
     return {"documents": docs}
 
 
 def generate_rag(state: RagState) -> dict:
     history = state.get("chat_history", [])[-_HISTORY_WINDOW:]
     context = "\n\n".join(d.page_content for d in state["documents"])
-    answer = (RAG_PROMPT | get_llm() | StrOutputParser()).invoke(
+    domain = state.get("domain", "all")
+    prompt_template = RAG_CHESS_PROMPT if domain == "chess" else RAG_SYSTEM_PROMPT
+
+    answer = (prompt_template | get_llm() | StrOutputParser()).invoke(
         {
             "context": context,
             "history": history,

@@ -9,6 +9,7 @@ class RagState(TypedDict):
     original_question: str
     rewritten_question: str
     question_type: Literal["rag", "general"]
+    domain: Literal["chess", "system", "all"]
     # add_messages reducer: appends on each invocation, preserved by checkpointer across turns
     chat_history: Annotated[list[BaseMessage], add_messages]
     documents: list[Document]  # Giữ Document để có metadata (source, score)

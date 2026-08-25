@@ -71,3 +71,48 @@ def test_vision_model_settings_and_factory():
         get_vision_llm.cache_clear()
 
 
+def test_parse_router_output():
+    from app.rag.nodes import _parse_router_output
+
+    # JSON input
+    assert _parse_router_output('{"question_type": "rag", "domain": "chess"}') == ("rag", "chess")
+    assert _parse_router_output('{"question_type": "rag", "domain": "system"}') == ("rag", "system")
+    assert _parse_router_output('{"question_type": "general", "domain": "all"}') == ("general", "all")
+
+    # Markdown wrapped JSON
+    markdown_json = '```json\n{"question_type": "rag", "domain": "chess"}\n```'
+    assert _parse_router_output(markdown_json) == ("rag", "chess")
+
+    # Fallback text
+    assert _parse_router_output("rag") == ("rag", "all")
+    assert _parse_router_output("general") == ("general", "all")
+    assert _parse_router_output("rag chess rule") == ("rag", "chess")
+
+
+def test_retrieve_domain_filtering():
+    from langchain_core.documents import Document
+    from app.rag.retriever import retrieve
+
+    mock_doc = Document(page_content="Chess rule", metadata={"domain": "chess"})
+    mock_store = Mock()
+    mock_store.similarity_search_with_relevance_scores.return_value = [(mock_doc, 0.9)]
+
+    # 1. Domain specific filter
+    with patch("app.rag.retriever.get_vector_store", return_value=mock_store):
+        docs = retrieve("how to castle", domain="chess")
+        assert len(docs) == 1
+        mock_store.similarity_search_with_relevance_scores.assert_called_with(
+            "how to castle", k=4, filter={"domain": "chess"}
+        )
+
+    # 2. All domains (no filter)
+    mock_store.reset_mock()
+    with patch("app.rag.retriever.get_vector_store", return_value=mock_store):
+        docs = retrieve("general query", domain="all")
+        assert len(docs) == 1
+        mock_store.similarity_search_with_relevance_scores.assert_called_with(
+            "general query", k=4
+        )
+
+
+

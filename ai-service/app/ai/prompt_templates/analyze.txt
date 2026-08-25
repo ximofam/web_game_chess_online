@@ -1,14 +1,18 @@
-Classify the user's question into exactly one of two categories.
+Classify the user's question into question_type and domain.
 
-Categories:
-- "rag": The question needs a verified source of truth — e.g., how to use THIS chess platform
-  (rooms, matchmaking, account settings, UI, errors), official FIDE rules, specific opening theory,
-  historical game records, or any factual chess/platform information where accuracy is critical.
-- "general": Casual or conversational — greetings, compliments, small talk, vague chess opinions,
-  or anything that does NOT require a verified source (e.g., "which opening do you like?", "thanks!").
+1. "question_type":
+- "rag": Needs a verified source of truth — official FIDE rules, piece movements, special moves, tournament procedures, platform workflows (rooms, matchmaking, reconnects, account settings, forum rules, error handling), or factual information.
+- "general": Casual greetings, compliments, small talk, subjective opinions without need for factual retrieval (e.g. "hello", "how are you", "what opening do you like?").
 
-When in doubt, prefer "rag" to avoid giving ungrounded answers.
+2. "domain":
+- "chess": Specifically about chess rules, FIDE regulations, piece movements, castling, en passant, promotion, check/checkmate/stalemate, algebraic notation, or chess theoretical rules.
+- "system": Specifically about the web chess platform features, workflows, creating/joining rooms, WebSocket disconnection/reconnection, matchmaking, timers, user authentication, forum posts, UI, or technical platform issues.
+- "all": Touches both domains (e.g. platform timeout during check), is ambiguous, or question_type is "general".
+
+When in doubt, prefer question_type "rag" and domain "all".
 
 Question to classify: {question}
 
-Output ONLY the exact category name: "rag" or "general". No other text.
+Output ONLY a valid JSON object with keys "question_type" and "domain". No explanation, no markdown backticks.
+Example:
+{{"question_type": "rag", "domain": "chess"}}

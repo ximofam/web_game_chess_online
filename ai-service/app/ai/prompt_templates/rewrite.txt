@@ -3,8 +3,9 @@ for a knowledge base lookup.
 
 Instructions:
 - Resolve all pronouns and references using the chat history (e.g., "it", "that feature",
-  "the one you mentioned").
+  "the one you mentioned", "nó", "tính năng đó").
 - If the question is already standalone, return it unchanged.
+- ALWAYS preserve the language of the conversation (e.g., if the conversation is in Vietnamese, rewrite in Vietnamese; do NOT translate into English or another language unless the user explicitly requested a language switch in the history or question).
 - Output ONLY the rewritten question. No explanation, no extra text.
 
 Chat history:

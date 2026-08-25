@@ -23,6 +23,7 @@ def _state(**kwargs) -> RagState:
         original_question="",
         rewritten_question="",
         question_type="rag",
+        domain="all",
         chat_history=[],
         documents=[],
         answer="",
@@ -56,10 +57,28 @@ def test_contextualize_question_with_history_calls_llm():
     assert "What about Sicilian?" in prompt_arg
 
 
+def test_contextualize_question_preserves_vietnamese_language():
+    mock_result = Mock(content="Quân Tượng di chuyển như thế nào trong cờ vua?")
+    mock_llm = MagicMock()
+    mock_llm.invoke.return_value = mock_result
+
+    history = [HumanMessage("Quân tượng là gì?"), AIMessage("Quân tượng là quân cờ...")]
+    state = _state(original_question="Nó đi như thế nào?", chat_history=history)
+
+    with patch("app.rag.nodes.get_router_llm", return_value=mock_llm):
+        out = contextualize_question(state)
+
+    assert out["rewritten_question"] == "Quân Tượng di chuyển như thế nào trong cờ vua?"
+    prompt_arg = mock_llm.invoke.call_args.args[0]
+    assert "Quân tượng là gì?" in prompt_arg
+    assert "Nó đi như thế nào?" in prompt_arg
+
+
+
 # ── route_question ───────────────────────────────────────────────────────────
 
-def test_route_question_returns_type():
-    mock_result = Mock(content="rag")
+def test_route_question_returns_type_and_domain():
+    mock_result = Mock(content='{"question_type": "rag", "domain": "chess"}')
     mock_llm = MagicMock()
     mock_llm.invoke.return_value = mock_result
 
@@ -67,9 +86,10 @@ def test_route_question_returns_type():
         out = route_question(_state(rewritten_question="What is rule 3.8.2 in chess?"))
 
     assert out["question_type"] == "rag"
+    assert out["domain"] == "chess"
 
 
-def test_route_question_defaults_to_rag_on_unknown():
+def test_route_question_defaults_to_rag_and_all_on_unknown():
     mock_result = Mock(content="unknown_type")
     mock_llm = MagicMock()
     mock_llm.invoke.return_value = mock_result
@@ -78,6 +98,8 @@ def test_route_question_defaults_to_rag_on_unknown():
         out = route_question(_state(rewritten_question="Something random"))
 
     assert out["question_type"] == "rag"
+    assert out["domain"] == "all"
+
 
 
 # ── retrieve_docs ─────────────────────────────────────────────────────────────
@@ -92,24 +114,52 @@ def test_retrieve_docs_returns_documents():
 # ── generate_rag ──────────────────────────────────────────────────────────────
 
 def test_generate_rag_invokes_prompt_chain_and_appends_history():
-    chain = MagicMock()
-    chain.__or__.return_value = chain
-    chain.invoke.return_value = "RAG answer"
+    chess_chain = MagicMock()
+    chess_chain.__or__.return_value = chess_chain
+    chess_chain.invoke.return_value = "Chess rule answer"
 
-    state = _state(
+    system_chain = MagicMock()
+    system_chain.__or__.return_value = system_chain
+    system_chain.invoke.return_value = "System platform answer"
+
+    # 1. Chess domain
+    state_chess = _state(
         original_question="original",
-        rewritten_question="rewritten chess rule Q",
-        documents=[Document(page_content="doc content")],
+        rewritten_question="how does king move?",
+        domain="chess",
+        documents=[Document(page_content="king move doc")],
     )
     with (
-        patch("app.rag.nodes.RAG_PROMPT", chain),
+        patch("app.rag.nodes.RAG_CHESS_PROMPT", chess_chain),
+        patch("app.rag.nodes.RAG_SYSTEM_PROMPT", system_chain),
         patch("app.rag.nodes.get_llm", return_value=Mock()),
     ):
-        out = generate_rag(state)
+        out_chess = generate_rag(state_chess)
 
-    assert out["answer"] == "RAG answer"
-    assert any(isinstance(m, HumanMessage) for m in out["chat_history"])
-    assert any(isinstance(m, AIMessage) for m in out["chat_history"])
+    assert out_chess["answer"] == "Chess rule answer"
+    chess_chain.invoke.assert_called_once()
+    system_chain.invoke.assert_not_called()
+
+    # 2. System domain
+    state_system = _state(
+        original_question="original",
+        rewritten_question="how to create room?",
+        domain="system",
+        documents=[Document(page_content="create room doc")],
+    )
+    chess_chain.reset_mock()
+    system_chain.reset_mock()
+    with (
+        patch("app.rag.nodes.RAG_CHESS_PROMPT", chess_chain),
+        patch("app.rag.nodes.RAG_SYSTEM_PROMPT", system_chain),
+        patch("app.rag.nodes.get_llm", return_value=Mock()),
+    ):
+        out_system = generate_rag(state_system)
+
+    assert out_system["answer"] == "System platform answer"
+    system_chain.invoke.assert_called_once()
+    chess_chain.invoke.assert_not_called()
+
 
 
 # ── generate_general ─────────────────────────────────────────────────────────

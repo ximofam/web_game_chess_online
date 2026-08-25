@@ -32,8 +32,19 @@ def get_vector_store():
     )
 
 
-def retrieve(query: str, top_k: int) -> list[Document]:
+def retrieve(query: str, top_k: int = 4, domain: str | None = None) -> list[Document]:
+    """Retrieve relevant documents from vector store, filtered by domain if specified."""
     settings = get_settings()
-    results = get_vector_store().similarity_search_with_relevance_scores(query, k=top_k)
+    store = get_vector_store()
+
+    filter_dict = None
+    if domain in ("chess", "system"):
+        filter_dict = {"domain": domain}
+
+    if filter_dict:
+        results = store.similarity_search_with_relevance_scores(query, k=top_k, filter=filter_dict)
+    else:
+        results = store.similarity_search_with_relevance_scores(query, k=top_k)
+
     # similarity_search luôn trả top_k docs dù không liên quan → cần lọc theo score.
     return [doc for doc, score in results if score >= settings.retrieval_score_threshold]
