@@ -33,9 +33,17 @@ except Exception as e:
 if echo "$CHECK_RESULT" | grep -q "NO_DATA"; then
     echo "Vector store is empty. Running ingestion..."
     if [ -d "./docs/business/viechess" ]; then
+        echo "Ingesting system documentation..."
         python -m scripts.ingest --path ./docs/business/viechess
     else
-        echo "Warning: docs/business/integrated folder not found. Skipping ingest."
+        echo "Warning: docs/business/viechess folder not found. Skipping system ingest."
+    fi
+
+    if [ -f "./docs/chess/fide/20230101Laws-of-Chess.pdf" ]; then
+        echo "Ingesting FIDE chess rules..."
+        python -m scripts.ingest_chess --path ./docs/chess/fide/20230101Laws-of-Chess.pdf
+    else
+        echo "Warning: docs/chess/fide/20230101Laws-of-Chess.pdf not found. Skipping chess ingest."
     fi
 else
     echo "Vector store already populated. Skipping ingestion."

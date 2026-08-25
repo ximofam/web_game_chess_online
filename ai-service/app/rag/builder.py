@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, StateGraph
 
-from app.graph.nodes import (
+from app.rag.nodes import (
     contextualize_question,
     route_question,
     generate_general,
@@ -12,7 +12,7 @@ from app.graph.nodes import (
     retrieve_docs,
     summarize_memory,
 )
-from app.graph.state import RagState
+from app.rag.state import RagState
 
 
 def _build() -> StateGraph:

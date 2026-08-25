@@ -5,8 +5,14 @@ import pytest
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, HumanMessage
 
-from app.graph.nodes import analyze_question, generate_direct, generate_rag, retrieve_docs
-from app.graph.state import RagState
+from app.rag.nodes import (
+    contextualize_question,
+    generate_general,
+    generate_rag,
+    retrieve_docs,
+    route_question,
+)
+from app.rag.state import RagState
 from app.services.chat_service import save_message
 
 
@@ -16,7 +22,7 @@ def _state(**kwargs) -> RagState:
     defaults = dict(
         original_question="",
         rewritten_question="",
-        question_type="chess",
+        question_type="rag",
         chat_history=[],
         documents=[],
         answer="",
@@ -25,39 +31,61 @@ def _state(**kwargs) -> RagState:
     return defaults  # type: ignore[return-value]
 
 
-# ── analyze_question ──────────────────────────────────────────────────────────
+# ── contextualize_question ───────────────────────────────────────────────────
 
-def test_analyze_question_returns_type():
-    mock_result = Mock(content="chess")
+def test_contextualize_question_no_history_skips_llm():
+    state = _state(original_question="What is en passant?", chat_history=[])
+    out = contextualize_question(state)
+    assert out["rewritten_question"] == "What is en passant?"
+
+
+def test_contextualize_question_with_history_calls_llm():
+    mock_result = Mock(content="What is the Sicilian Defense?")
     mock_llm = MagicMock()
     mock_llm.invoke.return_value = mock_result
 
-    with patch("app.graph.nodes.get_router_llm", return_value=mock_llm):
-        out = analyze_question(_state(original_question="What is en passant?"))
+    history = [HumanMessage("Tell me about openings"), AIMessage("Sure!")]
+    state = _state(original_question="What about Sicilian?", chat_history=history)
 
-    assert out["question_type"] == "chess"
+    with patch("app.rag.nodes.get_router_llm", return_value=mock_llm):
+        out = contextualize_question(state)
 
-
-def test_analyze_question_includes_history_in_prompt():
-    mock_result = Mock(content="system")
-    mock_llm = MagicMock()
-    mock_llm.invoke.return_value = mock_result
-
-    history = [HumanMessage("prev question"), AIMessage("prev answer")]
-    with patch("app.graph.nodes.get_router_llm", return_value=mock_llm):
-        analyze_question(_state(original_question="follow up", chat_history=history))
-
+    assert out["rewritten_question"] == "What is the Sicilian Defense?"
     prompt_arg = mock_llm.invoke.call_args.args[0]
-    assert "prev question" in prompt_arg
-    assert "follow up" in prompt_arg
+    assert "Tell me about openings" in prompt_arg
+    assert "What about Sicilian?" in prompt_arg
+
+
+# ── route_question ───────────────────────────────────────────────────────────
+
+def test_route_question_returns_type():
+    mock_result = Mock(content="rag")
+    mock_llm = MagicMock()
+    mock_llm.invoke.return_value = mock_result
+
+    with patch("app.rag.nodes.get_router_llm", return_value=mock_llm):
+        out = route_question(_state(rewritten_question="What is rule 3.8.2 in chess?"))
+
+    assert out["question_type"] == "rag"
+
+
+def test_route_question_defaults_to_rag_on_unknown():
+    mock_result = Mock(content="unknown_type")
+    mock_llm = MagicMock()
+    mock_llm.invoke.return_value = mock_result
+
+    with patch("app.rag.nodes.get_router_llm", return_value=mock_llm):
+        out = route_question(_state(rewritten_question="Something random"))
+
+    assert out["question_type"] == "rag"
 
 
 # ── retrieve_docs ─────────────────────────────────────────────────────────────
 
-def test_retrieve_docs_returns_page_contents():
+def test_retrieve_docs_returns_documents():
     docs = [Document(page_content="fact one"), Document(page_content="fact two")]
-    with patch("app.graph.nodes.retrieve", return_value=docs):
-        out = retrieve_docs(_state(rewritten_question="how to report a bug?"))
+    with patch("app.rag.nodes.retrieve", return_value=docs):
+        out = retrieve_docs(_state(rewritten_question="how to move a knight?"))
     assert out["documents"] == docs
 
 
@@ -70,12 +98,12 @@ def test_generate_rag_invokes_prompt_chain_and_appends_history():
 
     state = _state(
         original_question="original",
-        rewritten_question="rewritten platform Q",
+        rewritten_question="rewritten chess rule Q",
         documents=[Document(page_content="doc content")],
     )
     with (
-        patch("app.graph.nodes.RAG_PROMPT", chain),
-        patch("app.graph.nodes.get_llm", return_value=Mock()),
+        patch("app.rag.nodes.RAG_PROMPT", chain),
+        patch("app.rag.nodes.get_llm", return_value=Mock()),
     ):
         out = generate_rag(state)
 
@@ -84,17 +112,17 @@ def test_generate_rag_invokes_prompt_chain_and_appends_history():
     assert any(isinstance(m, AIMessage) for m in out["chat_history"])
 
 
-# ── generate_direct ───────────────────────────────────────────────────────────
+# ── generate_general ─────────────────────────────────────────────────────────
 
-def test_generate_direct_calls_llm_and_appends_history():
-    mock_response = Mock(content="Chess answer")
+def test_generate_general_calls_llm_and_appends_history():
+    mock_response = Mock(content="General chess answer")
     mock_llm = Mock(invoke=Mock(return_value=mock_response))
 
-    state = _state(original_question="original", rewritten_question="chess Q")
-    with patch("app.graph.nodes.get_llm", return_value=mock_llm):
-        out = generate_direct(state)
+    state = _state(original_question="original", rewritten_question="general Q")
+    with patch("app.rag.nodes.get_llm", return_value=mock_llm):
+        out = generate_general(state)
 
-    assert out["answer"] == "Chess answer"
+    assert out["answer"] == "General chess answer"
     call_arg = mock_llm.invoke.call_args.args[0]
     assert "original" in call_arg[-1].content
     assert any(isinstance(m, HumanMessage) for m in out["chat_history"])
@@ -126,8 +154,8 @@ async def test_save_message_stores_question_type_for_assistant():
     db.commit = AsyncMock()
     sess_id = uuid.uuid4()
 
-    await save_message(db, sess_id, "assistant", "Answer", "chess")
+    await save_message(db, sess_id, "assistant", "Answer", "rag")
 
     msg = db.add.call_args.args[0]
     assert msg.role == "assistant"
-    assert msg.question_type == "chess"
+    assert msg.question_type == "rag"

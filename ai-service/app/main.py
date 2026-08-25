@@ -15,7 +15,7 @@ from app.core.config import get_settings
 async def lifespan(app: FastAPI):
     settings = get_settings()
     if settings.database_url:
-        from app.graph.builder import graph_lifespan
+        from app.rag.builder import graph_lifespan
         async with graph_lifespan(settings.database_url) as compiled_graph:
             app.state.graph = compiled_graph
             yield

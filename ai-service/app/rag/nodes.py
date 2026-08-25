@@ -1,5 +1,4 @@
 import logging
-from typing import Literal
 
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, SystemMessage
 from langchain_core.output_parsers import StrOutputParser
@@ -14,8 +13,8 @@ from app.ai.prompts import (
     SUMMARIZE_PROMPT,
 )
 
-from app.ai.retriever import retrieve
-from app.graph.state import RagState
+from app.rag.retriever import retrieve
+from app.rag.state import RagState
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +41,7 @@ def contextualize_question(state: RagState) -> dict:
     # Ceiling: prompt conflates "rewrite for search" with "contextualize for classify".
     # Upgrade: add a dedicated contextualize.txt if they diverge.
     rewritten = get_router_llm().invoke(prompt).content.strip()
+    print(f"rewritten: {rewritten}")
     return {"rewritten_question": rewritten}
 
 
@@ -50,6 +50,7 @@ def route_question(state: RagState) -> dict:
     prompt = ANALYZE_PROMPT.format(question=state["rewritten_question"])
     result = get_router_llm().invoke(prompt).content.strip().strip("'\"").lower()
     category = result if result in ("rag", "general") else "rag"
+    print(f"category: {category}")
     return {"question_type": category}
 
 

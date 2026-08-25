@@ -12,7 +12,7 @@ import textwrap
 import pytest
 from langchain_core.documents import Document
 
-from app.ai.fide_splitter import (
+from app.rag.ingestion.fide_splitter import (
     SectionNode,
     _build_breadcrumb_text,
     _build_metadata,

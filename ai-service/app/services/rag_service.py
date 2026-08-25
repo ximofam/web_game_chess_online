@@ -3,7 +3,7 @@ from langchain_core.output_parsers import StrOutputParser
 
 from app.ai.llm import get_llm
 from app.ai.prompts import RAG_PROMPT
-from app.ai.retriever import get_vector_store, retrieve
+from app.rag.retriever import get_vector_store, retrieve
 
 
 def format_context(documents: list[Document]) -> str:

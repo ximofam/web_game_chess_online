@@ -20,12 +20,12 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from app.ai.fide_splitter import (
+from app.rag.ingestion.fide_splitter import (
     parse_fide_pdf,
     parse_fide_pdf_by_page,
     split_fide_document,
 )
-from app.ai.retriever import get_vector_store
+from app.rag.retriever import get_vector_store
 
 
 _DEFAULT_PDF = "./docs/chess/fide/20230101Laws-of-Chess.pdf"

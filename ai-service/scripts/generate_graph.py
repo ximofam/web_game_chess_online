@@ -2,7 +2,7 @@
 import os
 from datetime import datetime
 
-from app.graph.builder import _build
+from app.rag.builder import _build
 
 graph = _build().compile().get_graph()
 

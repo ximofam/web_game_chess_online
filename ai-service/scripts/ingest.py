@@ -4,7 +4,7 @@ from pathlib import Path
 from langchain_core.documents import Document
 from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 
-from app.ai.retriever import get_vector_store
+from app.rag.retriever import get_vector_store
 
 
 def ingest(docs_path: str, clear: bool = False):
@@ -37,7 +37,7 @@ def ingest(docs_path: str, clear: bool = False):
         with open(filepath, "r", encoding="utf-8") as f:
             content = f.read()
             rel_path = str(filepath.relative_to(base_dir))
-            docs.append(Document(page_content=content, metadata={"source": rel_path}))
+            docs.append(Document(page_content=content, metadata={"source": rel_path, "domain": "system"}))
 
     if not docs:
         print("No markdown files found!")
