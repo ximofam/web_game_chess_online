@@ -40,4 +40,9 @@ _Avoid_: BoardImage, ChessPicture, DiagramSnippet
 The classification mechanism that identifies whether a user query pertains to chess regulations (`chess`), web platform workflows (`system`), or general topics (`all`) to scope vector retrieval.
 _Avoid_: IntentDetector, CategorySwitch, DomainFilterer
 
+**CrossEncoderReranker**:
+The two-stage retrieval ranker that scores candidate documents against user queries via cross-attention to output high-precision semantic re-ordering.
+_Avoid_: Reorderer, Sorter, SecondStageRetriever
+
+
 

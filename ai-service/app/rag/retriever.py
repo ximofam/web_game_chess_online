@@ -3,6 +3,7 @@ from functools import lru_cache
 from langchain_core.documents import Document
 
 from app.ai.embeddings import get_embeddings
+from app.ai.reranker import get_reranker
 from app.core.config import get_settings
 
 
@@ -33,18 +34,36 @@ def get_vector_store():
 
 
 def retrieve(query: str, top_k: int = 4, domain: str | None = None) -> list[Document]:
-    """Retrieve relevant documents from vector store, filtered by domain if specified."""
+    """Retrieve relevant documents using 2-stage retrieval (Vector Search + Reranker)."""
     settings = get_settings()
     store = get_vector_store()
 
+    # Stage 1: Retrieve larger candidate pool from Vector Store
+    candidates_k = max(top_k, settings.reranker_candidates_k)
     filter_dict = None
     if domain in ("chess", "system"):
         filter_dict = {"domain": domain}
 
     if filter_dict:
-        results = store.similarity_search_with_relevance_scores(query, k=top_k, filter=filter_dict)
+        results = store.similarity_search_with_relevance_scores(query, k=candidates_k, filter=filter_dict)
     else:
-        results = store.similarity_search_with_relevance_scores(query, k=top_k)
+        results = store.similarity_search_with_relevance_scores(query, k=candidates_k)
 
-    # similarity_search luôn trả top_k docs dù không liên quan → cần lọc theo score.
-    return [doc for doc, score in results if score >= settings.retrieval_score_threshold]
+    if not results:
+        return []
+
+    # Discard documents below minimum vector similarity threshold
+    candidates = [doc for doc, score in results if score >= settings.retrieval_score_threshold]
+    if not candidates:
+        return []
+
+    # Stage 2: Rerank & Select Top-K (BaseReranker or PassthroughReranker)
+    threshold = settings.reranker_score_threshold if settings.reranker_provider != "none" else None
+    return get_reranker().rerank(
+        query=query,
+        documents=candidates,
+        top_n=top_k,
+        score_threshold=threshold,
+    )
+
+

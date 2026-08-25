@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     huggingface_api_key: str | None = None
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 
+    reranker_provider: Literal["huggingface", "none"] = "huggingface"
+    reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    reranker_candidates_k: int = 20
+    reranker_score_threshold: float = 0.05
+    reranker_timeout_seconds: float = 10.0
+
     jwt_secret: str | None = None
 
 

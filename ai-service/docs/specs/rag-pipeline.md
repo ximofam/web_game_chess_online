@@ -229,5 +229,12 @@ Every indexed chunk in the vector store is decorated with comprehensive metadata
   - `domain == "chess"`: Vector search with `filter={"domain": "chess"}`.
   - `domain == "system"`: Vector search with `filter={"domain": "system"}`.
   - `domain == "all"`: Unfiltered vector search across all indexed knowledge.
-- **Relevance Cutoff:** Discards retrieved documents with score below `RETRIEVAL_SCORE_THRESHOLD` (default: 0.5), transitioning to `no_context_answer` if no documents qualify.
+- **Relevance Cutoff:** Discards retrieved documents with score below `RETRIEVAL_SCORE_THRESHOLD` (default: 0.1), transitioning to `no_context_answer` if no documents qualify.
+
+### 10.3. 2-Stage Retrieval & Cross-Encoder Reranking (`app/ai/reranker.py`)
+- **Stage 1 (Bi-Encoder Candidate Generation):** Vector store fetches `RERANKER_CANDIDATES_K` (default: 10) candidate documents.
+- **Stage 2 (Cross-Encoder Reranking):** `HuggingFaceReranker` calls Hugging Face Serverless Inference API with `BAAI/bge-reranker-v2-m3` to compute exact query-doc cross-attention scores.
+- **Metadata Enrichment:** Appends `doc.metadata["rerank_score"]` to the top `RERANKER_TOP_N` (default: 4) documents.
+- **Fault Tolerance & Fallback:** In case of API failure, timeout, or missing credentials, the pipeline automatically falls back to vector similarity order without raising exceptions.
+
 

@@ -91,8 +91,10 @@ def test_parse_router_output():
 
 def test_retrieve_domain_filtering():
     from langchain_core.documents import Document
+    from app.core.config import get_settings
     from app.rag.retriever import retrieve
 
+    expected_k = max(4, get_settings().reranker_candidates_k)
     mock_doc = Document(page_content="Chess rule", metadata={"domain": "chess"})
     mock_store = Mock()
     mock_store.similarity_search_with_relevance_scores.return_value = [(mock_doc, 0.9)]
@@ -102,7 +104,7 @@ def test_retrieve_domain_filtering():
         docs = retrieve("how to castle", domain="chess")
         assert len(docs) == 1
         mock_store.similarity_search_with_relevance_scores.assert_called_with(
-            "how to castle", k=4, filter={"domain": "chess"}
+            "how to castle", k=expected_k, filter={"domain": "chess"}
         )
 
     # 2. All domains (no filter)
@@ -111,8 +113,10 @@ def test_retrieve_domain_filtering():
         docs = retrieve("general query", domain="all")
         assert len(docs) == 1
         mock_store.similarity_search_with_relevance_scores.assert_called_with(
-            "general query", k=4
+            "general query", k=expected_k
         )
+
+
 
 
 
