@@ -117,6 +117,26 @@ b. with a rook that has already moved.
 3.8.2.2 Castling is prevented temporarily...
 ```
 
+### 6.2. Chessboard Diagram & FEN Extraction (Vision LLM)
+
+Regulatory rules frequently include visual board diagrams (e.g. valid moves for pieces, castling geometry, en passant setup, check/stalemate positions). The indexing pipeline integrates **Vision LLM Processing with Local Caching**:
+
+1. **PDF Image Extraction & Filtering**:
+   - PyMuPDF extracts images per page, discarding non-board icons (<150px or non-square aspect ratio).
+2. **Vision LLM Parsing**:
+   - The multimodal model evaluates the diagram image along with surrounding page text.
+   - Generates a valid standard **FEN (Forsyth–Edwards Notation)** string, a human-readable explanation, and the target `section_id`.
+3. **Local Cache (`docs/chess/fide/diagrams_cache.json`)**:
+   - Extracted diagrams are cached locally for deterministic, low-cost re-ingestion and human verification.
+4. **Chunk Content & Metadata Injection**:
+   - Injected into `page_content` as:
+     ```text
+     [Diagram / Ví dụ bàn cờ:
+     - FEN: r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1
+     - Mô tả: Vị trí ban đầu đủ điều kiện nhập thành của cả hai cánh Vua và Hậu.]
+     ```
+   - Added to chunk metadata under `diagrams`: `[{"fen": "...", "description": "...", "page": 6, "section_id": "3.8.2.1"}]`.
+
 ---
 
 ## 7. Metadata Schema
@@ -141,7 +161,15 @@ Every indexed chunk in the vector store is decorated with comprehensive metadata
   "subsection": "3.8.2",
   "parent_section_id": "3.8",
   "page_start": 6,
-  "page_end": 7
+  "page_end": 7,
+  "diagrams": [
+    {
+      "fen": "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1",
+      "description": "Vị trí ban đầu đủ điều kiện nhập thành của cả hai cánh Vua và Hậu.",
+      "page": 6,
+      "section_id": "3.8.2"
+    }
+  ]
 }
 ```
 
@@ -152,6 +180,7 @@ Every indexed chunk in the vector store is decorated with comprehensive metadata
 - `section` / `subsection`: Pinpoints exact subsection boundaries for targeted citations.
 - `parent_section_id`: Enables parent context expansion during response generation.
 - `page_start` / `page_end`: Exact page citation for the frontend UI.
+- `diagrams`: List of extracted chessboard diagrams associated with this chunk containing FEN strings and descriptions.
 
 ---
 

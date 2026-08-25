@@ -22,6 +22,8 @@ from typing import Sequence
 
 from langchain_core.documents import Document
 
+from app.rag.ingestion.chess_vision import ChessDiagram
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -119,6 +121,8 @@ class SectionNode:
         The text body belonging to *this* node (not its children).
     children : list[SectionNode]
         Child nodes.
+    diagrams : list[ChessDiagram]
+        Illustrative chessboard diagrams associated with this section.
     parent : SectionNode | None
         Back-reference for breadcrumb generation.
     page_start : int | None
@@ -132,6 +136,7 @@ class SectionNode:
     level: str
     text: str = ""
     children: list["SectionNode"] = field(default_factory=list)
+    diagrams: list[ChessDiagram] = field(default_factory=list)
     parent: "SectionNode | None" = field(default=None, repr=False)
     page_start: int | None = None
     page_end: int | None = None
@@ -155,6 +160,13 @@ class SectionNode:
             node = node.parent
         parts.reverse()
         return parts
+
+    def collect_diagrams(self) -> list[ChessDiagram]:
+        """Recursively collect all diagrams in this node and its children."""
+        res = list(self.diagrams)
+        for child in self.children:
+            res.extend(child.collect_diagrams())
+        return res
 
     def full_text(self) -> str:
         """Return title + own text + all children's text concatenated.
@@ -223,7 +235,38 @@ def _find_page_for_text(pages: list[str], snippet: str) -> int | None:
     return None
 
 
-def build_section_tree(text: str, pages: list[str] | None = None) -> list[SectionNode]:
+def _find_node_by_section_id(nodes: list[SectionNode], section_id: str) -> SectionNode | None:
+    """Find a SectionNode matching section_id anywhere in the subtree."""
+    clean_id = section_id.strip()
+    for node in nodes:
+        if node.section_id == clean_id or node.section_id.lower() == clean_id.lower():
+            return node
+        found = _find_node_by_section_id(node.children, clean_id)
+        if found:
+            return found
+    return None
+
+
+def _attach_diagrams_to_tree(root_nodes: list[SectionNode], diagrams: list[ChessDiagram]) -> None:
+    """Attach extracted chess diagrams to the most relevant SectionNode."""
+    for diagram in diagrams:
+        target = _find_node_by_section_id(root_nodes, diagram.section_id)
+        if not target:
+            parts = diagram.section_id.split(".")
+            for k in range(len(parts) - 1, 0, -1):
+                prefix = ".".join(parts[:k])
+                target = _find_node_by_section_id(root_nodes, prefix)
+                if target:
+                    break
+        if target:
+            target.diagrams.append(diagram)
+
+
+def build_section_tree(
+    text: str,
+    pages: list[str] | None = None,
+    diagrams: list[ChessDiagram] | None = None,
+) -> list[SectionNode]:
     """Parse FIDE Laws of Chess text into a hierarchy of ``SectionNode``s.
 
     The algorithm scans lines top-to-bottom.  When it encounters a
@@ -238,6 +281,8 @@ def build_section_tree(text: str, pages: list[str] | None = None) -> list[Sectio
     pages : list[str] | None
         Per-page text (from ``parse_fide_pdf_by_page``) for page-number
         metadata.  Pass ``None`` to skip page annotation.
+    diagrams : list[ChessDiagram] | None
+        Extracted chess diagrams with FEN and descriptions to attach to matching nodes.
 
     Returns
     -------
@@ -442,6 +487,9 @@ def build_section_tree(text: str, pages: list[str] | None = None) -> list[Sectio
     if pages:
         _assign_page_ends(root_nodes, pages)
 
+    if diagrams:
+        _attach_diagrams_to_tree(root_nodes, diagrams)
+
     return root_nodes
 
 
@@ -506,7 +554,7 @@ def _build_breadcrumb_text(node: SectionNode) -> str:
     return "\n".join(parts)
 
 
-def _build_metadata(node: SectionNode) -> dict:
+def _build_metadata(node: SectionNode, diagrams: list[ChessDiagram] | None = None) -> dict:
     """Build the rich metadata dict for a chunk derived from *node*."""
     meta: dict = {
         "document": _DOCUMENT_TITLE,
@@ -540,10 +588,13 @@ def _build_metadata(node: SectionNode) -> dict:
     if node.page_end is not None:
         meta["page_end"] = node.page_end
 
-
     # Parent section id for parent-child retrieval.
     if node.parent:
         meta["parent_section_id"] = node.parent.section_id
+
+    # Diagrams metadata
+    if diagrams:
+        meta["diagrams"] = [d.to_dict() for d in diagrams]
 
     return meta
 
@@ -588,6 +639,15 @@ def _should_merge_with_parent(node: SectionNode, max_chars: int) -> bool:
     return node.char_count() < max_chars // 3
 
 
+def _format_chunk_content(breadcrumb: str, body: str, diagrams: list[ChessDiagram]) -> str:
+    """Format final chunk text by injecting breadcrumbs, body, and diagrams."""
+    content = f"{breadcrumb}\n\n{body}"
+    if diagrams:
+        diagram_blocks = "\n\n".join(d.format_block() for d in diagrams)
+        content = f"{content}\n\n{diagram_blocks}"
+    return content
+
+
 def _collect_leaf_chunks(
     node: SectionNode,
     target_chars: int = _DEFAULT_TARGET_CHARS,
@@ -611,28 +671,33 @@ def _collect_leaf_chunks(
         body = node.full_text().strip()
         if not body:
             return []
-        content = f"{breadcrumb}\n\n{body}"
-        return [Document(page_content=content, metadata=_build_metadata(node))]
+        diagrams = node.collect_diagrams()
+        content = _format_chunk_content(breadcrumb, body, diagrams)
+        return [Document(page_content=content, metadata=_build_metadata(node, diagrams=diagrams))]
 
     # Case 2: node has children → recurse.
     if node.children:
         docs: list[Document] = []
-        # Emit the node's own text (before children) as a chunk if it's
-        # non-trivial.
+        # Emit the node's own text (before children) as a chunk if it's non-trivial.
         if node.text.strip():
             own_text = node.text.strip()
             breadcrumb = _build_breadcrumb_text(node)
+            own_diagrams = list(node.diagrams)
             if len(own_text) <= max_chars:
-                docs.append(Document(
-                    page_content=f"{breadcrumb}\n\n{own_text}",
-                    metadata=_build_metadata(node),
-                ))
+                docs.append(
+                    Document(
+                        page_content=_format_chunk_content(breadcrumb, own_text, own_diagrams),
+                        metadata=_build_metadata(node, diagrams=own_diagrams),
+                    )
+                )
             else:
                 for piece in _split_long_text(own_text, max_chars, overlap_chars):
-                    docs.append(Document(
-                        page_content=f"{breadcrumb}\n\n{piece}",
-                        metadata=_build_metadata(node),
-                    ))
+                    docs.append(
+                        Document(
+                            page_content=_format_chunk_content(breadcrumb, piece, own_diagrams),
+                            metadata=_build_metadata(node, diagrams=own_diagrams),
+                        )
+                    )
 
         # Group small children together.
         merge_buffer: list[SectionNode] = []
@@ -642,19 +707,23 @@ def _collect_leaf_chunks(
             nonlocal merge_buffer, merge_chars
             if not merge_buffer:
                 return
-            # Use the first node in the merge group as the representative.
             rep = merge_buffer[0]
             breadcrumb = _build_breadcrumb_text(rep)
             body = "\n\n".join(n.full_text().strip() for n in merge_buffer if n.full_text().strip())
+            merged_diagrams: list[ChessDiagram] = []
+            for n in merge_buffer:
+                merged_diagrams.extend(n.collect_diagrams())
             if body:
-                meta = _build_metadata(rep)
+                meta = _build_metadata(rep, diagrams=merged_diagrams)
                 if len(merge_buffer) > 1:
                     last = merge_buffer[-1]
                     meta["section_id_range"] = f"{rep.section_id}–{last.section_id}"
-                docs.append(Document(
-                    page_content=f"{breadcrumb}\n\n{body}",
-                    metadata=meta,
-                ))
+                docs.append(
+                    Document(
+                        page_content=_format_chunk_content(breadcrumb, body, merged_diagrams),
+                        metadata=meta,
+                    )
+                )
             merge_buffer = []
             merge_chars = 0
 
@@ -679,13 +748,17 @@ def _collect_leaf_chunks(
     body = node.full_text().strip()
     if not body:
         return []
+    leaf_diagrams = node.collect_diagrams()
     pieces = _split_long_text(body, max_chars, overlap_chars)
     docs = []
-    for piece in pieces:
-        docs.append(Document(
-            page_content=f"{breadcrumb}\n\n{piece}",
-            metadata=_build_metadata(node),
-        ))
+    for i, piece in enumerate(pieces):
+        piece_diagrams = leaf_diagrams if i == 0 else []
+        docs.append(
+            Document(
+                page_content=_format_chunk_content(breadcrumb, piece, piece_diagrams),
+                metadata=_build_metadata(node, diagrams=piece_diagrams),
+            )
+        )
     return docs
 
 
@@ -696,6 +769,7 @@ def _collect_leaf_chunks(
 def split_fide_document(
     text: str,
     pages: list[str] | None = None,
+    diagrams: list[ChessDiagram] | None = None,
     target_chars: int = _DEFAULT_TARGET_CHARS,
     max_chars: int = _DEFAULT_MAX_CHARS,
     overlap_chars: int = _DEFAULT_OVERLAP_CHARS,
@@ -708,6 +782,8 @@ def split_fide_document(
         Full text of the FIDE document (from ``parse_fide_pdf``).
     pages : list[str] | None
         Per-page text for page-number metadata.
+    diagrams : list[ChessDiagram] | None
+        Extracted chess diagrams with FEN and descriptions.
     target_chars : int
         Preferred chunk size in characters (≈ tokens × 4).
     max_chars : int
@@ -718,11 +794,12 @@ def split_fide_document(
     Returns
     -------
     list[Document]
-        Chunks with breadcrumb-prefixed ``page_content`` and rich
+        Chunks with breadcrumb-prefixed ``page_content``, diagram FEN blocks, and rich
         ``metadata`` ready for PGVector.
     """
-    tree = build_section_tree(text, pages)
+    tree = build_section_tree(text, pages, diagrams=diagrams)
     documents: list[Document] = []
     for node in tree:
         documents.extend(_collect_leaf_chunks(node, target_chars, max_chars, overlap_chars))
     return documents
+

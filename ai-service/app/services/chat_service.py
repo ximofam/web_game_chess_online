@@ -1,13 +1,20 @@
+import asyncio
+import logging
 import uuid
+from typing import Any
 
+from fastapi import BackgroundTasks
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.chat import AiChatMessage
 from app.models.chat_session import ChatSession
 
+logger = logging.getLogger(__name__)
+
 
 async def create_session(db: AsyncSession, user_id: uuid.UUID) -> ChatSession:
+    """Create a new chat session for a user."""
     session = ChatSession(user_id=user_id)
     db.add(session)
     await db.commit()
@@ -16,6 +23,7 @@ async def create_session(db: AsyncSession, user_id: uuid.UUID) -> ChatSession:
 
 
 async def get_session(db: AsyncSession, session_id: uuid.UUID) -> ChatSession | None:
+    """Fetch a chat session by UUID."""
     result = await db.execute(select(ChatSession).where(ChatSession.id == session_id))
     return result.scalar_one_or_none()
 
@@ -27,6 +35,7 @@ async def save_message(
     content: str,
     question_type: str | None = None,
 ) -> None:
+    """Persist an individual message turn to the relational database."""
     db.add(
         AiChatMessage(
             session_id=session_id,
@@ -39,14 +48,16 @@ async def save_message(
 
 
 async def generate_session_title_task(session_id: uuid.UUID, question: str, answer: str) -> None:
+    """Background task to generate a short summary title for a new chat session."""
     from app.ai.llm import get_router_llm
     from app.ai.prompts import TITLE_PROMPT
     from app.core.db import get_session_factory
-    
+
     prompt = TITLE_PROMPT.format(question=question, answer=answer)
     try:
         title = get_router_llm().invoke(prompt).content.strip().strip("'\"")
     except Exception:
+        logger.warning("Failed to generate title for session %s", session_id, exc_info=True)
         return  # Ignore LLM errors in background task
 
     async with get_session_factory()() as db:
@@ -56,18 +67,63 @@ async def generate_session_title_task(session_id: uuid.UUID, question: str, answ
             await db.commit()
 
 
-async def get_user_sessions(db: AsyncSession, user_id: uuid.UUID, page: int = 1, size: int = 20) -> tuple[list[ChatSession], int]:
+async def send_message(
+    db: AsyncSession,
+    session: ChatSession,
+    graph: Any,
+    question: str,
+    background_tasks: BackgroundTasks | None = None,
+) -> tuple[str, str | None]:
+    """Execute a complete conversation turn across stateful graph and relational persistence.
+
+    - Persists user question
+    - Invokes graph with thread checkpointing
+    - Persists assistant response and classified question type
+    - Schedules background auto-titling on the first turn
+    """
+    await save_message(db, session.id, "user", question)
+
+    config = {"configurable": {"thread_id": str(session.id)}}
+    try:
+        result = await graph.ainvoke(
+            {"original_question": question, "chat_history": []},
+            config,
+        )
+    except Exception:
+        logger.exception("Chat graph execution failed for session %s", session.id)
+        raise
+
+    answer = result["answer"]
+    question_type = result.get("question_type")
+
+    await save_message(db, session.id, "assistant", answer, question_type)
+
+    if session.title is None:
+        if background_tasks is not None:
+            background_tasks.add_task(generate_session_title_task, session.id, question, answer)
+        else:
+            asyncio.create_task(generate_session_title_task(session.id, question, answer))
+
+    return answer, question_type
+
+
+async def get_user_sessions(
+    db: AsyncSession, user_id: uuid.UUID, page: int = 1, size: int = 20
+) -> tuple[list[ChatSession], int]:
+    """List paginated chat sessions for a user."""
     offset = (page - 1) * size
     query = select(ChatSession).where(ChatSession.user_id == user_id)
-    
+
     total = await db.scalar(select(func.count()).select_from(query.subquery()))
-    
+
     stmt = query.order_by(desc(ChatSession.created_at)).offset(offset).limit(size)
     result = await db.execute(stmt)
     return list(result.scalars().all()), total or 0
 
 
 async def get_session_messages(db: AsyncSession, session_id: uuid.UUID) -> list[AiChatMessage]:
+    """List all messages in a session ordered by creation time."""
     stmt = select(AiChatMessage).where(AiChatMessage.session_id == session_id).order_by(AiChatMessage.created_at)
     result = await db.execute(stmt)
     return list(result.scalars().all())
+

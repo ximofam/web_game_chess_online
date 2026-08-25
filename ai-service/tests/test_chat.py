@@ -159,3 +159,75 @@ async def test_save_message_stores_question_type_for_assistant():
     msg = db.add.call_args.args[0]
     assert msg.role == "assistant"
     assert msg.question_type == "rag"
+
+
+# ── send_message & ConversationEngine ─────────────────────────────────────────
+
+@pytest.mark.anyio
+async def test_send_message_executes_turn_and_triggers_titling():
+    from app.models.chat_session import ChatSession
+    from app.services.chat_service import send_message
+
+    db = MagicMock()
+    db.commit = AsyncMock()
+    session = ChatSession(id=uuid.uuid4(), user_id=uuid.uuid4(), title=None)
+
+    mock_graph = AsyncMock()
+    mock_graph.ainvoke.return_value = {"answer": "Sicilian defense is...", "question_type": "rag"}
+
+    background_tasks = MagicMock()
+
+    answer, q_type = await send_message(
+        db=db,
+        session=session,
+        graph=mock_graph,
+        question="What is Sicilian?",
+        background_tasks=background_tasks,
+    )
+
+    assert answer == "Sicilian defense is..."
+    assert q_type == "rag"
+    assert db.add.call_count == 2  # user msg + assistant msg
+    assert db.commit.await_count == 2
+    mock_graph.ainvoke.assert_awaited_once()
+    background_tasks.add_task.assert_called_once()
+
+
+@pytest.mark.anyio
+async def test_send_message_skips_titling_when_session_already_has_title():
+    from app.models.chat_session import ChatSession
+    from app.services.chat_service import send_message
+
+    db = MagicMock()
+    db.commit = AsyncMock()
+    session = ChatSession(id=uuid.uuid4(), user_id=uuid.uuid4(), title="Existing Title")
+
+    mock_graph = AsyncMock()
+    mock_graph.ainvoke.return_value = {"answer": "Another answer", "question_type": "general"}
+
+    background_tasks = MagicMock()
+
+    answer, q_type = await send_message(
+        db=db,
+        session=session,
+        graph=mock_graph,
+        question="What about french defense?",
+        background_tasks=background_tasks,
+    )
+
+    assert answer == "Another answer"
+    assert q_type == "general"
+    background_tasks.add_task.assert_not_called()
+
+
+# ── Graph compilation with MemorySaver adapter ────────────────────────────────
+
+def test_compile_graph_with_memory_saver():
+    from langgraph.checkpoint.memory import MemorySaver
+    from app.rag.builder import compile_graph
+
+    memory_saver = MemorySaver()
+    graph = compile_graph(checkpointer=memory_saver)
+    assert graph is not None
+    assert graph.checkpointer is memory_saver
+

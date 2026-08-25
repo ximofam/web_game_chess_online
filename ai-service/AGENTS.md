@@ -21,3 +21,18 @@
 
 - Never commit `.env` or API keys.
 - Do not modify or drop data outside the `ai_service` schema in an application migration.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues via `gh` CLI (`git@github.com:ximofam/web_game_chess_online.git`). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical 5-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout (`CONTEXT.md` at root, ADRs in `docs/adr/`). See `docs/agents/domain.md`.
+

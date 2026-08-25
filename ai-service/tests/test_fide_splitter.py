@@ -378,3 +378,59 @@ class TestSplitFideDocument:
             lines = doc.page_content.strip().split("\n")
             # At least the breadcrumb + some content.
             assert len(lines) >= 2
+
+
+# ---------------------------------------------------------------------------
+# ChessDiagram integration tests
+# ---------------------------------------------------------------------------
+
+class TestChessDiagramIntegration:
+    def test_attaches_diagram_to_matching_subsection(self):
+        from app.rag.ingestion.chess_vision import ChessDiagram
+
+        diagram = ChessDiagram(
+            id="p6_test_1",
+            page=6,
+            section_id="3.7.3.1",
+            title="En Passant Demo",
+            fen="8/8/8/3pP3/8/8/8/8 w - d6 0 1",
+            description="Tốt trắng bắt Tốt đen qua đường.",
+        )
+
+        docs = split_fide_document(SAMPLE_FIDE_TEXT, diagrams=[diagram])
+        en_passant_docs = [d for d in docs if "en passant" in d.page_content.lower()]
+        assert len(en_passant_docs) >= 1
+
+        matched_doc = next((d for d in en_passant_docs if "8/8/8/3pP3/8/8/8/8 w - d6 0 1" in d.page_content), None)
+        assert matched_doc is not None
+        assert "Diagram / Ví dụ bàn cờ:" in matched_doc.page_content
+        assert "Tốt trắng bắt Tốt đen qua đường." in matched_doc.page_content
+
+        assert "diagrams" in matched_doc.metadata
+        assert len(matched_doc.metadata["diagrams"]) == 1
+        assert matched_doc.metadata["diagrams"][0]["id"] == "p6_test_1"
+        assert matched_doc.metadata["diagrams"][0]["section_id"] == "3.7.3.1"
+
+    def test_loads_diagrams_from_cache(self, tmp_path):
+        import json
+        from app.rag.ingestion.chess_vision import extract_diagrams_from_pdf
+
+        cache_file = tmp_path / "diagrams_cache.json"
+        data = [
+            {
+                "id": "p4_test_99",
+                "page": 4,
+                "section_id": "3.2",
+                "title": "Bishop Move",
+                "fen": "8/8/8/3B4/8/8/8/8 w - - 0 1",
+                "description": "Tượng đi chéo.",
+            }
+        ]
+        cache_file.write_text(json.dumps(data), encoding="utf-8")
+
+        diagrams = extract_diagrams_from_pdf("dummy.pdf", refresh_vision=False, cache_path=cache_file)
+        assert len(diagrams) == 1
+        assert diagrams[0].id == "p4_test_99"
+        assert diagrams[0].section_id == "3.2"
+        assert "Tượng đi chéo." in diagrams[0].format_block()
+

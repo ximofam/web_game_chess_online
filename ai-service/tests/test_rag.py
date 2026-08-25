@@ -1,14 +1,7 @@
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
-from langchain_core.documents import Document
 from app.core.config import Settings
-
-from app.services.rag_service import add_document, answer, format_context
-
-
-def test_format_context_joins_retrieved_documents():
-    documents = [Document(page_content="first"), Document(page_content="second")]
-    assert format_context(documents) == "first\n\nsecond"
+from app.services.rag_service import add_document, clear_vector_store
 
 
 def test_accepts_huggingface_api_configuration():
@@ -44,23 +37,37 @@ def test_add_document_passes_content_and_metadata_to_vector_store():
     assert document.metadata == {"source": "manual"}
 
 
-def test_answer_returns_generated_text_and_retrieved_sources():
-    documents = [Document(page_content="A fact", metadata={"source": "manual"})]
-    chain = MagicMock()
-    chain.__or__.return_value = chain
-    chain.invoke.return_value = "Generated answer"
-
+def test_clear_vector_store_chroma():
     with (
-        patch("app.services.rag_service.retrieve", return_value=documents) as retrieve,
-        patch("app.services.rag_service.RAG_PROMPT", chain),
-        patch("app.services.rag_service.get_llm", return_value=Mock()),
+        patch("app.services.rag_service.get_settings") as mock_settings,
+        patch("pathlib.Path.exists", return_value=True),
+        patch("shutil.rmtree") as mock_rmtree,
     ):
-        answer_text, sources = answer("What is the fact?", top_k=2)
+        mock_settings.return_value.vector_store = "chroma"
+        mock_settings.return_value.chroma_persist_directory = "data/chroma"
+        clear_vector_store()
+        mock_rmtree.assert_called_once()
 
-    assert answer_text == "Generated answer"
-    assert sources == [{"content": "A fact", "metadata": {"source": "manual"}}]
-    retrieve.assert_called_once_with("What is the fact?", 2)
-    assert chain.invoke.call_args.args[0] == {
-        "context": "A fact",
-        "question": "What is the fact?",
-    }
+
+def test_vision_model_settings_and_factory():
+    from app.ai.llm import get_vision_llm
+
+    # 1. Custom vision provider & model
+    settings = Settings(
+        llm_provider="groq",
+        groq_api_key="g-key",
+        vision_provider="openai",
+        openai_api_key="o-key",
+        openai_vision_model="gpt-4o",
+    )
+    assert settings.vision_provider == "openai"
+    assert settings.openai_vision_model == "gpt-4o"
+
+    # 2. get_vision_llm cached factory
+    with patch("app.ai.llm.get_settings", return_value=settings):
+        get_vision_llm.cache_clear()
+        llm = get_vision_llm()
+        assert llm.model_name == "gpt-4o"
+        get_vision_llm.cache_clear()
+
+

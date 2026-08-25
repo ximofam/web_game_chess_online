@@ -1,21 +1,25 @@
 from contextlib import asynccontextmanager
 
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from app.rag.nodes import (
     contextualize_question,
-    route_question,
     generate_general,
     generate_rag,
     no_context_answer,
     retrieve_docs,
+    route_question,
     summarize_memory,
 )
 from app.rag.state import RagState
 
 
-def _build() -> StateGraph:
+def build_graph() -> StateGraph:
+    """Build the state graph for the RAG and conversational pipeline."""
     # summarize_memory chạy đầu mỗi turn (prune-before-process).
     # Khi thêm nhánh mới, chỉ cần nối thẳng vào END — không cần wire vào summarize_memory.
     g = StateGraph(RagState)
@@ -46,21 +50,28 @@ def _build() -> StateGraph:
     return g
 
 
+_build = build_graph  # Backward compatibility
+
+
+def compile_graph(checkpointer: BaseCheckpointSaver | None = None) -> CompiledStateGraph:
+    """Compile the state graph with an explicit checkpointer adapter."""
+    return build_graph().compile(checkpointer=checkpointer)
+
+
 @asynccontextmanager
-async def graph_lifespan(database_url: str):
-    """Context manager that yields a compiled graph with a live PostgresSaver checkpointer.
+async def graph_lifespan(database_url: str | None = None):
+    """Context manager that yields a compiled graph with a live checkpointer.
 
-    Strips the SQLAlchemy dialect prefix and injects search_path so LangGraph's
-    auto-created tables (checkpoints, checkpoint_writes) land in ai_service schema.
-
-    ponytail: checkpointer.setup() runs on every startup — safe at this scale.
-    Ceiling: multiple replicas racing on startup. Upgrade path: run setup() once in
-    a dedicated init job / migration step before scaling out.
+    Uses AsyncPostgresSaver when database_url is provided, or MemorySaver for in-memory/test environments.
     """
-    pg_url = database_url.replace("postgresql+psycopg", "postgresql")
-    sep = "&" if "?" in pg_url else "?"
-    pg_url += f"{sep}options=-csearch_path%3Dai_service,public"
+    if database_url:
+        pg_url = database_url.replace("postgresql+psycopg", "postgresql")
+        sep = "&" if "?" in pg_url else "?"
+        pg_url += f"{sep}options=-csearch_path%3Dai_service,public"
 
-    async with AsyncPostgresSaver.from_conn_string(pg_url) as checkpointer:
-        await checkpointer.setup()
-        yield _build().compile(checkpointer=checkpointer)
+        async with AsyncPostgresSaver.from_conn_string(pg_url) as checkpointer:
+            await checkpointer.setup()
+            yield compile_graph(checkpointer=checkpointer)
+    else:
+        yield compile_graph(checkpointer=MemorySaver())
+

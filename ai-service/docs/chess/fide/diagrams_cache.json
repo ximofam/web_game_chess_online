@@ -1,0 +1,106 @@
+[
+  {
+    "id": "p4_xref_98",
+    "page": 4,
+    "section_id": "2.4",
+    "title": "The Chessboard Files, Ranks, and Diagonals",
+    "fen": "8/8/8/8/8/8/8/8 w - - 0 1",
+    "description": "Sơ đồ bàn cờ 8x8 minh họa các cột (files a-h), các hàng (ranks 1-8) và các đường chéo (diagonals)."
+  },
+  {
+    "id": "p4_xref_99",
+    "page": 4,
+    "section_id": "3.2",
+    "title": "The Moves of the Bishop",
+    "fen": "8/8/8/3B4/8/8/8/8 w - - 0 1",
+    "description": "Minh họa đường đi của quân Tượng: có thể di chuyển đến bất kỳ ô nào dọc theo các đường chéo mà nó đang đứng."
+  },
+  {
+    "id": "p5_xref_101",
+    "page": 5,
+    "section_id": "3.3",
+    "title": "The Moves of the Rook",
+    "fen": "8/8/8/3R4/8/8/8/8 w - - 0 1",
+    "description": "Minh họa đường đi của quân Xe: có thể di chuyển đến bất kỳ ô nào dọc theo cột hoặc hàng mà nó đang đứng."
+  },
+  {
+    "id": "p5_xref_102",
+    "page": 5,
+    "section_id": "3.4",
+    "title": "The Moves of the Queen",
+    "fen": "8/8/8/3Q4/8/8/8/8 w - - 0 1",
+    "description": "Minh họa đường đi của quân Hậu: kết hợp sức mạnh di chuyển dọc theo cột, hàng và đường chéo."
+  },
+  {
+    "id": "p5_xref_103",
+    "page": 5,
+    "section_id": "3.6",
+    "title": "The Moves of the Knight",
+    "fen": "8/8/8/4N3/8/8/8/8 w - - 0 1",
+    "description": "Minh họa đường đi của quân Mã: di chuyển theo hình chữ L tới ô gần nhất khác cột/hàng và có thể nhảy qua các quân khác."
+  },
+  {
+    "id": "p6_xref_106",
+    "page": 6,
+    "section_id": "3.7.3.1",
+    "title": "En Passant Capture",
+    "fen": "8/8/8/3pP3/8/8/8/8 w - d6 0 1",
+    "description": "Minh họa luật bắt Tốt qua đường (En passant): Tốt trắng e5 bắt Tốt đen d5 vừa tiến 2 ô, bằng cách đi chéo sang ô d6."
+  },
+  {
+    "id": "p6_xref_108",
+    "page": 6,
+    "section_id": "3.8.1",
+    "title": "The Moves of the King",
+    "fen": "8/8/8/8/4K3/8/8/8 w - - 0 1",
+    "description": "Minh họa đường đi cơ bản của quân Vua: di chuyển 1 ô sang bất kỳ ô liền kề nào không bị tấn công."
+  },
+  {
+    "id": "p7_xref_112",
+    "page": 7,
+    "section_id": "3.8.2",
+    "title": "Castling Movement",
+    "fen": "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1",
+    "description": "Minh họa vị trí ban đầu trước khi thực hiện nhập thành cánh Vua (O-O) hoặc cánh Hậu (O-O-O) của cả Trắng và Đen."
+  },
+  {
+    "id": "p7_xref_114",
+    "page": 7,
+    "section_id": "3.8.2.1",
+    "title": "Castling Rights Lost",
+    "fen": "4k3/8/8/8/8/8/8/4K2R w K - 0 1",
+    "description": "Ví dụ về quyền nhập thành: Vua hoặc Xe đã di chuyển thì mất vĩnh viễn quyền nhập thành về phía cánh đó."
+  },
+  {
+    "id": "p7_xref_115",
+    "page": 7,
+    "section_id": "3.8.2.1",
+    "title": "Castling Rights Lost",
+    "fen": "r3k3/8/8/8/8/8/8/8 b q - 0 1",
+    "description": "Ví dụ về mất quyền nhập thành cánh Hậu của bên Đen khi Vua hoặc Xe a8 đã từng di chuyển."
+  },
+  {
+    "id": "p7_xref_116",
+    "page": 7,
+    "section_id": "3.8.2.2",
+    "title": "Castling Temporarily Prevented (King in Check)",
+    "fen": "4k3/4r3/8/8/8/8/8/R3K2R w KQ - 0 1",
+    "description": "Ví dụ tạm thời không được nhập thành: Vua trắng e1 đang bị Xe đen e7 chiếu trực tiếp."
+  },
+  {
+    "id": "p7_xref_117",
+    "page": 7,
+    "section_id": "3.8.2.2",
+    "title": "Castling Temporarily Prevented (Square under Attack)",
+    "fen": "4k3/8/8/3b4/8/8/8/R3K2R w KQ - 0 1",
+    "description": "Ví dụ tạm thời không được nhập thành: Ô f1 mà Vua phải đi qua đang bị Tượng đen d5 kiểm soát."
+  },
+  {
+    "id": "p22_xref_133",
+    "page": 22,
+    "section_id": "C",
+    "title": "Algebraic Notation Coordinates",
+    "fen": "8/8/8/8/8/8/8/8 w - - 0 1",
+    "description": "Sơ đồ tọa độ đại số (Algebraic chess notation) quy định tên gọi 64 ô cờ từ a1 đến h8."
+  }
+]
