@@ -1,4 +1,4 @@
-.PHONY: run install migrate test graph clean ingest
+.PHONY: run install migrate test graph clean ingest ingest-chess ingest-chess-clear
 
 # Variables
 VENV = .venv
@@ -34,6 +34,14 @@ ingest:
 # Clear old vectors and ingest again (dùng khi có update docs mới)
 ingest-clear:
 	$(PYTHON) -m scripts.ingest --clear
+
+# Ingest FIDE Laws of Chess PDF (structure-aware chunking)
+ingest-chess:
+	$(PYTHON) -m scripts.ingest_chess
+
+# Clear old vectors and ingest FIDE chess rules again
+ingest-chess-clear:
+	$(PYTHON) -m scripts.ingest_chess --clear
 
 
 # Xóa các file cache sinh ra trong quá trình chạy
