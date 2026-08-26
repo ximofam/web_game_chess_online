@@ -6,6 +6,14 @@ from app.core.config import get_settings
 @lru_cache
 def get_embeddings():
     settings = get_settings()
+    if settings.embedding_provider in ("huggingface_local", "local"):
+        from langchain_huggingface import HuggingFaceEmbeddings
+
+        return HuggingFaceEmbeddings(
+            model_name=settings.embedding_model,
+            model_kwargs={"device": settings.embedding_device},
+        )
+
     if settings.embedding_provider == "huggingface":
         if not settings.huggingface_api_key:
             raise ValueError("HUGGINGFACE_API_KEY is required")

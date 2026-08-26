@@ -26,9 +26,10 @@ class Settings(BaseSettings):
 
     vision_provider: Literal["groq", "openai"] | None = None
 
-    embedding_provider: Literal["huggingface", "openai"] = "huggingface"
+    embedding_provider: Literal["huggingface", "huggingface_local", "local", "openai"] = "huggingface"
     huggingface_api_key: str | None = None
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_device: str = "cpu"
 
     reranker_provider: Literal["huggingface", "none"] = "huggingface"
     reranker_model: str = "BAAI/bge-reranker-v2-m3"

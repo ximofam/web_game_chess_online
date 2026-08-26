@@ -37,8 +37,12 @@ A structured representation of an illustrative chessboard diagram extracted from
 _Avoid_: BoardImage, ChessPicture, DiagramSnippet
 
 **DomainRouter**:
-The classification mechanism that identifies whether a user query pertains to chess regulations (`chess`), web platform workflows (`system`), or general topics (`all`) to scope vector retrieval.
+The classification mechanism that identifies whether a user query pertains to official chess regulations (`chess_law`), chess openings & variations (`chess_opening`), web platform workflows (`system`), or general topics (`all`) to scope vector retrieval.
 _Avoid_: IntentDetector, CategorySwitch, DomainFilterer
+
+**OpeningCrawler**:
+The MediaWiki export extractor that crawls Wikibooks Chess Opening Theory, deterministically converts board diagrams into FEN notations, folds stub variations into parent documents, and joins standardized ECO codes.
+_Avoid_: PageScraper, OpeningScraper
 
 **CrossEncoderReranker**:
 The two-stage retrieval ranker that scores candidate documents against user queries via cross-attention to output high-precision semantic re-ordering.

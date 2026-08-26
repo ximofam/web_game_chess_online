@@ -45,6 +45,16 @@ RAG_CHESS_PROMPT = ChatPromptTemplate.from_messages(
     ]
 )
 
+RAG_CHESS_LAW_PROMPT = RAG_CHESS_PROMPT
+
+RAG_OPENING_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        ("system", _compose_system_prompt("rag_opening")),
+        MessagesPlaceholder(variable_name="history"),
+        ("human", "{question}"),
+    ]
+)
+
 # Default alias for backwards compatibility
 RAG_PROMPT = RAG_SYSTEM_PROMPT
 

@@ -8,7 +8,9 @@ from app.ai.prompts import (
     ANALYZE_PROMPT,
     GENERAL_SYSTEM,
     NO_CONTEXT_PROMPT,
+    RAG_CHESS_LAW_PROMPT,
     RAG_CHESS_PROMPT,
+    RAG_OPENING_PROMPT,
     RAG_PROMPT,
     RAG_SYSTEM_PROMPT,
     REWRITE_PROMPT,
@@ -43,15 +45,20 @@ def _parse_router_output(raw: str) -> tuple[str, str]:
     except Exception:
         lowered = cleaned.lower()
         q_type = "general" if "general" in lowered else "rag"
-        if "chess" in lowered:
-            domain = "chess"
+        if "opening" in lowered:
+            domain = "chess_opening"
+        elif "law" in lowered or "rule" in lowered or "fide" in lowered:
+            domain = "chess_law"
+        elif "chess" in lowered:
+            domain = "chess_law"
         elif "system" in lowered:
             domain = "system"
         else:
             domain = "all"
 
     final_type = q_type if q_type in ("rag", "general") else "rag"
-    final_domain = domain if domain in ("chess", "system", "all") else "all"
+    valid_domains = ("chess_law", "chess_opening", "chess", "system", "all")
+    final_domain = domain if domain in valid_domains else "all"
     return final_type, final_domain
 
 
@@ -97,7 +104,12 @@ def generate_rag(state: RagState) -> dict:
     history = state.get("chat_history", [])[-_HISTORY_WINDOW:]
     context = "\n\n".join(d.page_content for d in state["documents"])
     domain = state.get("domain", "all")
-    prompt_template = RAG_CHESS_PROMPT if domain == "chess" else RAG_SYSTEM_PROMPT
+    if domain == "chess_opening":
+        prompt_template = RAG_OPENING_PROMPT
+    elif domain in ("chess_law", "chess"):
+        prompt_template = RAG_CHESS_PROMPT
+    else:
+        prompt_template = RAG_SYSTEM_PROMPT
 
     answer = (prompt_template | get_llm() | StrOutputParser()).invoke(
         {

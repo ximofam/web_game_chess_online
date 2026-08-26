@@ -43,6 +43,18 @@ ingest-chess:
 ingest-chess-clear:
 	$(PYTHON) -m scripts.ingest_chess --clear
 
+# Crawl Wikibooks Chess Opening Theory
+crawl-openings:
+	$(PYTHON) -m scripts.crawl_wikibooks
+
+# Ingest Chess Opening Theory JSONL into Vector Store
+ingest-openings:
+	$(PYTHON) -m scripts.ingest_openings
+
+# Clear old vectors and ingest Chess Opening Theory again
+ingest-openings-clear:
+	$(PYTHON) -m scripts.ingest_openings --clear
+
 
 # Xóa các file cache sinh ra trong quá trình chạy
 clean:

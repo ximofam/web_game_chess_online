@@ -41,7 +41,7 @@ def retrieve(query: str, top_k: int = 4, domain: str | None = None) -> list[Docu
     # Stage 1: Retrieve larger candidate pool from Vector Store
     candidates_k = max(top_k, settings.reranker_candidates_k)
     filter_dict = None
-    if domain in ("chess", "system"):
+    if domain in ("chess_law", "chess_opening", "chess", "system"):
         filter_dict = {"domain": domain}
 
     if filter_dict:

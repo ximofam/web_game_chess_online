@@ -19,3 +19,7 @@ asyncpg==0.31.0
 pgvector==0.3.6
 pymupdf==1.25.5
 uuid-utils==0.17.0
+mwparserfromhell==0.7.2
+requests==2.34.2
+sentence-transformers>=3.0.0
+huggingface-hub>=0.28.0
