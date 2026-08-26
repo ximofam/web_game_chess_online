@@ -561,7 +561,7 @@ def _build_metadata(node: SectionNode, diagrams: list[ChessDiagram] | None = Non
         "version": _DOCUMENT_VERSION,
         "source": _DOCUMENT_SOURCE,
         "effective_date": _EFFECTIVE_DATE,
-        "domain": "chess",
+        "domain": "chess_law",
         "level": node.level,
         "section_id": node.section_id,
         "title": node.title,

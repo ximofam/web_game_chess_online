@@ -240,7 +240,7 @@ class TestBuildMetadata:
         meta = _build_metadata(node)
         assert meta["document"] == "FIDE Laws of Chess"
         assert meta["version"] == "2023"
-        assert meta["domain"] == "chess"
+        assert meta["domain"] == "chess_law"
         assert meta["section_id"] == "3.8.2"
 
     def test_article_decomposition(self):
@@ -325,7 +325,7 @@ class TestSplitFideDocument:
         for doc in docs:
             assert "document" in doc.metadata
             assert "domain" in doc.metadata
-            assert doc.metadata["domain"] == "chess"
+            assert doc.metadata["domain"] == "chess_law"
 
     def test_chunks_have_breadcrumb_in_content(self):
         docs = split_fide_document(SAMPLE_FIDE_TEXT)

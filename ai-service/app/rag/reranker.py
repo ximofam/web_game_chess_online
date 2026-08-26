@@ -7,6 +7,7 @@ import httpx
 from langchain_core.documents import Document
 
 from app.core.config import get_settings
+from app.utils import sigmoid
 
 logger = logging.getLogger(__name__)
 
@@ -41,10 +42,10 @@ class HuggingFaceReranker(BaseReranker):
     """Reranks candidate documents using Hugging Face Inference API."""
 
     def __init__(
-        self,
-        model: str = "BAAI/bge-reranker-v2-m3",
-        api_key: str | None = None,
-        timeout_seconds: float = 5.0,
+            self,
+            model: str = "BAAI/bge-reranker-v2-m3",
+            api_key: str | None = None,
+            timeout_seconds: float = 5.0,
     ):
         self.model = model
         self.api_key = api_key
@@ -63,11 +64,11 @@ class HuggingFaceReranker(BaseReranker):
         return headers
 
     def _parse_and_sort(
-        self,
-        raw_response: Any,
-        documents: list[Document],
-        top_n: int,
-        score_threshold: float | None = None,
+            self,
+            raw_response: Any,
+            documents: list[Document],
+            top_n: int,
+            score_threshold: float | None = None,
     ) -> list[Document]:
         """Parse various Hugging Face response formats and return top_n documents meeting score_threshold."""
         scores: list[tuple[int, float]] = []
@@ -175,6 +176,82 @@ class HuggingFaceReranker(BaseReranker):
             return documents[:top_n]
 
 
+class LocalCrossEncoderReranker(BaseReranker):
+    """Reranks candidate documents locally in-process using sentence-transformers CrossEncoder."""
+
+    def __init__(
+            self,
+            model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2",
+            device: str = "cpu",
+    ):
+        self.model_name = model
+        self.device = device
+        self._model = None
+
+    @property
+    def model(self):
+        if self._model is None:
+            from sentence_transformers import CrossEncoder
+
+            logger.info("Loading local CrossEncoder reranker model: %s on %s", self.model_name, self.device)
+            self._model = CrossEncoder(self.model_name, device=self.device)
+        return self._model
+
+    def rerank(
+            self,
+            query: str,
+            documents: list[Document],
+            top_n: int = 4,
+            score_threshold: float | None = None,
+    ) -> list[Document]:
+        if not documents:
+            return []
+        if len(documents) <= 1:
+            return documents[:top_n]
+
+        pairs = [[query, doc.page_content] for doc in documents]
+        try:
+            raw_scores = self.model.predict(pairs)
+            if hasattr(raw_scores, "tolist"):
+                scores = raw_scores.tolist()
+            elif isinstance(raw_scores, (int, float)):
+                scores = [float(raw_scores)]
+            else:
+                scores = [float(s) for s in raw_scores]
+            # Normalize logits into [0.0, 1.0] probabilities via sigmoid
+            scores = [sigmoid(s) for s in scores]
+        except Exception as e:
+            logger.warning("Local CrossEncoder reranker failed (%s). Falling back to vector order.", e, exc_info=True)
+            return documents[:top_n]
+
+        indexed_scores = list(enumerate(scores))
+        indexed_scores.sort(key=lambda x: x[1], reverse=True)
+
+        if score_threshold is not None:
+            indexed_scores = [(idx, s) for idx, s in indexed_scores if s >= score_threshold]
+
+        reranked: list[Document] = []
+        for idx, score in indexed_scores[:top_n]:
+            if idx < len(documents):
+                doc = documents[idx]
+                new_metadata = dict(doc.metadata)
+                new_metadata["rerank_score"] = round(float(score), 4)
+                reranked.append(Document(page_content=doc.page_content, metadata=new_metadata))
+
+        return reranked
+
+    async def arerank(
+            self,
+            query: str,
+            documents: list[Document],
+            top_n: int = 4,
+            score_threshold: float | None = None,
+    ) -> list[Document]:
+        import asyncio
+
+        return await asyncio.to_thread(self.rerank, query, documents, top_n, score_threshold)
+
+
 class PassthroughReranker(BaseReranker):
     """No-op fallback reranker that preserves vector search order."""
 
@@ -201,6 +278,11 @@ class PassthroughReranker(BaseReranker):
 def get_reranker() -> BaseReranker:
     """Factory function to obtain the configured reranker instance (guaranteed non-None)."""
     settings = get_settings()
+    if settings.reranker_provider in ("huggingface_local", "local"):
+        return LocalCrossEncoderReranker(
+            model=settings.reranker_model,
+            device=settings.reranker_device,
+        )
     if settings.reranker_provider == "huggingface":
         return HuggingFaceReranker(
             model=settings.reranker_model,

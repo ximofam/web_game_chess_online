@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 from langchain_core.documents import Document
 
-from app.ai.reranker import BaseReranker, HuggingFaceReranker, PassthroughReranker, get_reranker
+from app.rag.reranker import BaseReranker, HuggingFaceReranker, PassthroughReranker, get_reranker
 from app.rag.retriever import retrieve
 
 
@@ -171,8 +171,61 @@ def test_passthrough_reranker():
     assert reranker.rerank("query", docs, top_n=2) == docs[:2]
 
 
+def test_local_cross_encoder_reranker_rerank():
+    from app.rag.reranker import LocalCrossEncoderReranker
+
+    reranker = LocalCrossEncoderReranker(model="cross-encoder/ms-marco-MiniLM-L-6-v2", device="cpu")
+    docs = [
+        Document(page_content="irrelevant doc", metadata={"id": "0"}),
+        Document(page_content="highly relevant chess rule", metadata={"id": "1"}),
+    ]
+
+    mock_model = Mock()
+    mock_model.predict.return_value = [-3.0, 5.0]
+    reranker._model = mock_model
+
+    reranked = reranker.rerank("chess rule", docs, top_n=2, score_threshold=0.5)
+
+    assert len(reranked) == 1
+    assert reranked[0].page_content == "highly relevant chess rule"
+    assert reranked[0].metadata["rerank_score"] == 0.9933
+
+
+def test_local_cross_encoder_reranker_fallback_on_exception():
+    from app.rag.reranker import LocalCrossEncoderReranker
+
+    reranker = LocalCrossEncoderReranker(model="cross-encoder/ms-marco-MiniLM-L-6-v2", device="cpu")
+    docs = [
+        Document(page_content="doc 1"),
+        Document(page_content="doc 2"),
+    ]
+
+    mock_model = Mock()
+    mock_model.predict.side_effect = RuntimeError("Prediction failure")
+    reranker._model = mock_model
+
+    result = reranker.rerank("query", docs, top_n=2)
+    assert len(result) == 2
+    assert result[0].page_content == "doc 1"
+
+
+def test_get_reranker_returns_local_when_provider_is_local():
+    from app.rag.reranker import LocalCrossEncoderReranker
+
+    settings = MagicMock(
+        reranker_provider="huggingface_local",
+        reranker_model="cross-encoder/ms-marco-MiniLM-L-6-v2",
+        reranker_device="cpu",
+    )
+    with patch("app.rag.reranker.get_settings", return_value=settings):
+        get_reranker.cache_clear()
+        reranker = get_reranker()
+        assert isinstance(reranker, LocalCrossEncoderReranker)
+        get_reranker.cache_clear()
+
+
 def test_get_reranker_returns_passthrough_when_provider_is_none():
-    with patch("app.ai.reranker.get_settings", return_value=MagicMock(reranker_provider="none")):
+    with patch("app.rag.reranker.get_settings", return_value=MagicMock(reranker_provider="none")):
         get_reranker.cache_clear()
         reranker = get_reranker()
         assert isinstance(reranker, PassthroughReranker)

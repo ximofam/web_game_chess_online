@@ -63,24 +63,12 @@ def _parse_router_output(raw: str) -> tuple[str, str]:
 
 
 def contextualize_question(state: RagState) -> dict:
-    """Resolve pronouns/references using chat history so downstream nodes always get
-    a fully self-contained question.
-
-    Example: history has "Sicilian Defense là gì?" → "Nó phù hợp cho người mới không?"
-    becomes "Sicilian Defense có phù hợp cho người mới không?".
-
-    If the question is already standalone, the prompt returns it unchanged.
+    """Resolve pronouns/references using chat history and translate into a standalone
+    English search query suitable for PGVector retrieval and routing.
     """
     history = state.get("chat_history", [])[-_HISTORY_WINDOW:]
-    # Không có history → không thể có reference cần resolve → skip LLM call.
-    if not history:
-        return {"rewritten_question": state["original_question"]}
-
-    history_text = "\n".join(f"{m.type}: {m.content}" for m in history)
+    history_text = "\n".join(f"{m.type}: {m.content}" for m in history) if history else "No previous conversation."
     prompt = REWRITE_PROMPT.format(history=history_text, question=state["original_question"])
-    # ponytail: reuse REWRITE_PROMPT — it already handles the standalone-passthrough case.
-    # Ceiling: prompt conflates "rewrite for search" with "contextualize for classify".
-    # Upgrade: add a dedicated contextualize.txt if they diverge.
     rewritten = get_router_llm().invoke(prompt).content.strip()
     return {"rewritten_question": rewritten}
 
@@ -115,7 +103,7 @@ def generate_rag(state: RagState) -> dict:
         {
             "context": context,
             "history": history,
-            "question": state["rewritten_question"],
+            "question": state["original_question"],
         }
     )
     return {

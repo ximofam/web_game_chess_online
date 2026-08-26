@@ -3,7 +3,7 @@ from functools import lru_cache
 from langchain_core.documents import Document
 
 from app.ai.embeddings import get_embeddings
-from app.ai.reranker import get_reranker
+from app.rag.reranker import get_reranker
 from app.core.config import get_settings
 
 
@@ -56,5 +56,3 @@ def retrieve(query: str, top_k: int = 4, domain: str | None = None) -> list[Docu
         top_n=top_k,
         score_threshold=threshold,
     )
-
-

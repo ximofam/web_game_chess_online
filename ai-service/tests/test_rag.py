@@ -87,7 +87,7 @@ def test_allows_openai_providers():
 
 
 def test_uses_an_available_groq_router_model_by_default():
-    assert Settings(_env_file=None).groq_router_model == "llama-3.3-70b-versatile"
+    assert Settings(_env_file=None).groq_router_model == "llama-3.1-8b-instant"
 
 
 def test_allows_configuring_cors_origins():

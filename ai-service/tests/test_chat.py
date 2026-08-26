@@ -34,10 +34,19 @@ def _state(**kwargs) -> RagState:
 
 # ── contextualize_question ───────────────────────────────────────────────────
 
-def test_contextualize_question_no_history_skips_llm():
-    state = _state(original_question="What is en passant?", chat_history=[])
-    out = contextualize_question(state)
+def test_contextualize_question_no_history_calls_llm_for_english_query():
+    mock_result = Mock(content="What is en passant?")
+    mock_llm = MagicMock()
+    mock_llm.invoke.return_value = mock_result
+
+    state = _state(original_question="Bắt tốt qua đường là gì?", chat_history=[])
+    with patch("app.rag.nodes.get_router_llm", return_value=mock_llm):
+        out = contextualize_question(state)
+
     assert out["rewritten_question"] == "What is en passant?"
+    prompt_arg = mock_llm.invoke.call_args.args[0]
+    assert "Bắt tốt qua đường là gì?" in prompt_arg
+    assert "No previous conversation." in prompt_arg
 
 
 def test_contextualize_question_with_history_calls_llm():
@@ -57,8 +66,8 @@ def test_contextualize_question_with_history_calls_llm():
     assert "What about Sicilian?" in prompt_arg
 
 
-def test_contextualize_question_preserves_vietnamese_language():
-    mock_result = Mock(content="Quân Tượng di chuyển như thế nào trong cờ vua?")
+def test_contextualize_question_translates_vietnamese_query_to_english():
+    mock_result = Mock(content="How does a Bishop move in chess?")
     mock_llm = MagicMock()
     mock_llm.invoke.return_value = mock_result
 
@@ -68,7 +77,7 @@ def test_contextualize_question_preserves_vietnamese_language():
     with patch("app.rag.nodes.get_router_llm", return_value=mock_llm):
         out = contextualize_question(state)
 
-    assert out["rewritten_question"] == "Quân Tượng di chuyển như thế nào trong cờ vua?"
+    assert out["rewritten_question"] == "How does a Bishop move in chess?"
     prompt_arg = mock_llm.invoke.call_args.args[0]
     assert "Quân tượng là gì?" in prompt_arg
     assert "Nó đi như thế nào?" in prompt_arg
@@ -138,11 +147,12 @@ def test_generate_rag_invokes_prompt_chain_and_appends_history():
 
     assert out_chess["answer"] == "Chess rule answer"
     chess_chain.invoke.assert_called_once()
+    assert chess_chain.invoke.call_args.args[0]["question"] == "original"
     system_chain.invoke.assert_not_called()
 
     # 2. System domain
     state_system = _state(
-        original_question="original",
+        original_question="how do I create a room?",
         rewritten_question="how to create room?",
         domain="system",
         documents=[Document(page_content="create room doc")],
@@ -158,6 +168,7 @@ def test_generate_rag_invokes_prompt_chain_and_appends_history():
 
     assert out_system["answer"] == "System platform answer"
     system_chain.invoke.assert_called_once()
+    assert system_chain.invoke.call_args.args[0]["question"] == "how do I create a room?"
     chess_chain.invoke.assert_not_called()
 
 
