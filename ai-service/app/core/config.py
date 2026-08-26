@@ -7,9 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    vector_store: Literal["chroma", "pgvector"] = "chroma"
     vector_collection: str = "knowledge_doc"
-    chroma_persist_directory: str = "data/chroma"
     retrieval_score_threshold: float = 0.1  # docs below this relevance score are discarded
     database_url: str | None = None
     cors_origins: list[str] = ["http://localhost:5173"]

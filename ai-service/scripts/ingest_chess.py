@@ -6,7 +6,7 @@ generic ``RecursiveCharacterTextSplitter``.  It:
 1. Extracts text from the PDF (page-by-page for page metadata).
 2. Builds the FIDE document hierarchy (Articles → subsections).
 3. Produces retrieval-ready chunks with breadcrumbs + rich metadata.
-4. Inserts the chunks into the configured vector store (Chroma or PGVector).
+4. Inserts the chunks into the PGVector store.
 
 Usage::
 

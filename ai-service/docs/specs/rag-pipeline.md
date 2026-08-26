@@ -191,9 +191,8 @@ Each opening chunk is prepended with standard structured headers:
 ## 5. Storage & CLI Ingestion Interface
 
 ### 5.1. Storage Layer
-- **Production:** PostgreSQL `PGVector` (Schema: `ai_service`, collection: `knowledge_doc`).
-- **Local/Test:** Chroma vector store.
-- **Batching:** 50–100 documents per insert batch.
+- **Vector Store:** PostgreSQL `PGVector` via `langchain-postgres` (Schema: `ai_service`, collection: `knowledge_doc`).
+- **Batching:** 50–100 documents per insert batch with real-time progress logging.
 
 ### 5.2. CLI / Makefile Commands
 

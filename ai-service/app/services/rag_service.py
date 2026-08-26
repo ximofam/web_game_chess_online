@@ -17,25 +17,17 @@ logger = logging.getLogger(__name__)
 
 
 def clear_vector_store() -> None:
-    """Wipe existing vectors from the configured vector store (Chroma or PGVector)."""
+    """Wipe existing vectors from the PGVector store."""
     settings = get_settings()
-    if settings.vector_store == "chroma":
-        import shutil
+    if not settings.database_url:
+        raise ValueError("DATABASE_URL is required to clear PGVector store")
+    from sqlalchemy import create_engine, text
 
-        chroma_path = Path(settings.chroma_persist_directory)
-        if chroma_path.exists():
-            shutil.rmtree(chroma_path)
-            logger.info("Cleared Chroma vector store directory: %s", chroma_path)
-    else:
-        from sqlalchemy import create_engine, text
-
-        if not settings.database_url:
-            raise ValueError("DATABASE_URL is required to clear PGVector store")
-        engine = create_engine(settings.database_url)
-        with engine.begin() as conn:
-            conn.execute(text("TRUNCATE TABLE ai_service.langchain_pg_embedding CASCADE;"))
-            conn.execute(text("TRUNCATE TABLE ai_service.langchain_pg_collection CASCADE;"))
-        logger.info("Truncated PGVector tables in ai_service schema")
+    engine = create_engine(settings.database_url)
+    with engine.begin() as conn:
+        conn.execute(text("TRUNCATE TABLE ai_service.langchain_pg_embedding CASCADE;"))
+        conn.execute(text("TRUNCATE TABLE ai_service.langchain_pg_collection CASCADE;"))
+    logger.info("Truncated PGVector tables in ai_service schema")
 
 
 def add_document(content: str, metadata: dict[str, Any]) -> str:

@@ -7,7 +7,7 @@
 - Apply database migrations: `make migrate`
 - Run tests: `make test`
 
-`DATABASE_URL` is required for `make migrate` and when `VECTOR_STORE=pgvector`.
+`DATABASE_URL` is required for `make migrate` and PGVector store operations.
 
 ## Project conventions
 
@@ -35,4 +35,16 @@ Canonical 5-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `r
 ### Domain docs
 
 Single-context layout (`CONTEXT.md` at root, ADRs in `docs/adr/`). See `docs/agents/domain.md`.
+
+### Handoff convention
+
+- Always save handoff documents to `.scratch/handoffs/handoff-YYYYMMDD-HHMMSS-<topic>.md` in the current workspace.
+- Replace `YYYYMMDD-HHMMSS` with the current local timestamp and `<topic>` with a concise kebab-case summary of the task.
+- Structure handoff files with:
+  1. Header: Timestamp, Branch, Latest Commit, Working Tree state.
+  2. `## 1. Executive Summary & Context`
+  3. `## 2. Key Architecture Decisions`
+  4. `## 3. Work Accomplished & File Map` (with clickable `file:///` links)
+  5. `## 4. Immediate Next Steps for Next Session`
+  6. `## 5. Suggested Skills for Next Agent`
 

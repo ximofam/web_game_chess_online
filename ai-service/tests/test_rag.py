@@ -1,13 +1,46 @@
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from app.core.config import Settings
 from app.services.rag_service import add_document, clear_vector_store
 
 
 def test_accepts_huggingface_api_configuration():
-    settings = Settings(_env_file=None, vector_store="chroma", groq_api_key="groq", huggingface_api_key="hf")
-    assert settings.vector_store == "chroma"
+    settings = Settings(_env_file=None, groq_api_key="groq", huggingface_api_key="hf")
     assert settings.embedding_model == "sentence-transformers/all-MiniLM-L6-v2"
+
+
+def test_clear_vector_store_pgvector():
+    mock_engine = MagicMock()
+    mock_conn = MagicMock()
+    mock_engine.begin.return_value.__enter__.return_value = mock_conn
+
+    settings = Settings(_env_file=None, database_url="postgresql+psycopg://user:pass@localhost:5432/db")
+    with (
+        patch("app.services.rag_service.get_settings", return_value=settings),
+        patch("sqlalchemy.create_engine", return_value=mock_engine),
+    ):
+        clear_vector_store()
+        assert mock_conn.execute.call_count == 2
+
+
+def test_get_vector_store_pgvector_factory():
+    from app.rag.retriever import get_vector_store
+
+    settings = Settings(_env_file=None, database_url="postgresql+psycopg://user:pass@localhost:5432/db")
+    mock_pgvector_class = Mock()
+    mock_instance = Mock()
+    mock_pgvector_class.return_value = mock_instance
+
+    with (
+        patch("app.rag.retriever.get_settings", return_value=settings),
+        patch("app.rag.retriever.get_embeddings", return_value=Mock()),
+        patch("langchain_postgres.PGVector", mock_pgvector_class),
+    ):
+        get_vector_store.cache_clear()
+        store = get_vector_store()
+        assert store == mock_instance
+        mock_pgvector_class.assert_called_once()
+        get_vector_store.cache_clear()
 
 
 def test_accepts_huggingface_local_embedding_configuration():
@@ -75,16 +108,7 @@ def test_add_document_passes_content_and_metadata_to_vector_store():
     assert document.metadata == {"source": "manual"}
 
 
-def test_clear_vector_store_chroma():
-    with (
-        patch("app.services.rag_service.get_settings") as mock_settings,
-        patch("pathlib.Path.exists", return_value=True),
-        patch("shutil.rmtree") as mock_rmtree,
-    ):
-        mock_settings.return_value.vector_store = "chroma"
-        mock_settings.return_value.chroma_persist_directory = "data/chroma"
-        clear_vector_store()
-        mock_rmtree.assert_called_once()
+
 
 
 def test_vision_model_settings_and_factory():

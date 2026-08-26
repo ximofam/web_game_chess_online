@@ -2,12 +2,10 @@ fastapi==0.141.1
 uvicorn==0.52.1
 pydantic-settings==2.10.1
 langchain==0.3.27
-langchain-chroma==0.2.6
 langchain-groq==0.3.8
 langchain-huggingface==0.3.1
 langchain-openai==0.3.33
 langchain-postgres==0.0.15
-chromadb==1.5.9
 psycopg[binary]==3.2.10
 alembic==1.16.5
 pytest==8.4.1
