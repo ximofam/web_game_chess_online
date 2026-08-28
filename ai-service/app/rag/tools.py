@@ -1,6 +1,10 @@
+from functools import lru_cache
+
 from langchain_core.documents import Document
+from langchain_core.runnables import Runnable
 from langchain_core.tools import tool
 
+from app.ai.llm import get_llm
 from app.rag.retriever import retrieve
 
 
@@ -72,3 +76,9 @@ def search_platform_support(query: str) -> str:
 
 
 ALL_TOOLS = [search_fide_rules, search_chess_openings, search_platform_support]
+
+
+@lru_cache
+def get_tool_calling_llm() -> Runnable:
+    """Get the singleton Chat LLM pre-bound with all domain RAG tools."""
+    return get_llm().bind_tools(ALL_TOOLS)

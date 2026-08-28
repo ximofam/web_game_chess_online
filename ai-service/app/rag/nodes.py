@@ -2,10 +2,10 @@ import logging
 
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, SystemMessage, ToolMessage
 
-from app.ai.llm import get_llm, get_router_llm
+from app.ai.llm import get_router_llm
 from app.ai.prompts import AGENT_SYSTEM, SUMMARIZE_PROMPT
 from app.rag.state import RagState
-from app.rag.tools import ALL_TOOLS
+from app.rag.tools import ALL_TOOLS, get_tool_calling_llm
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ def agent_node(state: RagState) -> dict:
     master_prompt = [] if has_master else [SystemMessage(content=AGENT_SYSTEM)]
     prompt_messages = master_prompt + system_msgs + dialogue_msgs
 
-    llm = get_llm().bind_tools(ALL_TOOLS)
+    llm = get_tool_calling_llm()
     response = llm.invoke(prompt_messages)
 
     if not response.tool_calls:

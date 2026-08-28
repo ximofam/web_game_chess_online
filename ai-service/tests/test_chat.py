@@ -280,22 +280,34 @@ def test_search_platform_support_tool_empty_fallback():
 
 # ── Agent Node & ReAct Logic Tests ───────────────────────────────────────────
 
+def test_get_tool_calling_llm_is_cached():
+    from app.rag.tools import get_tool_calling_llm
+
+    mock_llm = MagicMock()
+    with patch("app.rag.tools.get_llm", return_value=mock_llm):
+        get_tool_calling_llm.cache_clear()
+        bound1 = get_tool_calling_llm()
+        bound2 = get_tool_calling_llm()
+        assert bound1 is bound2
+        mock_llm.bind_tools.assert_called_once()
+        get_tool_calling_llm.cache_clear()
+
+
 def test_agent_node_direct_answer_without_tools():
     from app.rag.nodes import agent_node
 
     mock_ai_msg = AIMessage(content="Xin chào! Tôi có thể giúp gì cho bạn?")
-    mock_llm = MagicMock()
-    mock_llm.bind_tools.return_value.invoke.return_value = mock_ai_msg
+    mock_bound_llm = MagicMock()
+    mock_bound_llm.invoke.return_value = mock_ai_msg
 
     state = _state(original_question="Chào bạn", messages=[])
-    with patch("app.rag.nodes.get_llm", return_value=mock_llm):
+    with patch("app.rag.nodes.get_tool_calling_llm", return_value=mock_bound_llm):
         out = agent_node(state)
 
     assert out["answer"] == "Xin chào! Tôi có thể giúp gì cho bạn?"
     assert out["question_type"] == "general"
     assert len(out["messages"]) == 1
     assert out["messages"][0] == mock_ai_msg
-
 
 
 def test_agent_node_generates_tool_calls():
@@ -305,16 +317,15 @@ def test_agent_node_generates_tool_calls():
         content="",
         tool_calls=[{"name": "search_fide_rules", "args": {"query": "en passant"}, "id": "call_123"}],
     )
-    mock_llm = MagicMock()
-    mock_llm.bind_tools.return_value.invoke.return_value = mock_ai_msg
+    mock_bound_llm = MagicMock()
+    mock_bound_llm.invoke.return_value = mock_ai_msg
 
     state = _state(original_question="Bắt tốt qua đường là gì?", messages=[])
-    with patch("app.rag.nodes.get_llm", return_value=mock_llm):
+    with patch("app.rag.nodes.get_tool_calling_llm", return_value=mock_bound_llm):
         out = agent_node(state)
 
     assert "answer" not in out
     assert out["messages"][-1].tool_calls[0]["name"] == "search_fide_rules"
-
 
 
 def test_agent_node_synthesizes_final_answer_after_tools():
@@ -329,14 +340,14 @@ def test_agent_node_synthesizes_final_answer_after_tools():
     )
     final_ai_msg = AIMessage(content="Bắt tốt qua đường theo Điều 3.7.3 là...")
 
-    mock_llm = MagicMock()
-    mock_llm.bind_tools.return_value.invoke.return_value = final_ai_msg
+    mock_bound_llm = MagicMock()
+    mock_bound_llm.invoke.return_value = final_ai_msg
 
     state = _state(
         original_question="Bắt tốt qua đường là gì?",
         messages=[HumanMessage("Bắt tốt qua đường là gì?", id="user_1"), prev_ai_msg, tool_msg],
     )
-    with patch("app.rag.nodes.get_llm", return_value=mock_llm):
+    with patch("app.rag.nodes.get_tool_calling_llm", return_value=mock_bound_llm):
         out = agent_node(state)
 
     assert out["answer"] == "Bắt tốt qua đường theo Điều 3.7.3 là..."
@@ -381,9 +392,7 @@ async def test_full_graph_multi_domain_parallel_tool_calling():
     )
     final_answer_msg = AIMessage(content="Trong khai cuộc Sicilian, quy tắc nhập thành là...")
 
-    mock_llm = MagicMock()
     mock_bound_llm = MagicMock()
-    mock_llm.bind_tools.return_value = mock_bound_llm
     # First invocation returns parallel tool calls, second invocation returns synthesized answer
     mock_bound_llm.invoke.side_effect = [tool_call_msg, final_answer_msg]
 
@@ -400,7 +409,7 @@ async def test_full_graph_multi_domain_parallel_tool_calling():
     graph = compile_graph(checkpointer=MemorySaver())
 
     with (
-        patch("app.rag.nodes.get_llm", return_value=mock_llm),
+        patch("app.rag.nodes.get_tool_calling_llm", return_value=mock_bound_llm),
         patch("app.rag.tools.retrieve", side_effect=mock_retrieve_fn),
     ):
         result = await graph.ainvoke(
@@ -416,7 +425,6 @@ async def test_full_graph_multi_domain_parallel_tool_calling():
     assert len(result["messages"]) > 0
 
 
-
 @pytest.mark.anyio
 async def test_full_graph_multi_turn_conversation_retains_context():
     from langgraph.checkpoint.memory import MemorySaver
@@ -426,15 +434,13 @@ async def test_full_graph_multi_turn_conversation_retains_context():
     turn1_response = AIMessage(content="Xin chào! Tôi là VieChess Master AI.")
     turn2_response = AIMessage(content="Bạn có thể hỏi tôi về luật cờ và khai cuộc.")
 
-    mock_llm = MagicMock()
     mock_bound_llm = MagicMock()
-    mock_llm.bind_tools.return_value = mock_bound_llm
     mock_bound_llm.invoke.side_effect = [turn1_response, turn2_response]
 
     graph = compile_graph(checkpointer=MemorySaver())
     thread_config = {"configurable": {"thread_id": "multi-turn-thread-123"}}
 
-    with patch("app.rag.nodes.get_llm", return_value=mock_llm):
+    with patch("app.rag.nodes.get_tool_calling_llm", return_value=mock_bound_llm):
         # Turn 1
         r1 = await graph.ainvoke(
             {"messages": [HumanMessage(content="xin chào")], "original_question": "xin chào"},
@@ -456,5 +462,36 @@ async def test_full_graph_multi_turn_conversation_retains_context():
         assert "tôi có thể làm gì với bạn?" in question_contents
 
 
+@pytest.mark.anyio
+async def test_full_graph_tool_empty_fallback_response():
+    """Verify that when a tool finds no documents, the agent synthesizes a polite fallback response."""
+    from langgraph.checkpoint.memory import MemorySaver
+    from app.rag.builder import compile_graph
 
+    tool_call_msg = AIMessage(
+        content="",
+        tool_calls=[{"name": "search_platform_support", "args": {"query": "non-existent feature"}, "id": "call_empty_1"}],
+    )
+    final_fallback_msg = AIMessage(
+        content="Hiện tại hệ thống chưa có tài liệu chính thức về tính năng này trên VieChess. Bạn vui lòng kiểm tra giao diện hoặc liên hệ hỗ trợ."
+    )
 
+    mock_bound_llm = MagicMock()
+    mock_bound_llm.invoke.side_effect = [tool_call_msg, final_fallback_msg]
+
+    graph = compile_graph(checkpointer=MemorySaver())
+
+    with (
+        patch("app.rag.nodes.get_tool_calling_llm", return_value=mock_bound_llm),
+        patch("app.rag.tools.retrieve", return_value=[]),
+    ):
+        result = await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="Làm sao để đổi giao diện 3D?")],
+                "original_question": "Làm sao để đổi giao diện 3D?",
+            },
+            {"configurable": {"thread_id": "test-empty-fallback-thread"}},
+        )
+
+    assert "chưa có tài liệu chính thức" in result["answer"]
+    assert result["question_type"] == "rag"
