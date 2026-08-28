@@ -4,8 +4,10 @@ import uuid
 from typing import Any
 
 from fastapi import BackgroundTasks
+from langchain_core.messages import HumanMessage
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 
 from app.models.chat import AiChatMessage
 from app.models.chat_session import ChatSession
@@ -86,12 +88,16 @@ async def send_message(
     config = {"configurable": {"thread_id": str(session.id)}}
     try:
         result = await graph.ainvoke(
-            {"original_question": question, "chat_history": []},
+            {
+                "messages": [HumanMessage(content=question)],
+                "original_question": question,
+            },
             config,
         )
     except Exception:
         logger.exception("Chat graph execution failed for session %s", session.id)
         raise
+
 
     answer = result["answer"]
     question_type = result.get("question_type")

@@ -6,47 +6,34 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from langgraph.prebuilt import ToolNode
+
 from app.rag.nodes import (
-    contextualize_question,
-    generate_general,
-    generate_rag,
-    no_context_answer,
-    retrieve_docs,
-    route_question,
+    agent_node,
+    should_continue,
     summarize_memory,
 )
 from app.rag.state import RagState
+from app.rag.tools import ALL_TOOLS
 
 
 def build_graph() -> StateGraph:
-    """Build the state graph for the RAG and conversational pipeline."""
-    # summarize_memory chạy đầu mỗi turn (prune-before-process).
-    # Khi thêm nhánh mới, chỉ cần nối thẳng vào END — không cần wire vào summarize_memory.
+    """Build the state graph for the Agentic RAG and conversational pipeline."""
+    tool_node = ToolNode(ALL_TOOLS)
+
     g = StateGraph(RagState)
     g.add_node("summarize_memory", summarize_memory)
-    g.add_node("contextualize_question", contextualize_question)
-    g.add_node("route_question", route_question)
-    g.add_node("retrieve", retrieve_docs)
-    g.add_node("generate_rag", generate_rag)
-    g.add_node("no_context_answer", no_context_answer)
-    g.add_node("generate_general", generate_general)
+    g.add_node("agent", agent_node)
+    g.add_node("tools", tool_node)
+
     g.set_entry_point("summarize_memory")
-    g.add_edge("summarize_memory", "contextualize_question")
-    g.add_edge("contextualize_question", "route_question")
+    g.add_edge("summarize_memory", "agent")
     g.add_conditional_edges(
-        "route_question",
-        lambda s: s["question_type"],
-        {"rag": "retrieve", "general": "generate_general"},
+        "agent",
+        should_continue,
+        {"tools": "tools", "end": END},
     )
-    # Short-circuit khi không tìm được document nào — tránh tốn LLM call với context rỗng.
-    g.add_conditional_edges(
-        "retrieve",
-        lambda s: "generate_rag" if s.get("documents") else "no_context_answer",
-        {"generate_rag": "generate_rag", "no_context_answer": "no_context_answer"},
-    )
-    g.add_edge("generate_rag", END)
-    g.add_edge("no_context_answer", END)
-    g.add_edge("generate_general", END)
+    g.add_edge("tools", "agent")
     return g
 
 
@@ -74,4 +61,3 @@ async def graph_lifespan(database_url: str | None = None):
             yield compile_graph(checkpointer=checkpointer)
     else:
         yield compile_graph(checkpointer=MemorySaver())
-

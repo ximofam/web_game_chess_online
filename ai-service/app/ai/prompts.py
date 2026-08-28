@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder, PromptTemplate
+from langchain_core.prompts import PromptTemplate
 
 _TEMPLATES_DIR = Path(__file__).parent / "prompt_templates"
 
@@ -26,53 +26,15 @@ def _compose_system_prompt(task_name: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Chat-style prompts (RAG pipeline)
-# Composes base_system with domain-specific task prompts
+# Master system prompt for Agentic ReAct Assistant
 # ---------------------------------------------------------------------------
-RAG_SYSTEM_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        ("system", _compose_system_prompt("rag_system")),
-        MessagesPlaceholder(variable_name="history"),
-        ("human", "{question}"),
-    ]
-)
-
-RAG_CHESS_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        ("system", _compose_system_prompt("rag_chess")),
-        MessagesPlaceholder(variable_name="history"),
-        ("human", "{question}"),
-    ]
-)
-
-RAG_CHESS_LAW_PROMPT = RAG_CHESS_PROMPT
-
-RAG_OPENING_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        ("system", _compose_system_prompt("rag_opening")),
-        MessagesPlaceholder(variable_name="history"),
-        ("human", "{question}"),
-    ]
-)
-
-# Default alias for backwards compatibility
-RAG_PROMPT = RAG_SYSTEM_PROMPT
+AGENT_SYSTEM: str = _compose_system_prompt("agent_system")
 
 # ---------------------------------------------------------------------------
-# String prompts for router LLM calls (invoke with a plain string).
-# Variables: {history}, {question} for classify/rewrite; {history} for summarize.
+# Auxiliary string prompts for memory summarization and auto-titling
 # ---------------------------------------------------------------------------
-ANALYZE_PROMPT: PromptTemplate = PromptTemplate.from_template(_load("analyze"))
-REWRITE_PROMPT: PromptTemplate = PromptTemplate.from_template(_load("rewrite"))
 SUMMARIZE_PROMPT: PromptTemplate = PromptTemplate.from_template(_load("summarize"))
 TITLE_PROMPT: PromptTemplate = PromptTemplate.from_template(_load("title"))
 
-# ---------------------------------------------------------------------------
-# System message string for generate_general node.
-# ---------------------------------------------------------------------------
-GENERAL_SYSTEM: str = _compose_system_prompt("general_system")
 
-NO_CONTEXT_PROMPT: PromptTemplate = PromptTemplate.from_template(
-    _compose_system_prompt("no_context")
-)
 

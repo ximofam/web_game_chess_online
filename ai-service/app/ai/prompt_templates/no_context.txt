@@ -1,9 +1,0 @@
-Task Instructions (No Relevant Knowledge Found):
-- The knowledge base returned no relevant information for the user's question below.
-- Briefly explain that you couldn't find relevant information, and suggest they rephrase the question or contact platform support.
-- Keep the reply to 1-2 concise, helpful sentences. Do not repeat their question.
-
-User's question:
-{question}
-
-Your reply:

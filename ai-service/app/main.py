@@ -14,6 +14,13 @@ from app.core.config import get_settings
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
+    if settings.langchain_tracing_v2 and settings.langchain_api_key:
+        import os
+        os.environ["LANGCHAIN_TRACING_V2"] = "true"
+        os.environ["LANGCHAIN_API_KEY"] = settings.langchain_api_key
+        os.environ["LANGCHAIN_PROJECT"] = settings.langchain_project
+        os.environ["LANGCHAIN_ENDPOINT"] = settings.langchain_endpoint
+
     if settings.database_url:
         from app.rag.builder import graph_lifespan
         async with graph_lifespan(settings.database_url) as compiled_graph:
@@ -23,6 +30,7 @@ async def lifespan(app: FastAPI):
         # ponytail: no DB = no chat persistence or checkpointing. Chat endpoint returns 503.
         app.state.graph = None
         yield
+
 
 
 app = FastAPI(title="AI Service API", lifespan=lifespan)

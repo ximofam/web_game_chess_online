@@ -133,24 +133,6 @@ def test_vision_model_settings_and_factory():
         get_vision_llm.cache_clear()
 
 
-def test_parse_router_output():
-    from app.rag.nodes import _parse_router_output
-
-    # JSON input
-    assert _parse_router_output('{"question_type": "rag", "domain": "chess_law"}') == ("rag", "chess_law")
-    assert _parse_router_output('{"question_type": "rag", "domain": "chess_opening"}') == ("rag", "chess_opening")
-    assert _parse_router_output('{"question_type": "rag", "domain": "system"}') == ("rag", "system")
-    assert _parse_router_output('{"question_type": "general", "domain": "all"}') == ("general", "all")
-
-    # Markdown wrapped JSON
-    markdown_json = '```json\n{"question_type": "rag", "domain": "chess_opening"}\n```'
-    assert _parse_router_output(markdown_json) == ("rag", "chess_opening")
-
-    # Fallback text
-    assert _parse_router_output("rag") == ("rag", "all")
-    assert _parse_router_output("general") == ("general", "all")
-    assert _parse_router_output("rag chess opening theory") == ("rag", "chess_opening")
-    assert _parse_router_output("rag chess rule fide") == ("rag", "chess_law")
 
 
 def test_retrieve_domain_filtering():

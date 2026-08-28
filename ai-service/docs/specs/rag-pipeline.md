@@ -11,27 +11,31 @@ Rather than treating regulatory and theoretical documents as unstructured text a
 
 ```mermaid
 graph TD
-    UserQuery["User Query"] --> Contextualize["Contextualize / Standalone Rewrite Node"]
-    Contextualize --> RouterNode["DomainRouter Node (Analyze Prompt)"]
+    UserQuery["User Query"] --> SummarizeMemory["summarize_memory Node<br/>(Progressive Turn Summarization)"]
+    SummarizeMemory --> AgentNode["agent Node / Master Assistant"]
     
-    RouterNode -->|Type: General| GenNode["Generate General Node (No Retrieval)"]
-    RouterNode -->|Type: RAG| RetNode["Retrieve Docs Node (2-Stage Retrieval)"]
+    AgentNode -- "Direct Response (Chitchat)" --> EndNode([__end__])
+    AgentNode -- "Parallel Tool Calls" --> ToolNode{"LangGraph ToolNode"}
     
-    subgraph Knowledge Base ["KnowledgeIndex (PGVector / Chroma)"]
-        FIDE["domain='chess_law'<br/>FIDE Laws of Chess"]
-        OPENINGS["domain='chess_opening'<br/>Wikibooks + ECO Openings"]
-        SYS["domain='system'<br/>Platform Knowledge"]
+    subgraph DomainTools ["Authoritative Domain Tools"]
+        T1["search_fide_rules()<br/>(PGVector 'chess_law' + Reranker)"]
+        T2["search_chess_openings()<br/>(PGVector 'chess_opening' + Reranker)"]
+        T3["search_platform_support()<br/>(PGVector 'system' + Reranker)"]
     end
     
-    RetNode -.->|domain='chess_law'| FIDE
-    RetNode -.->|domain='chess_opening'| OPENINGS
-    RetNode -.->|domain='system'| SYS
-    RetNode -.->|domain='all'| Knowledge Base
+    ToolNode --> T1
+    ToolNode --> T2
+    ToolNode --> T3
     
-    RetNode --> Reranker["CrossEncoderReranker (BAAI/bge-reranker-v2-m3)"]
-    Reranker --> GenerateRAG["Generate RAG Node"]
-    GenerateRAG --> Output["Persisted AiChatMessage Turn"]
+    T1 --> ToolNode
+    T2 --> ToolNode
+    T3 --> ToolNode
+    
+    ToolNode --> AgentNode
+    AgentNode --> EphemeralCleanup["Ephemeral Tool Cleanup<br/>(RemoveMessage Purge)"]
+    EphemeralCleanup --> Checkpointer["Postgres Checkpointer / Output"]
 ```
+
 
 ---
 
@@ -217,29 +221,34 @@ Each opening chunk is prepended with standard structured headers:
 
 ---
 
-## 6. Pipeline Query Routing & 2-Stage Retrieval
+## 6. Agentic Execution, Memory Management & 2-Stage Retrieval
 
-### 6.1. Domain Classification (`route_question` node)
-The `DomainRouter` uses `ANALYZE_PROMPT` to classify questions into:
-- **`question_type`:** `"rag"` (factual knowledge needed) | `"general"` (casual greeting/chitchat).
-- **`domain`:**
-  - `"chess_law"`: Official FIDE rules, piece moves, castling conditions, en passant, illegal moves, touch-move, arbiter decisions.
-  - `"chess_opening"`: Opening names, ECO codes, move sequences (1.e4 c5), opening plans, candidate responses, pawn structures.
-  - `"system"`: Web platform matchmaking, rooms, WebSocket connections, auth, forums.
-  - `"all"`: Ambiguous, cross-domain queries.
+### 6.1. Multi-Domain Agentic Tool Calling
+The system uses an **Agentic ReAct Architecture** where the LLM Master Assistant (`agent_node`) dynamically selects zero, one, or multiple tools in parallel (**Parallel Tool Calling**):
+- **`search_fide_rules(query)`**: Traverses `domain='chess_law'` for official FIDE laws, piece rules, and arbiter regulations.
+- **`search_chess_openings(query)`**: Traverses `domain='chess_opening'` for ECO classifications (A00–E99), opening lines, and strategic plans.
+- **`search_platform_support(query)`**: Traverses `domain='system'` for platform rules, room states, matchmaking, and WebSocket connectivity.
 
-### 6.2. Filtered Retrieval (`retrieve_docs` node & `retriever.py`)
-- If `domain in ("chess_law", "chess_opening", "chess", "system")`: executes vector search with strict metadata filter `{"domain": domain}`.
-- If `domain == "all"`: executes global vector search across all knowledge domains.
-- Relevance score threshold: filters out low-similarity documents (`RETRIEVAL_SCORE_THRESHOLD = 0.1`).
+### 6.2. Embedded 2-Stage Retrieval & Semantic Reranking
+Each tool executes a localized 2-stage retrieval pipeline:
+1. **Stage 1 (Bi-Encoder Dense Candidate Pool):** Queries PGVector with metadata domain filtering (`{"domain": domain}`) retrieving the top `RERANKER_CANDIDATES_K` (default: 8) candidate documents.
+2. **Stage 2 (Cross-Encoder Reranker):** `cross-encoder/ms-marco-MiniLM-L-6-v2` computes fine-grained cross-attention between query and chunk texts.
+3. **Sigmoid Normalization & Filtering:** Normalizes logits to probabilities $[0.0, 1.0]$ via Sigmoid with overflow clamping $[-50, 50]$, discarding chunks below `RERANKER_SCORE_THRESHOLD = 0.05`.
 
-### 6.3. 2-Stage Retrieval & Cross-Encoder Reranking
-1. **Stage 1 (Bi-Encoder Candidate Pool):** Fetches `RERANKER_CANDIDATES_K` (default: 10) candidate chunks from Vector DB.
-2. **Stage 2 (Cross-Encoder Reranker):** `BAAI/bge-reranker-v2-m3` computes cross-attention scores between the rewritten user question and candidate texts.
-3. **Selection:** Returns top `RERANKER_TOP_N` (default: 4) chunks with `rerank_score` attached.
-4. **Fallback:** Gracefully defaults to vector similarity ordering if the reranker service is unavailable.
+### 6.3. Progressive Turn-Boundary Summarization (`summarize_memory` node)
+To prevent infinite token accumulation in stateful multi-turn conversations:
+- **Turn-based Threshold:** Controlled by `CHAT_SUMMARY_TURNS_THRESHOLD = 2` (completed past dialogue turns).
+- **Progressive Merging:** Finds any existing `SystemMessage` summary and merges it with newly completed dialogue turns into `SUMMARIZE_PROMPT`.
+- **Single Retained Summary:** Emits `RemoveMessage` for the old summary and all summarized dialogue turns, keeping exactly **1** consolidated `SystemMessage` summary in state.
+- **Payload Sanitization:** Formats clean User/AI lines without dumping raw multi-thousand-token tool outputs into the summarization prompt.
 
-### 6.4. Generation Prompts
-- `domain == "chess_law"`: `RAG_CHESS_PROMPT` (FIDE Arbiter persona, cites Article numbers, renders 8x8 ASCII boards, zero raw FEN).
-- `domain == "chess_opening"`: `RAG_OPENING_PROMPT` (Chess Grandmaster & Opening Theorist persona, details opening plans, candidate responses, ECO codes, renders 8x8 ASCII boards).
-- `domain == "system"` / other: `RAG_SYSTEM_PROMPT` (Platform specialist persona).
+### 6.4. Ephemeral Tool Cleanup (Strategy 2)
+To optimize PostgreSQL checkpointer storage and avoid multi-turn context pollution:
+- `ToolMessage` and `AIMessage(tool_calls)` exist **only ephemerally** during the turn they were executed.
+- When `agent_node` completes synthesizing the final text answer, it returns `RemoveMessage` commands for all intermediate tool scratchpad messages of that turn.
+- The PostgreSQL checkpointer only persists clean `[HumanMessage, AIMessage]` pairs, cutting multi-turn input token consumption by **up to 70%**.
+
+### 6.5. LangSmith Tracing & Observability
+- Integrated with LangSmith tracing via `LANGCHAIN_TRACING_V2=true`.
+- Environment variables are automatically injected during the FastAPI lifespan startup (`app/main.py`), capturing execution traces, latency, and token breakdowns per node run.
+

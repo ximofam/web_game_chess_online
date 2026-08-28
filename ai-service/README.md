@@ -8,15 +8,18 @@ Dịch vụ AI thông minh cung cấp trợ lý trò chuyện stateful, phân t�
 
 ## 🌟 Tính Năng Nổi Bật (Key Capabilities)
 
-### 1. Stateful Multi-Turn Conversational Graph (LangGraph)
-- **Contextual Query Rewriting**: Tự động giải quyết đại từ nhân xưng và ngữ cảnh lịch sử trò chuyện để tạo ra câu truy vấn độc lập (standalone English search query) tối ưu cho việc tìm kiếm vector.
-- **Domain Routing chính xác**: Tự động phân loại intent của người dùng qua JSON Structured Output thành 4 domain:
-  - `chess_law`: Luật thi đấu quốc tế FIDE (nước đi quân, nhập thành, bắt tốt qua đường, chạm quân, hòa cờ, xử phạt trọng tài).
-  - `chess_opening`: Lý thuyết khai cuộc, chuỗi nước đi, mã ECO (A00–E99), kế hoạch chiến lược và cấu trúc tốt.
-  - `system`: Kiến thức nền tảng (ghép trận, luật phòng chơi, kết nối WebSocket, tài khoản, diễn đàn).
-  - `all` / `general`: Chào hỏi thông thường hoặc câu hỏi tổng quát.
+### 1. Stateful Multi-Turn Conversational Graph (LangGraph Agentic ReAct)
+- **Agentic Tool Calling & Multi-Domain Handling**: Khắc phục hoàn toàn hạn chế của mô hình phân loại nhãn đơn (Single-label routing). LLM trung tâm đóng vai trò Agent điều phối linh hoạt gọi 0, 1 hoặc nhiều công cụ song song (**Parallel Tool Calls**):
+  - `search_fide_rules`: Luật thi đấu quốc tế FIDE (nước đi quân, nhập thành, bắt tốt qua đường, chạm quân, hòa cờ, xử phạt trọng tài).
+  - `search_chess_openings`: Lý thuyết khai cuộc, chuỗi nước đi, mã ECO (A00–E99), kế hoạch chiến lược và cấu trúc tốt.
+  - `search_platform_support`: Kiến thức nền tảng VieChess (ghép trận, luật phòng chơi, kết nối WebSocket, tài khoản, diễn đàn).
+- **Embedded 2-Stage Retrieval**: Mỗi Tool tự thực hiện tìm kiếm vector trong collection tương ứng kết hợp cùng Cross-Encoder Reranker cục bộ để trả về những trích đoạn chất lượng cao nhất.
+- **Ephemeral Tool Cleanup**: Tự động phát sinh `RemoveMessage` dọn sạch toàn bộ `ToolMessage` và `AIMessage(tool_calls)` trung gian ngay khi hoàn tất câu trả lời cuối cùng $\rightarrow$ Giảm **70% token đầu vào** ở các lượt sau và giữ cho Checkpointer Database chỉ lưu các cặp Q&A thuần túy.
+- **Progressive Memory Summarization**: Tự động nén và hợp nhất lũy tiến lịch sử hội thoại cũ khi vượt ngưỡng lượt (`CHAT_SUMMARY_TURNS_THRESHOLD = 2`), loại bỏ nội dung thô của tool và duy trì đúng 1 `SystemMessage` tóm tắt duy nhất trong State.
 - **Dual-State Persistence**: Lưu trữ đồng thời lịch sử tin nhắn trong cơ sở dữ liệu quan hệ (`ai_chat_sessions`, `ai_chat_messages`) và snapshot trạng thái đồ thị qua LangGraph Checkpointer (`AsyncPostgresSaver`).
+- **LangSmith Tracing & Observability**: Tích hợp sẵn LangSmith tracing (`LANGCHAIN_TRACING_V2`), trực quan hóa luồng gọi Tool, đo lường độ trễ (latency) và chi tiết token/chi phí của từng bước thực thi.
 - **Asynchronous Auto-Titling**: Tự động sinh tiêu đề ngắn gọn cho phiên trò chuyện ở chế độ nền (background task) sau lượt hỏi đầu tiên.
+
 
 ### 2. Structure-Aware Knowledge Ingestion
 - **FIDE Laws of Chess Chunker (`FideSplitter`)**: Phân rã cấu trúc văn bản pháp quy theo cây phân cấp pháp lý (*Category → Article → Section → Subsection*). Tích hợp Vision LLM trích xuất hình ảnh bàn cờ FIDE thành chuỗi ký hiệu FEN và diễn giải ngữ nghĩa.
@@ -35,8 +38,8 @@ Dịch vụ AI thông minh cung cấp trợ lý trò chuyện stateful, phân t�
 ### 4. Reusable & Decoupled LLM Factory (`LLMFactory`)
 - Khởi tạo và quản lý chat model tập trung, hỗ trợ lazy-loading không tốn tài nguyên.
 - **Granular Provider Switching**: Cho phép tùy chỉnh độc lập provider cho từng tác vụ trong file `.env`:
-  - **Chat/RAG Main Model**: Groq / OpenAI / Ollama.
-  - **Router & Rewrite Model**: Ollama Local (mặc định `qwen2.5:1.5b` siêu nhẹ) / Groq / OpenAI.
+  - **Chat/Agent Main Model**: Groq / OpenAI / Ollama.
+  - **Router & Auxiliary Model**: Ollama Local (mặc định `qwen2.5:1.5b` siêu nhẹ) / Groq / OpenAI.
   - **Vision Model**: Groq / OpenAI / Ollama.
 
 ---
@@ -48,28 +51,31 @@ graph TD
     User([Người dùng / Client]) -->|POST /api/chat| API[FastAPI Chat Endpoint]
     API --> Service[ChatService / ConversationEngine]
     
-    subgraph LangGraph Pipeline
-        Service --> ContextNode[1. Contextualize / Query Rewrite]
-        ContextNode --> RouterNode[2. DomainRouter Node]
+    subgraph LangGraph Agentic ReAct Pipeline
+        Service --> SummarizeNode[summarize_memory Node]
+        SummarizeNode --> AgentNode[agent Node / Master Assistant]
         
-        RouterNode -->|Type: General| GenGeneral[Generate General Response]
-        RouterNode -->|Type: RAG| RetrieveNode[3. Filtered Vector Retrieval]
+        AgentNode -- "Direct Response (Chitchat)" --> EndNode([__end__])
+        AgentNode -- "Parallel Tool Calls" --> ToolNode{"LangGraph ToolNode"}
         
-        subgraph KnowledgeIndex [PostgreSQL PGVector]
-            FIDE[(domain: chess_law<br/>FIDE Laws)]
-            OPENINGS[(domain: chess_opening<br/>Wikibooks & ECO)]
-            SYS[(domain: system<br/>Platform Docs)]
+        subgraph DomainTools [Authoritative Domain Tools]
+            T1["search_fide_rules()<br/>(PGVector + Reranker)"]
+            T2["search_chess_openings()<br/>(PGVector + Reranker)"]
+            T3["search_platform_support()<br/>(PGVector + Reranker)"]
         end
         
-        RetrieveNode -.->|Filter domain| KnowledgeIndex
-        RetrieveNode --> Candidates[Candidate Chunks Pool]
+        ToolNode --> T1
+        ToolNode --> T2
+        ToolNode --> T3
         
-        Candidates --> RerankerNode[4. Local Cross-Encoder Reranker]
-        RerankerNode --> GenRAG[5. Generate RAG Response]
+        T1 --> ToolNode
+        T2 --> ToolNode
+        T3 --> ToolNode
+        
+        ToolNode --> AgentNode
     end
     
-    GenRAG --> Persistence[Dual Persistence & LangGraph Checkpointer]
-    GenGeneral --> Persistence
+    AgentNode --> Persistence[Dual Persistence & LangGraph Checkpointer]
     Persistence --> Response([JSON Stream / HTTP Response])
 ```
 
@@ -93,10 +99,11 @@ ai-service/
 │   ├── models/                   # SQLAlchemy ORM Models (ChatSession, AiChatMessage)
 │   ├── rag/                      # RAG Core Subsystem
 │   │   ├── builder.py            # LangGraph StateGraph Compilation & Checkpointer Seam
-│   │   ├── nodes.py              # Graph execution nodes (contextualize, route, retrieve, generate)
+│   │   ├── nodes.py              # Graph execution nodes (agent_node, summarize_memory)
 │   │   ├── reranker.py           # Local Cross-Encoder Reranker & Fallback
 │   │   ├── retriever.py          # PGVector VectorStore wrapper & multi-domain retrieve
 │   │   ├── state.py              # RagState definition
+│   │   ├── tools.py              # Domain-specific LangChain tools (FIDE, Openings, Platform)
 │   │   └── ingestion/            # Structure-aware chunkers (FideSplitter, Vision Parser)
 │   ├── schemas/                  # Pydantic Request/Response DTOs
 │   ├── services/                 # Application Business Logic (ChatService, RagService)

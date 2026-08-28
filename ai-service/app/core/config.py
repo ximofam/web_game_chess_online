@@ -42,8 +42,16 @@ class Settings(BaseSettings):
     reranker_candidates_k: int = 8
     reranker_score_threshold: float = 0.05
     reranker_timeout_seconds: float = 10.0
-
     jwt_secret: str | None = None
+
+    # LangSmith Observability
+
+
+    langchain_tracing_v2: bool = False
+    langchain_api_key: str | None = None
+    langchain_project: str = "viechess-ai-service"
+    langchain_endpoint: str = "https://api.smith.langchain.com"
+
 
 
 @lru_cache

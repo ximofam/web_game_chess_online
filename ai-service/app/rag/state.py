@@ -1,16 +1,13 @@
-from typing import Annotated, Literal, TypedDict
+from typing import Annotated, TypedDict
 
-from langchain_core.documents import Document
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 
 
-class RagState(TypedDict):
+class RagState(TypedDict, total=False):
     original_question: str
-    rewritten_question: str
-    question_type: Literal["rag", "general"]
-    domain: Literal["chess", "system", "all"]
-    # add_messages reducer: appends on each invocation, preserved by checkpointer across turns
-    chat_history: Annotated[list[BaseMessage], add_messages]
-    documents: list[Document]  # Giữ Document để có metadata (source, score)
+    question_type: str | None
+    # Primary message stream with add_messages reducer across checkpointed turns
+    messages: Annotated[list[BaseMessage], add_messages]
     answer: str
+

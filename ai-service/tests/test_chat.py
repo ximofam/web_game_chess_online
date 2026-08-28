@@ -3,15 +3,10 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from langchain_core.documents import Document
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, SystemMessage
 
-from app.rag.nodes import (
-    contextualize_question,
-    generate_general,
-    generate_rag,
-    retrieve_docs,
-    route_question,
-)
+
+from app.rag.nodes import agent_node, should_continue, summarize_memory
 from app.rag.state import RagState
 from app.services.chat_service import save_message
 
@@ -21,176 +16,100 @@ from app.services.chat_service import save_message
 def _state(**kwargs) -> RagState:
     defaults = dict(
         original_question="",
-        rewritten_question="",
         question_type="rag",
-        domain="all",
-        chat_history=[],
-        documents=[],
+        messages=[],
         answer="",
     )
     defaults.update(kwargs)
     return defaults  # type: ignore[return-value]
 
 
-# ── contextualize_question ───────────────────────────────────────────────────
+# ── summarize_memory ─────────────────────────────────────────────────────────
 
-def test_contextualize_question_no_history_calls_llm_for_english_query():
-    mock_result = Mock(content="What is en passant?")
+def test_summarize_memory_below_threshold_returns_empty():
+    state = _state(messages=[HumanMessage("hi"), AIMessage("hello")])
+    assert summarize_memory(state) == {}
+
+
+def test_summarize_memory_above_threshold_summarizes():
+    h1 = HumanMessage("m1", id="1")
+    a1 = AIMessage("a1", id="2")
+    h2 = HumanMessage("m2", id="3")
+    a2 = AIMessage("a2", id="4")
+    h3 = HumanMessage("m3", id="5")
+    a3 = AIMessage("a3", id="6")
+
     mock_llm = MagicMock()
-    mock_llm.invoke.return_value = mock_result
+    mock_llm.invoke.return_value = Mock(content="Summary of turns 1 and 2")
 
-    state = _state(original_question="Bắt tốt qua đường là gì?", chat_history=[])
+    state = _state(messages=[h1, a1, h2, a2, h3, a3])
     with patch("app.rag.nodes.get_router_llm", return_value=mock_llm):
-        out = contextualize_question(state)
+        out = summarize_memory(state)
 
-    assert out["rewritten_question"] == "What is en passant?"
-    prompt_arg = mock_llm.invoke.call_args.args[0]
-    assert "Bắt tốt qua đường là gì?" in prompt_arg
-    assert "No previous conversation." in prompt_arg
+    assert "messages" in out
+    # 4 messages to delete + 1 new summary SystemMessage
+    assert len(out["messages"]) == 5
+    summary_msg = out["messages"][-1]
+    assert isinstance(summary_msg, SystemMessage)
+    assert "Summary of turns 1 and 2" in summary_msg.content
 
 
-def test_contextualize_question_with_history_calls_llm():
-    mock_result = Mock(content="What is the Sicilian Defense?")
+def test_summarize_memory_merges_existing_summary():
+
+    old_summary = SystemMessage(content="Summary of previous conversation:\nTurn 1 summary", id="old_sum_id")
+    h2 = HumanMessage("m2", id="3")
+    a2 = AIMessage("a2", id="4")
+    h3 = HumanMessage("m3", id="5")
+    a3 = AIMessage("a3", id="6")
+    h4 = HumanMessage("m4", id="7")
+    a4 = AIMessage("a4", id="8")
+
     mock_llm = MagicMock()
-    mock_llm.invoke.return_value = mock_result
+    mock_llm.invoke.return_value = Mock(content="Combined summary of turn 1, 2, 3")
 
-    history = [HumanMessage("Tell me about openings"), AIMessage("Sure!")]
-    state = _state(original_question="What about Sicilian?", chat_history=history)
-
+    state = _state(messages=[old_summary, h2, a2, h3, a3, h4, a4])
     with patch("app.rag.nodes.get_router_llm", return_value=mock_llm):
-        out = contextualize_question(state)
+        out = summarize_memory(state)
 
-    assert out["rewritten_question"] == "What is the Sicilian Defense?"
-    prompt_arg = mock_llm.invoke.call_args.args[0]
-    assert "Tell me about openings" in prompt_arg
-    assert "What about Sicilian?" in prompt_arg
+    assert "messages" in out
+    # 4 dialogue msgs + 1 old summary msg deleted + 1 new summary SystemMessage = 6 total
+    assert len(out["messages"]) == 6
+    delete_ids = [m.id for m in out["messages"] if isinstance(m, RemoveMessage)]
+    assert "old_sum_id" in delete_ids
+    summary_msg = out["messages"][-1]
+    assert isinstance(summary_msg, SystemMessage)
+    assert "Combined summary of turn 1, 2, 3" in summary_msg.content
 
 
-def test_contextualize_question_translates_vietnamese_query_to_english():
-    mock_result = Mock(content="How does a Bishop move in chess?")
+def test_summarize_memory_with_clean_turns():
+    h1 = HumanMessage("what is castling?", id="1")
+    ai1 = AIMessage("Castling is a special move...", id="2")
+    h2 = HumanMessage("what is en passant?", id="3")
+    ai2 = AIMessage("En passant is a pawn capture...", id="4")
+    h3 = HumanMessage("thank you!", id="5")
+
     mock_llm = MagicMock()
-    mock_llm.invoke.return_value = mock_result
+    mock_llm.invoke.return_value = Mock(content="User asked about castling and en passant.")
 
-    history = [HumanMessage("Quân tượng là gì?"), AIMessage("Quân tượng là quân cờ...")]
-    state = _state(original_question="Nó đi như thế nào?", chat_history=history)
-
+    state = _state(messages=[h1, ai1, h2, ai2, h3])
     with patch("app.rag.nodes.get_router_llm", return_value=mock_llm):
-        out = contextualize_question(state)
+        out = summarize_memory(state)
 
-    assert out["rewritten_question"] == "How does a Bishop move in chess?"
-    prompt_arg = mock_llm.invoke.call_args.args[0]
-    assert "Quân tượng là gì?" in prompt_arg
-    assert "Nó đi như thế nào?" in prompt_arg
-
-
-
-# ── route_question ───────────────────────────────────────────────────────────
-
-def test_route_question_returns_type_and_domain():
-    mock_result = Mock(content='{"question_type": "rag", "domain": "chess"}')
-    mock_llm = MagicMock()
-    mock_llm.invoke.return_value = mock_result
-
-    with patch("app.rag.nodes.get_router_llm", return_value=mock_llm):
-        out = route_question(_state(rewritten_question="What is rule 3.8.2 in chess?"))
-
-    assert out["question_type"] == "rag"
-    assert out["domain"] == "chess"
+    assert "messages" in out
+    # 4 messages from turns 1 & 2 deleted + 1 summary msg = 5 total
+    assert len(out["messages"]) == 5
+    delete_ids = [m.id for m in out["messages"] if isinstance(m, RemoveMessage)]
+    assert delete_ids == ["1", "2", "3", "4"]
+    llm_prompt = mock_llm.invoke.call_args[0][0]
+    assert "what is castling?" in llm_prompt
+    assert "Castling is a special move" in llm_prompt
+    assert "what is en passant?" in llm_prompt
 
 
-def test_route_question_defaults_to_rag_and_all_on_unknown():
-    mock_result = Mock(content="unknown_type")
-    mock_llm = MagicMock()
-    mock_llm.invoke.return_value = mock_result
-
-    with patch("app.rag.nodes.get_router_llm", return_value=mock_llm):
-        out = route_question(_state(rewritten_question="Something random"))
-
-    assert out["question_type"] == "rag"
-    assert out["domain"] == "all"
-
-
-
-# ── retrieve_docs ─────────────────────────────────────────────────────────────
-
-def test_retrieve_docs_returns_documents():
-    docs = [Document(page_content="fact one"), Document(page_content="fact two")]
-    with patch("app.rag.nodes.retrieve", return_value=docs):
-        out = retrieve_docs(_state(rewritten_question="how to move a knight?"))
-    assert out["documents"] == docs
-
-
-# ── generate_rag ──────────────────────────────────────────────────────────────
-
-def test_generate_rag_invokes_prompt_chain_and_appends_history():
-    chess_chain = MagicMock()
-    chess_chain.__or__.return_value = chess_chain
-    chess_chain.invoke.return_value = "Chess rule answer"
-
-    system_chain = MagicMock()
-    system_chain.__or__.return_value = system_chain
-    system_chain.invoke.return_value = "System platform answer"
-
-    # 1. Chess domain
-    state_chess = _state(
-        original_question="original",
-        rewritten_question="how does king move?",
-        domain="chess",
-        documents=[Document(page_content="king move doc")],
-    )
-    with (
-        patch("app.rag.nodes.RAG_CHESS_PROMPT", chess_chain),
-        patch("app.rag.nodes.RAG_SYSTEM_PROMPT", system_chain),
-        patch("app.rag.nodes.get_llm", return_value=Mock()),
-    ):
-        out_chess = generate_rag(state_chess)
-
-    assert out_chess["answer"] == "Chess rule answer"
-    chess_chain.invoke.assert_called_once()
-    assert chess_chain.invoke.call_args.args[0]["question"] == "original"
-    system_chain.invoke.assert_not_called()
-
-    # 2. System domain
-    state_system = _state(
-        original_question="how do I create a room?",
-        rewritten_question="how to create room?",
-        domain="system",
-        documents=[Document(page_content="create room doc")],
-    )
-    chess_chain.reset_mock()
-    system_chain.reset_mock()
-    with (
-        patch("app.rag.nodes.RAG_CHESS_PROMPT", chess_chain),
-        patch("app.rag.nodes.RAG_SYSTEM_PROMPT", system_chain),
-        patch("app.rag.nodes.get_llm", return_value=Mock()),
-    ):
-        out_system = generate_rag(state_system)
-
-    assert out_system["answer"] == "System platform answer"
-    system_chain.invoke.assert_called_once()
-    assert system_chain.invoke.call_args.args[0]["question"] == "how do I create a room?"
-    chess_chain.invoke.assert_not_called()
-
-
-
-# ── generate_general ─────────────────────────────────────────────────────────
-
-def test_generate_general_calls_llm_and_appends_history():
-    mock_response = Mock(content="General chess answer")
-    mock_llm = Mock(invoke=Mock(return_value=mock_response))
-
-    state = _state(original_question="original", rewritten_question="general Q")
-    with patch("app.rag.nodes.get_llm", return_value=mock_llm):
-        out = generate_general(state)
-
-    assert out["answer"] == "General chess answer"
-    call_arg = mock_llm.invoke.call_args.args[0]
-    assert "original" in call_arg[-1].content
-    assert any(isinstance(m, HumanMessage) for m in out["chat_history"])
-    assert any(isinstance(m, AIMessage) for m in out["chat_history"])
 
 
 # ── save_message ──────────────────────────────────────────────────────────────
+
 
 @pytest.mark.anyio
 async def test_save_message_inserts_correct_fields():
@@ -291,4 +210,251 @@ def test_compile_graph_with_memory_saver():
     graph = compile_graph(checkpointer=memory_saver)
     assert graph is not None
     assert graph.checkpointer is memory_saver
+
+
+# ── Domain-Specific Tools Tests ──────────────────────────────────────────────
+
+def test_search_fide_rules_tool():
+    from app.rag.tools import search_fide_rules
+
+    mock_docs = [
+        Document(page_content="Article 3.8.1: Castling is allowed when...", metadata={"article": "3.8.1", "title": "Castling"}),
+    ]
+    with patch("app.rag.tools.retrieve", return_value=mock_docs) as mock_retrieve:
+        output = search_fide_rules.invoke({"query": "castling rules"})
+        mock_retrieve.assert_called_once_with(query="castling rules", top_k=3, domain="chess_law")
+        assert "Article: 3.8.1" in output
+        assert "Article 3.8.1: Castling is allowed when..." in output
+
+
+def test_search_fide_rules_tool_empty_fallback():
+    from app.rag.tools import search_fide_rules
+
+    with patch("app.rag.tools.retrieve", return_value=[]):
+        output = search_fide_rules.invoke({"query": "non-existent rule"})
+        assert "No relevant FIDE Laws of Chess documents found" in output
+
+
+def test_search_chess_openings_tool():
+    from app.rag.tools import search_chess_openings
+
+    mock_docs = [
+        Document(page_content="1. e4 c5 is the Sicilian Defense.", metadata={"eco_code": "B20", "eco_name": "Sicilian Defense"}),
+    ]
+    with patch("app.rag.tools.retrieve", return_value=mock_docs) as mock_retrieve:
+        output = search_chess_openings.invoke({"query": "sicilian defense"})
+        mock_retrieve.assert_called_once_with(query="sicilian defense", top_k=3, domain="chess_opening")
+        assert "ECO: B20" in output
+        assert "Opening: Sicilian Defense" in output
+
+
+def test_search_chess_openings_tool_empty_fallback():
+    from app.rag.tools import search_chess_openings
+
+    with patch("app.rag.tools.retrieve", return_value=[]):
+        output = search_chess_openings.invoke({"query": "random opening"})
+        assert "No relevant Chess Opening Theory documents found" in output
+
+
+def test_search_platform_support_tool():
+    from app.rag.tools import search_platform_support
+
+    mock_docs = [
+        Document(page_content="Click 'Create Room' to host a new game.", metadata={"title": "Room Creation"}),
+    ]
+    with patch("app.rag.tools.retrieve", return_value=mock_docs) as mock_retrieve:
+        output = search_platform_support.invoke({"query": "how to create room"})
+        mock_retrieve.assert_called_once_with(query="how to create room", top_k=3, domain="system")
+        assert "Title: Room Creation" in output
+        assert "Click 'Create Room'" in output
+
+
+def test_search_platform_support_tool_empty_fallback():
+    from app.rag.tools import search_platform_support
+
+    with patch("app.rag.tools.retrieve", return_value=[]):
+        output = search_platform_support.invoke({"query": "random issue"})
+        assert "No relevant platform documentation found" in output
+
+
+
+# ── Agent Node & ReAct Logic Tests ───────────────────────────────────────────
+
+def test_agent_node_direct_answer_without_tools():
+    from app.rag.nodes import agent_node
+
+    mock_ai_msg = AIMessage(content="Xin chào! Tôi có thể giúp gì cho bạn?")
+    mock_llm = MagicMock()
+    mock_llm.bind_tools.return_value.invoke.return_value = mock_ai_msg
+
+    state = _state(original_question="Chào bạn", messages=[])
+    with patch("app.rag.nodes.get_llm", return_value=mock_llm):
+        out = agent_node(state)
+
+    assert out["answer"] == "Xin chào! Tôi có thể giúp gì cho bạn?"
+    assert out["question_type"] == "general"
+    assert len(out["messages"]) == 1
+    assert out["messages"][0] == mock_ai_msg
+
+
+
+def test_agent_node_generates_tool_calls():
+    from app.rag.nodes import agent_node
+
+    mock_ai_msg = AIMessage(
+        content="",
+        tool_calls=[{"name": "search_fide_rules", "args": {"query": "en passant"}, "id": "call_123"}],
+    )
+    mock_llm = MagicMock()
+    mock_llm.bind_tools.return_value.invoke.return_value = mock_ai_msg
+
+    state = _state(original_question="Bắt tốt qua đường là gì?", messages=[])
+    with patch("app.rag.nodes.get_llm", return_value=mock_llm):
+        out = agent_node(state)
+
+    assert "answer" not in out
+    assert out["messages"][-1].tool_calls[0]["name"] == "search_fide_rules"
+
+
+
+def test_agent_node_synthesizes_final_answer_after_tools():
+    from langchain_core.messages import ToolMessage
+    from app.rag.nodes import agent_node
+
+    tool_msg = ToolMessage(content="Article 3.7.3: En passant...", tool_call_id="call_123", id="tool_msg_1")
+    prev_ai_msg = AIMessage(
+        content="",
+        tool_calls=[{"name": "search_fide_rules", "args": {"query": "en passant"}, "id": "call_123"}],
+        id="ai_call_1",
+    )
+    final_ai_msg = AIMessage(content="Bắt tốt qua đường theo Điều 3.7.3 là...")
+
+    mock_llm = MagicMock()
+    mock_llm.bind_tools.return_value.invoke.return_value = final_ai_msg
+
+    state = _state(
+        original_question="Bắt tốt qua đường là gì?",
+        messages=[HumanMessage("Bắt tốt qua đường là gì?", id="user_1"), prev_ai_msg, tool_msg],
+    )
+    with patch("app.rag.nodes.get_llm", return_value=mock_llm):
+        out = agent_node(state)
+
+    assert out["answer"] == "Bắt tốt qua đường theo Điều 3.7.3 là..."
+    assert out["question_type"] == "rag"
+    # Ephemeral Tool Cleanup verification
+    delete_ids = [m.id for m in out["messages"] if isinstance(m, RemoveMessage)]
+    assert "tool_msg_1" in delete_ids
+    assert "ai_call_1" in delete_ids
+    assert out["messages"][-1] == final_ai_msg
+
+
+def test_should_continue_logic():
+
+    from langchain_core.messages import AIMessage
+    from app.rag.nodes import should_continue
+
+    # 1. No tool calls -> 'end'
+    state_done = _state(messages=[AIMessage(content="Done!")])
+    assert should_continue(state_done) == "end"
+
+    # 2. Has tool calls -> 'tools'
+    state_tool = _state(
+        messages=[AIMessage(content="", tool_calls=[{"name": "search_fide_rules", "args": {}, "id": "1"}])]
+    )
+    assert should_continue(state_tool) == "tools"
+
+    # 3. Empty messages -> 'end'
+    assert should_continue(_state(messages=[])) == "end"
+
+
+@pytest.mark.anyio
+async def test_full_graph_multi_domain_parallel_tool_calling():
+    from langgraph.checkpoint.memory import MemorySaver
+    from app.rag.builder import compile_graph
+
+    tool_call_msg = AIMessage(
+        content="",
+        tool_calls=[
+            {"name": "search_fide_rules", "args": {"query": "castling rules"}, "id": "call_1"},
+            {"name": "search_chess_openings", "args": {"query": "sicilian defense"}, "id": "call_2"},
+        ],
+    )
+    final_answer_msg = AIMessage(content="Trong khai cuộc Sicilian, quy tắc nhập thành là...")
+
+    mock_llm = MagicMock()
+    mock_bound_llm = MagicMock()
+    mock_llm.bind_tools.return_value = mock_bound_llm
+    # First invocation returns parallel tool calls, second invocation returns synthesized answer
+    mock_bound_llm.invoke.side_effect = [tool_call_msg, final_answer_msg]
+
+    mock_fide_doc = Document(page_content="Castling rule 3.8.1", metadata={"article": "3.8.1"})
+    mock_opening_doc = Document(page_content="Sicilian Defense 1.e4 c5", metadata={"eco_code": "B20"})
+
+    def mock_retrieve_fn(query, top_k=3, domain=None):
+        if domain == "chess_law":
+            return [mock_fide_doc]
+        if domain == "chess_opening":
+            return [mock_opening_doc]
+        return []
+
+    graph = compile_graph(checkpointer=MemorySaver())
+
+    with (
+        patch("app.rag.nodes.get_llm", return_value=mock_llm),
+        patch("app.rag.tools.retrieve", side_effect=mock_retrieve_fn),
+    ):
+        result = await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="Nhập thành trong Sicilian thế nào?")],
+                "original_question": "Nhập thành trong Sicilian thế nào?",
+            },
+            {"configurable": {"thread_id": "test-multi-domain-thread"}},
+        )
+
+    assert result["answer"] == "Trong khai cuộc Sicilian, quy tắc nhập thành là..."
+    assert result["question_type"] == "rag"
+    assert len(result["messages"]) > 0
+
+
+
+@pytest.mark.anyio
+async def test_full_graph_multi_turn_conversation_retains_context():
+    from langgraph.checkpoint.memory import MemorySaver
+    from app.rag.builder import compile_graph
+
+    # Mock responses for 2 turns
+    turn1_response = AIMessage(content="Xin chào! Tôi là VieChess Master AI.")
+    turn2_response = AIMessage(content="Bạn có thể hỏi tôi về luật cờ và khai cuộc.")
+
+    mock_llm = MagicMock()
+    mock_bound_llm = MagicMock()
+    mock_llm.bind_tools.return_value = mock_bound_llm
+    mock_bound_llm.invoke.side_effect = [turn1_response, turn2_response]
+
+    graph = compile_graph(checkpointer=MemorySaver())
+    thread_config = {"configurable": {"thread_id": "multi-turn-thread-123"}}
+
+    with patch("app.rag.nodes.get_llm", return_value=mock_llm):
+        # Turn 1
+        r1 = await graph.ainvoke(
+            {"messages": [HumanMessage(content="xin chào")], "original_question": "xin chào"},
+            thread_config,
+        )
+        assert r1["answer"] == "Xin chào! Tôi là VieChess Master AI."
+
+        # Turn 2
+        r2 = await graph.ainvoke(
+            {"messages": [HumanMessage(content="tôi có thể làm gì với bạn?")], "original_question": "tôi có thể làm gì với bạn?"},
+            thread_config,
+        )
+        assert r2["answer"] == "Bạn có thể hỏi tôi về luật cờ và khai cuộc."
+
+        # Verify second LLM call received the second question and history
+        second_call_prompt = mock_bound_llm.invoke.call_args_list[1][0][0]
+        question_contents = [m.content for m in second_call_prompt if isinstance(m, HumanMessage)]
+        assert "xin chào" in question_contents
+        assert "tôi có thể làm gì với bạn?" in question_contents
+
+
+
 

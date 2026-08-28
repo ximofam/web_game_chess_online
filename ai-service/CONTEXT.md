@@ -52,5 +52,10 @@ _Avoid_: Reorderer, Sorter, SecondStageRetriever
 The centralized factory providing decoupled, multi-provider (`groq`, `openai`, `ollama`) instantiation with lazy loading and role-specific granularity for chat, routing, and vision.
 _Avoid_: ModelCreator, LLMHelper, PromptClient
 
+**DomainTools**:
+The set of specialized LangChain tools (`search_fide_rules`, `search_chess_openings`, `search_platform_support`) providing authoritative knowledge retrieval with embedded cross-encoder reranking and parallel execution support.
+_Avoid_: SearchFunctions, RetrieverCallers, QueryPlugins
+
+
 
 
