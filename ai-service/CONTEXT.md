@@ -48,5 +48,9 @@ _Avoid_: PageScraper, OpeningScraper
 The two-stage retrieval ranker that scores candidate documents against user queries via cross-attention to output high-precision semantic re-ordering.
 _Avoid_: Reorderer, Sorter, SecondStageRetriever
 
+**LLMFactory**:
+The centralized factory providing decoupled, multi-provider (`groq`, `openai`, `ollama`) instantiation with lazy loading and role-specific granularity for chat, routing, and vision.
+_Avoid_: ModelCreator, LLMHelper, PromptClient
+
 
 

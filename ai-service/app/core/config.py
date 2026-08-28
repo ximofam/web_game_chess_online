@@ -12,17 +12,24 @@ class Settings(BaseSettings):
     database_url: str | None = None
     cors_origins: list[str] = ["http://localhost:5173"]
 
-    llm_provider: Literal["groq", "openai"] = "groq"
+    llm_provider: Literal["groq", "openai", "ollama"] = "groq"
+    router_provider: Literal["groq", "openai", "ollama"] | None = None
+    vision_provider: Literal["groq", "openai", "ollama"] | None = None
+
     groq_api_key: str | None = None
     groq_model: str = "llama-3.3-70b-versatile"
     groq_router_model: str = "llama-3.1-8b-instant"
     groq_vision_model: str = "llama-3.2-11b-vision-preview"
+
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     openai_router_model: str = "gpt-4o-mini"
     openai_vision_model: str = "gpt-4o-mini"
 
-    vision_provider: Literal["groq", "openai"] | None = None
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.2:latest"
+    ollama_router_model: str = "qwen2.5:1.5b"
+    ollama_vision_model: str = "llama3.2-vision:latest"
 
     embedding_provider: Literal["huggingface", "huggingface_local", "local", "openai"] = "huggingface"
     huggingface_api_key: str | None = None
