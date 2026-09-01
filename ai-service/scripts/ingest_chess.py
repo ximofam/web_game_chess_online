@@ -1,31 +1,53 @@
 """Ingest the FIDE Laws of Chess PDF into the vector store.
 
-This script uses the structure-aware ``fide_splitter`` instead of the
-generic ``RecursiveCharacterTextSplitter``.  It:
-
-1. Extracts text from the PDF (page-by-page for page metadata).
-2. Builds the FIDE document hierarchy (Articles → subsections).
-3. Produces retrieval-ready chunks with breadcrumbs + rich metadata.
-4. Inserts the chunks into the PGVector store.
-
-Usage::
-
-    python -m scripts.ingest_chess              # default PDF path
-    python -m scripts.ingest_chess --clear      # wipe old vectors first
-    python -m scripts.ingest_chess --path ./docs/chess/fide/20230101Laws-of-Chess.pdf
+Delegates to unified domain ingestion with CSV embedding caching.
 """
 
 import argparse
+import logging
+import os
+from pathlib import Path
 
-from app.services.rag_service import ingest_fide_pdf
+from app.services.rag_service import ingest_domain
+from app.core.config import get_settings
+from app.ai.embeddings import get_embeddings
+from app.rag.retriever import get_vector_store
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+logger = logging.getLogger("ingest_chess")
 
 _DEFAULT_PDF = "./docs/chess/fide/20230101Laws-of-Chess.pdf"
 
 
-def ingest_chess(pdf_path: str, clear: bool = False, refresh_vision: bool = False) -> None:
-    print(f"Ingesting FIDE Laws of Chess from {pdf_path} (clear={clear}, refresh_vision={refresh_vision})...")
-    count = ingest_fide_pdf(pdf_path, clear=clear, refresh_vision=refresh_vision)
-    print(f"Chess rules ingestion complete: {count} chunks indexed.")
+def ingest_chess(
+    pdf_path: str,
+    clear: bool = False,
+    refresh_vision: bool = False,
+    refresh_cache: bool = False,
+    embedding_model: str | None = None,
+    cache_dir: str | Path = "data/cache",
+    no_cache: bool = False,
+) -> None:
+    if embedding_model:
+        os.environ["EMBEDDING_MODEL"] = embedding_model
+        get_settings.cache_clear()
+        get_embeddings.cache_clear()
+        get_vector_store.cache_clear()
+
+    logger.info("Ingesting FIDE Laws of Chess from %s (clear=%s, refresh_vision=%s, refresh_cache=%s, cache_dir=%s, no_cache=%s)...", pdf_path, clear, refresh_vision, refresh_cache, cache_dir, no_cache)
+    count = ingest_domain(
+        domain="chess_law",
+        path=pdf_path,
+        refresh_cache=refresh_cache,
+        clear_domain=not clear,
+        refresh_vision=refresh_vision,
+        cache_dir=cache_dir,
+        no_cache=no_cache,
+    )
+    logger.info("Chess rules ingestion complete: %d chunks indexed.", count)
 
 
 if __name__ == "__main__":
@@ -39,17 +61,47 @@ if __name__ == "__main__":
         help="Path to the FIDE Laws of Chess PDF",
     )
     parser.add_argument(
+        "--embedding-model",
+        "--embed-model",
+        type=str,
+        default=None,
+        dest="embedding_model",
+        help="Embedding model override (defaults to EMBEDDING_MODEL from .env)",
+    )
+    parser.add_argument(
         "--clear",
         action="store_true",
-        help="Clear existing vectors before ingesting",
+        help="Clear all vectors before ingesting",
     )
     parser.add_argument(
         "--refresh-vision",
         action="store_true",
         help="Re-run Vision LLM on PDF diagram images and refresh the JSON cache",
     )
+    parser.add_argument(
+        "--refresh-cache",
+        action="store_true",
+        help="Re-compute embeddings and overwrite the CSV cache",
+    )
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Disable reading from or writing to the CSV embedding cache",
+    )
+    parser.add_argument(
+        "--cache-dir",
+        type=str,
+        default="data/cache",
+        help="Directory to read and store CSV embedding cache files",
+    )
     args = parser.parse_args()
 
-    ingest_chess(args.path, clear=args.clear, refresh_vision=args.refresh_vision)
-
-
+    ingest_chess(
+        args.path,
+        clear=args.clear,
+        refresh_vision=args.refresh_vision,
+        refresh_cache=args.refresh_cache,
+        embedding_model=args.embedding_model,
+        cache_dir=args.cache_dir,
+        no_cache=args.no_cache,
+    )
