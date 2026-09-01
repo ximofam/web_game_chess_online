@@ -12,7 +12,7 @@ from pathlib import Path
 from app.services.rag_service import clear_vector_store, ingest_domain
 from app.core.config import get_settings
 from app.ai.embeddings import get_embeddings
-from app.rag.retriever import get_vector_store
+from app.ai.vectorstore import get_vector_store, get_engine
 
 logging.basicConfig(
     level=logging.INFO,
@@ -100,7 +100,9 @@ def main() -> None:
         os.environ["EMBEDDING_MODEL"] = args.embedding_model
         get_settings.cache_clear()
         get_embeddings.cache_clear()
+        get_engine.cache_clear()
         get_vector_store.cache_clear()
+
 
     if args.clear_all:
         logger.info("Truncating entire PGVector store (--clear-all)...")

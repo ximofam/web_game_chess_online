@@ -1,27 +1,10 @@
-from functools import lru_cache
-
 from langchain_core.documents import Document
 
-from app.ai.embeddings import get_embeddings
-from app.rag.reranker import get_reranker
+from app.ai.vectorstore import get_engine, get_vector_store
 from app.core.config import get_settings
+from app.rag.reranker import get_reranker
 
 
-@lru_cache
-def get_vector_store():
-    settings = get_settings()
-    if not settings.database_url:
-        raise ValueError("DATABASE_URL is required for PGVector")
-    from langchain_postgres import PGVector
-
-    return PGVector(
-        embeddings=get_embeddings(),
-        collection_name=settings.vector_collection,
-        connection=settings.database_url,
-        engine_args={"connect_args": {"options": "-csearch_path=ai_service,public"}},
-        use_jsonb=True,
-        create_extension=False,
-    )
 
 
 def retrieve(query: str, top_k: int = 4, domain: str | None = None) -> list[Document]:

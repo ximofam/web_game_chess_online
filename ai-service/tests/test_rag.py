@@ -63,7 +63,7 @@ def test_clear_domain_vectors():
 
 
 def test_get_vector_store_pgvector_factory():
-    from app.rag.retriever import get_vector_store
+    from app.ai.vectorstore import get_vector_store, get_engine
 
     settings = Settings(_env_file=None, database_url="postgresql+psycopg://user:pass@localhost:5432/db")
     mock_pgvector_class = Mock()
@@ -71,15 +71,57 @@ def test_get_vector_store_pgvector_factory():
     mock_pgvector_class.return_value = mock_instance
 
     with (
-        patch("app.rag.retriever.get_settings", return_value=settings),
-        patch("app.rag.retriever.get_embeddings", return_value=Mock()),
+        patch("app.ai.vectorstore.get_settings", return_value=settings),
+        patch("app.ai.vectorstore.get_embeddings", return_value=Mock()),
         patch("langchain_postgres.PGVector", mock_pgvector_class),
     ):
+        get_engine.cache_clear()
         get_vector_store.cache_clear()
         store = get_vector_store()
         assert store == mock_instance
         mock_pgvector_class.assert_called_once()
+        assert mock_pgvector_class.call_args.kwargs["use_jsonb"] is True
+        assert mock_pgvector_class.call_args.kwargs["create_extension"] is False
+        get_engine.cache_clear()
         get_vector_store.cache_clear()
+
+
+def test_get_engine_pgvector_listeners():
+    from app.ai.vectorstore import get_engine
+
+    settings = Settings(_env_file=None, database_url="postgresql+psycopg://user:pass@localhost:5432/db")
+    with patch("app.ai.vectorstore.get_settings", return_value=settings):
+        get_engine.cache_clear()
+        engine = get_engine()
+        assert len(engine.pool.dispatch.connect) > 0
+        assert len(engine.pool.dispatch.checkout) > 0
+
+        mock_dbapi_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_dbapi_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+        connect_called = False
+        for fn in engine.pool.dispatch.connect:
+            if fn.__name__ == "set_search_path_on_connect":
+                fn(mock_dbapi_conn, None)
+                mock_cursor.execute.assert_called_with("SET search_path TO ai_service, public;")
+                connect_called = True
+        assert connect_called
+
+        mock_cursor.reset_mock()
+        checkout_called = False
+        for fn in engine.pool.dispatch.checkout:
+            if fn.__name__ == "set_search_path_on_checkout":
+                fn(mock_dbapi_conn, None, None)
+                mock_cursor.execute.assert_called_with("SET search_path TO ai_service, public;")
+                checkout_called = True
+        assert checkout_called
+
+        get_engine.cache_clear()
+
+
+
+
 
 
 def test_accepts_huggingface_local_embedding_configuration():

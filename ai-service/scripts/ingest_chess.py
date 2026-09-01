@@ -11,7 +11,7 @@ from pathlib import Path
 from app.services.rag_service import ingest_domain
 from app.core.config import get_settings
 from app.ai.embeddings import get_embeddings
-from app.rag.retriever import get_vector_store
+from app.ai.vectorstore import get_vector_store, get_engine
 
 logging.basicConfig(
     level=logging.INFO,
@@ -35,7 +35,9 @@ def ingest_chess(
         os.environ["EMBEDDING_MODEL"] = embedding_model
         get_settings.cache_clear()
         get_embeddings.cache_clear()
+        get_engine.cache_clear()
         get_vector_store.cache_clear()
+
 
     logger.info("Ingesting FIDE Laws of Chess from %s (clear=%s, refresh_vision=%s, refresh_cache=%s, cache_dir=%s, no_cache=%s)...", pdf_path, clear, refresh_vision, refresh_cache, cache_dir, no_cache)
     count = ingest_domain(

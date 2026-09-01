@@ -7,7 +7,7 @@ from scripts.ingest_chess import ingest_chess
 from scripts.ingest_openings import ingest_openings
 from app.core.config import get_settings
 from app.ai.embeddings import get_embeddings
-from app.rag.retriever import get_vector_store
+from app.ai.vectorstore import get_vector_store, get_engine
 
 
 @pytest.fixture(autouse=True)
@@ -18,7 +18,9 @@ def clean_env():
     os.environ.update(old_env)
     get_settings.cache_clear()
     get_embeddings.cache_clear()
+    get_engine.cache_clear()
     get_vector_store.cache_clear()
+
 
 
 def test_cli_ingest_domain_system_with_model_override():

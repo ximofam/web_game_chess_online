@@ -19,7 +19,7 @@ from app.rag.ingestion.fide_splitter import (
     parse_fide_pdf_by_page,
     split_fide_document,
 )
-from app.rag.retriever import get_vector_store
+from app.ai.vectorstore import get_vector_store
 
 logger = logging.getLogger(__name__)
 
