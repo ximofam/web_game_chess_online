@@ -12,6 +12,7 @@ spring:
     show-sql: false
     properties:
       hibernate:
+        default_schema: public
         generate_statistics: true
   flyway:
     enabled: true
