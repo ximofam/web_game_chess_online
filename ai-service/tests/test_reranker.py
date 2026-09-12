@@ -3,7 +3,13 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 from langchain_core.documents import Document
 
-from app.rag.reranker import BaseReranker, HuggingFaceReranker, PassthroughReranker, get_reranker
+from app.rag.reranker import (
+    BaseReranker,
+    HuggingFaceReranker,
+    JinaReranker,
+    PassthroughReranker,
+    get_reranker,
+)
 from app.rag.retriever import retrieve
 
 
@@ -283,3 +289,159 @@ def test_retrieve_uses_passthrough_when_reranker_is_disabled():
 
     assert len(result) == 1
     assert result[0].page_content == "good doc"
+
+
+# ── Test Jina Reranker ────────────────────────────────────────────────────────
+
+def test_jina_reranker_initialization():
+    reranker = JinaReranker(
+        model="jina-reranker-v3.5",
+        api_key="jina_test_key",
+        timeout_seconds=5.0,
+    )
+    assert reranker.model == "jina-reranker-v3.5"
+    assert reranker.api_key == "jina_test_key"
+    assert reranker.endpoint == "https://api.jina.ai/v1/rerank"
+    headers = reranker._prepare_headers()
+    assert headers["Authorization"] == "Bearer jina_test_key"
+    assert headers["Accept"] == "application/json"
+    assert headers["Content-Type"] == "application/json"
+
+
+def test_jina_reranker_handles_empty_and_single_doc():
+    reranker = JinaReranker(api_key="test")
+    assert reranker.rerank("query", []) == []
+
+    doc = Document(page_content="single doc", metadata={"id": 1})
+    result = reranker.rerank("query", [doc], top_n=4)
+    assert len(result) == 1
+    assert result[0].page_content == "single doc"
+
+
+def test_jina_reranker_parses_results_and_sorts():
+    reranker = JinaReranker(api_key="test")
+    docs = [
+        Document(page_content="doc 0 (low)", metadata={"id": 0}),
+        Document(page_content="doc 1 (high)", metadata={"id": 1}),
+        Document(page_content="doc 2 (medium)", metadata={"id": 2}),
+    ]
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "model": "jina-reranker-v3.5",
+        "results": [
+            {"index": 0, "relevance_score": 0.20},
+            {"index": 1, "relevance_score": 0.95},
+            {"index": 2, "relevance_score": 0.65},
+        ],
+    }
+
+    with patch("httpx.Client.post", return_value=mock_resp):
+        reranked = reranker.rerank("test query", docs, top_n=2)
+
+    assert len(reranked) == 2
+    assert reranked[0].page_content == "doc 1 (high)"
+    assert reranked[0].metadata["rerank_score"] == 0.95
+    assert reranked[1].page_content == "doc 2 (medium)"
+    assert reranked[1].metadata["rerank_score"] == 0.65
+
+
+def test_jina_reranker_filters_by_score_threshold():
+    reranker = JinaReranker(api_key="test")
+    docs = [
+        Document(page_content="doc 0", metadata={"id": 0}),
+        Document(page_content="doc 1", metadata={"id": 1}),
+    ]
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "model": "jina-reranker-v3.5",
+        "results": [
+            {"index": 1, "relevance_score": 0.92},
+            {"index": 0, "relevance_score": 0.03},
+        ],
+    }
+
+    with patch("httpx.Client.post", return_value=mock_resp):
+        reranked = reranker.rerank("query", docs, top_n=2, score_threshold=0.5)
+
+    assert len(reranked) == 1
+    assert reranked[0].page_content == "doc 1"
+    assert reranked[0].metadata["rerank_score"] == 0.92
+
+
+@pytest.mark.anyio
+async def test_jina_reranker_async_arerank():
+    reranker = JinaReranker(api_key="test")
+    docs = [
+        Document(page_content="doc low", metadata={"id": 0}),
+        Document(page_content="doc high", metadata={"id": 1}),
+    ]
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "model": "jina-reranker-v3.5",
+        "results": [
+            {"index": 0, "relevance_score": 0.15},
+            {"index": 1, "relevance_score": 0.88},
+        ],
+    }
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_resp):
+        reranked = await reranker.arerank("query", docs, top_n=2)
+
+    assert len(reranked) == 2
+    assert reranked[0].page_content == "doc high"
+    assert reranked[0].metadata["rerank_score"] == 0.88
+
+
+def test_jina_reranker_fallback_on_http_error():
+    reranker = JinaReranker(api_key="test")
+    docs = [
+        Document(page_content="doc 1"),
+        Document(page_content="doc 2"),
+    ]
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 500
+    mock_resp.text = "Internal Server Error"
+
+    with patch("httpx.Client.post", return_value=mock_resp):
+        result = reranker.rerank("query", docs, top_n=1)
+
+    assert len(result) == 1
+    assert result[0].page_content == "doc 1"
+
+
+def test_jina_reranker_fallback_on_exception():
+    reranker = JinaReranker(api_key="test")
+    docs = [
+        Document(page_content="doc 1"),
+        Document(page_content="doc 2"),
+    ]
+
+    with patch("httpx.Client.post", side_effect=Exception("Timeout")):
+        result = reranker.rerank("query", docs, top_n=2)
+
+    assert len(result) == 2
+    assert result[0].page_content == "doc 1"
+
+
+def test_get_reranker_returns_jina_when_provider_is_jina():
+    settings = MagicMock(
+        reranker_provider="jina",
+        reranker_model="jina-reranker-v3.5",
+        jina_api_key="jina_secret_key",
+        reranker_timeout_seconds=8.0,
+    )
+    with patch("app.rag.reranker.get_settings", return_value=settings):
+        get_reranker.cache_clear()
+        reranker = get_reranker()
+        assert isinstance(reranker, JinaReranker)
+        assert reranker.model == "jina-reranker-v3.5"
+        assert reranker.api_key == "jina_secret_key"
+        assert reranker.timeout_seconds == 8.0
+        get_reranker.cache_clear()

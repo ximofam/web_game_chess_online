@@ -1,4 +1,5 @@
 import logging
+import os
 from abc import ABC, abstractmethod
 from functools import lru_cache
 from typing import Any
@@ -274,6 +275,177 @@ class PassthroughReranker(BaseReranker):
         return documents[:top_n]
 
 
+# Get your Jina AI API key for free: https://jina.ai/?sui=apikey
+class JinaReranker(BaseReranker):
+    """Reranks candidate documents using Jina AI Reranker API (e.g. jina-reranker-v3.5)."""
+
+    def __init__(
+            self,
+            model: str = "jina-reranker-v3.5",
+            api_key: str | None = None,
+            timeout_seconds: float = 10.0,
+            max_retries: int = 2,
+    ):
+        self.model = model
+        self.api_key = api_key or os.environ.get("JINA_API_KEY")
+        self.timeout_seconds = timeout_seconds
+        self.max_retries = max_retries
+        self.endpoint = "https://api.jina.ai/v1/rerank"
+
+    def _prepare_payload(
+            self,
+            query: str,
+            documents: list[Document],
+            top_n: int,
+            score_threshold: float | None = None,
+    ) -> dict[str, Any]:
+        return {
+            "model": self.model,
+            "query": query,
+            "documents": [doc.page_content for doc in documents],
+            "top_n": top_n if score_threshold is None else len(documents),
+            "return_documents": False,
+        }
+
+    def _prepare_headers(self) -> dict[str, str]:
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
+
+    def _parse_and_sort(
+            self,
+            raw_response: Any,
+            documents: list[Document],
+            top_n: int,
+            score_threshold: float | None = None,
+    ) -> list[Document]:
+        if not isinstance(raw_response, dict) or "results" not in raw_response:
+            logger.warning("Unrecognized Jina reranker response format: %s", raw_response)
+            return documents[:top_n]
+
+        results = raw_response.get("results", [])
+        if not isinstance(results, list):
+            logger.warning("Jina reranker 'results' is not a list: %s", results)
+            return documents[:top_n]
+
+        sorted_results = sorted(
+            results,
+            key=lambda x: float(x.get("relevance_score", x.get("score", 0.0))) if isinstance(x, dict) else 0.0,
+            reverse=True,
+        )
+
+        reranked: list[Document] = []
+        for i, item in enumerate(sorted_results):
+            if not isinstance(item, dict):
+                continue
+            idx = int(item.get("index", i))
+            score = float(item.get("relevance_score", item.get("score", 0.0)))
+
+            if score_threshold is not None and score < score_threshold:
+                continue
+
+            if idx < len(documents):
+                doc = documents[idx]
+                new_metadata = dict(doc.metadata)
+                new_metadata["rerank_score"] = round(score, 4)
+                reranked.append(Document(page_content=doc.page_content, metadata=new_metadata))
+
+            if len(reranked) >= top_n:
+                break
+
+        return reranked
+
+    def rerank(
+            self,
+            query: str,
+            documents: list[Document],
+            top_n: int = 4,
+            score_threshold: float | None = None,
+    ) -> list[Document]:
+        if not documents:
+            return []
+        if len(documents) <= 1:
+            return documents[:top_n]
+
+        payload = self._prepare_payload(query, documents, top_n, score_threshold)
+        headers = self._prepare_headers()
+
+        for attempt in range(self.max_retries):
+            try:
+                with httpx.Client(timeout=self.timeout_seconds) as client:
+                    resp = client.post(self.endpoint, json=payload, headers=headers)
+                    if resp.status_code != 200:
+                        logger.warning(
+                            "Jina reranker returned HTTP %d: %s. Falling back to vector order.",
+                            resp.status_code,
+                            resp.text[:200],
+                        )
+                        return documents[:top_n]
+                    return self._parse_and_sort(resp.json(), documents, top_n, score_threshold)
+            except (httpx.NetworkError, httpx.TimeoutException) as e:
+                if attempt < self.max_retries - 1:
+                    logger.warning("Jina reranker attempt %d failed (%s). Retrying...", attempt + 1, e)
+                    continue
+                logger.warning(
+                    "Jina reranker failed after %d attempts (%s). Falling back to vector order.",
+                    self.max_retries,
+                    e,
+                )
+                return documents[:top_n]
+            except Exception as e:
+                logger.warning("Jina reranker failed (%s). Falling back to vector order.", e, exc_info=True)
+                return documents[:top_n]
+
+        return documents[:top_n]
+
+    async def arerank(
+            self,
+            query: str,
+            documents: list[Document],
+            top_n: int = 4,
+            score_threshold: float | None = None,
+    ) -> list[Document]:
+        if not documents:
+            return []
+        if len(documents) <= 1:
+            return documents[:top_n]
+
+        payload = self._prepare_payload(query, documents, top_n, score_threshold)
+        headers = self._prepare_headers()
+
+        for attempt in range(self.max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                    resp = await client.post(self.endpoint, json=payload, headers=headers)
+                    if resp.status_code != 200:
+                        logger.warning(
+                            "Jina reranker returned HTTP %d: %s. Falling back to vector order.",
+                            resp.status_code,
+                            resp.text[:200],
+                        )
+                        return documents[:top_n]
+                    return self._parse_and_sort(resp.json(), documents, top_n, score_threshold)
+            except (httpx.NetworkError, httpx.TimeoutException) as e:
+                if attempt < self.max_retries - 1:
+                    logger.warning("Jina reranker async attempt %d failed (%s). Retrying...", attempt + 1, e)
+                    continue
+                logger.warning(
+                    "Jina reranker async failed after %d attempts (%s). Falling back to vector order.",
+                    self.max_retries,
+                    e,
+                )
+                return documents[:top_n]
+            except Exception as e:
+                logger.warning("Jina reranker failed (%s). Falling back to vector order.", e, exc_info=True)
+                return documents[:top_n]
+
+        return documents[:top_n]
+
+
 @lru_cache
 def get_reranker() -> BaseReranker:
     """Factory function to obtain the configured reranker instance (guaranteed non-None)."""
@@ -287,6 +459,17 @@ def get_reranker() -> BaseReranker:
         return HuggingFaceReranker(
             model=settings.reranker_model,
             api_key=settings.huggingface_api_key,
+            timeout_seconds=settings.reranker_timeout_seconds,
+        )
+    if settings.reranker_provider == "jina":
+        model = (
+            settings.reranker_model
+            if settings.reranker_model.startswith("jina-")
+            else "jina-reranker-v3.5"
+        )
+        return JinaReranker(
+            model=model,
+            api_key=settings.jina_api_key,
             timeout_seconds=settings.reranker_timeout_seconds,
         )
     return PassthroughReranker()

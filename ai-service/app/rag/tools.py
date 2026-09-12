@@ -30,13 +30,8 @@ def _format_docs(docs: list[Document]) -> str:
 
 @tool
 def search_fide_rules(query: str) -> str:
-    """Search the official Laws of Chess by the International Chess Federation (FIDE).
-    Use this tool when the user asks about:
-    - Piece movements and capture rules (King, Queen, Rook, Bishop, Knight, Pawn).
-    - Special moves: Castling (kingside/queenside), En passant captures, Pawn promotion.
-    - Game outcomes & statuses: Check, Checkmate, Stalemate, 50-move rule, Threefold repetition, Insufficient material to checkmate.
-    - Tournament regulations and arbiter decisions: Touch-move rule, chess clock handling, scorekeeping/notation, illegal move penalties.
-    - Example board positions and diagrammatic explanations.
+    """Search official FIDE Laws of Chess for formal rule citations, arbiter decisions,
+    special moves (castling, en passant, promotion), tiebreaks, and tournament regulations.
     """
     docs = retrieve(query=query, top_k=3, domain="chess_law")
     if not docs:
@@ -46,13 +41,8 @@ def search_fide_rules(query: str) -> str:
 
 @tool
 def search_chess_openings(query: str) -> str:
-    """Search Chess Opening Theory and the Encyclopedia of Chess Openings (ECO).
-    Use this tool when the user asks about:
-    - Specific openings: Sicilian Defense, Ruy Lopez, French Defense, Caro-Kann, Queen's Gambit, King's Indian Defense, Italian Game, etc.
-    - ECO classification codes (e.g. B20, C50, E60) and opening variations.
-    - Standard algebraic move sequences (e.g. 1.e4 c5, 1.d4 Nf6).
-    - Strategic plans, typical pawn structures, piece placement, and middle-game transitions derived from openings.
-    - Counter-moves, sidelines, and opening traps.
+    """Search Chess Opening Theory for ECO classification codes, named openings,
+    standard move sequences, variations, traps, and opening pawn structures.
     """
     docs = retrieve(query=query, top_k=3, domain="chess_opening")
     if not docs:
@@ -62,12 +52,8 @@ def search_chess_openings(query: str) -> str:
 
 @tool
 def search_platform_support(query: str) -> str:
-    """Search user documentation and technical support guides for the VieChess online chess platform.
-    Use this tool when the user asks about:
-    - Web platform features: Creating custom rooms, matchmaking/queueing, inviting friends, spectator mode.
-    - Account management: Registration, login, password resets, profile settings, avatar customization.
-    - Technical troubleshooting: WebSocket disconnects, automatic reconnection countdown, UI glitches, board move input issues.
-    - Community rules, forum guidelines, leaderboards, and platform ratings.
+    """Search official VieChess platform guides for room creation, matchmaking,
+    account settings, community rules, and technical troubleshooting (e.g. disconnects).
     """
     docs = retrieve(query=query, top_k=3, domain="system")
     if not docs:

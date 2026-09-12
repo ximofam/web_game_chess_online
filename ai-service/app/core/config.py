@@ -36,13 +36,17 @@ class Settings(BaseSettings):
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     embedding_device: str = "cpu"
 
-    reranker_provider: Literal["huggingface", "huggingface_local", "local", "none"] = "huggingface_local"
+    reranker_provider: Literal["huggingface", "huggingface_local", "local", "jina", "none"] = "huggingface_local"
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     reranker_device: str = "cpu"
     reranker_candidates_k: int = 8
     reranker_score_threshold: float = 0.05
     reranker_timeout_seconds: float = 10.0
     jwt_secret: str | None = None
+
+    # Jina AI Configuration
+    # Get your Jina AI API key for free: https://jina.ai/?sui=apikey
+    jina_api_key: str | None = None
 
     # LangSmith Observability
 
